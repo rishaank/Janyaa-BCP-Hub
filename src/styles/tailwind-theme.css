@@ -1,0 +1,135 @@
+/* =============================================================
+   JANYAA BCP HUB — TAILWIND v4 THEME
+   Drop-in for the React + Vite + Tailwind v4 build.
+   Usage in your main stylesheet (e.g. src/index.css):
+
+       @import "tailwindcss";
+       @import "./tailwind-theme.css";
+
+   This registers tokens with Tailwind so you get utilities like
+   bg-primary, text-ink, border-line, rounded-card, shadow-card,
+   font-display, bg-blue-500, text-gold-700, etc.
+   Values mirror colors_and_type.css (the framework-agnostic source).
+   ============================================================= */
+
+@theme {
+  /* ---- Brand palettes ---- */
+  /* Janyaa Green (primary) */
+  --color-green-50:  oklch(0.965 0.028 148);
+  --color-green-100: oklch(0.935 0.052 147);
+  --color-green-200: oklch(0.875 0.090 146);
+  --color-green-300: oklch(0.790 0.130 144);
+  --color-green-400: oklch(0.680 0.152 146);
+  --color-green-500: oklch(0.575 0.155 148);
+  --color-green-600: oklch(0.505 0.142 149);
+  --color-green-700: oklch(0.420 0.118 150);
+  --color-green-800: oklch(0.335 0.090 151);
+  --color-green-900: oklch(0.270 0.066 152);
+
+  /* Bellarmine Blue (secondary / info) */
+  --color-blue-50:  oklch(0.962 0.020 252);
+  --color-blue-100: oklch(0.922 0.040 252);
+  --color-blue-200: oklch(0.852 0.068 252);
+  --color-blue-300: oklch(0.740 0.098 252);
+  --color-blue-400: oklch(0.600 0.114 252);
+  --color-blue-500: oklch(0.460 0.115 252);
+  --color-blue-600: oklch(0.400 0.108 253);
+  --color-blue-700: oklch(0.340 0.088 254);
+  --color-blue-800: oklch(0.282 0.066 255);
+  --color-blue-900: oklch(0.235 0.048 256);
+
+  /* Sun Gold (accent) */
+  --color-gold-50:  oklch(0.975 0.026 86);
+  --color-gold-100: oklch(0.945 0.055 85);
+  --color-gold-200: oklch(0.905 0.090 86);
+  --color-gold-300: oklch(0.870 0.118 83);
+  --color-gold-400: oklch(0.820 0.140 74);
+  --color-gold-500: oklch(0.780 0.150 68);
+  --color-gold-600: oklch(0.695 0.150 62);
+  --color-gold-700: oklch(0.575 0.128 55);
+  --color-gold-800: oklch(0.470 0.100 50);
+  --color-gold-900: oklch(0.380 0.078 48);
+
+  /* Leaf Lime (decorative) */
+  --color-lime-100: oklch(0.955 0.045 128);
+  --color-lime-200: oklch(0.905 0.085 128);
+  --color-lime-300: oklch(0.850 0.125 129);
+  --color-lime-400: oklch(0.795 0.150 130);
+  --color-lime-500: oklch(0.720 0.155 132);
+  --color-lime-600: oklch(0.620 0.140 138);
+
+  /* Coral (danger) */
+  --color-coral-50:  oklch(0.965 0.014 25);
+  --color-coral-100: oklch(0.925 0.035 25);
+  --color-coral-200: oklch(0.860 0.070 26);
+  --color-coral-500: oklch(0.620 0.182 27);
+  --color-coral-600: oklch(0.555 0.190 27);
+  --color-coral-700: oklch(0.470 0.165 27);
+
+  /* Warm neutrals */
+  --color-paper:   oklch(0.985 0.007 85);
+  --color-surface: oklch(0.998 0.0025 85);
+  --color-ink-50:  oklch(0.975 0.006 85);
+  --color-ink-100: oklch(0.950 0.007 84);
+  --color-ink-150: oklch(0.930 0.008 82);
+  --color-ink-200: oklch(0.900 0.008 80);
+  --color-ink-300: oklch(0.850 0.009 78);
+  --color-ink-400: oklch(0.740 0.010 72);
+  --color-ink-500: oklch(0.620 0.012 66);
+  --color-ink-600: oklch(0.520 0.013 60);
+  --color-ink-700: oklch(0.420 0.013 55);
+  --color-ink-800: oklch(0.320 0.012 50);
+  --color-ink-900: oklch(0.250 0.011 50);
+  --color-ink-950: oklch(0.190 0.010 48);
+
+  /* ---- Semantic aliases (prefer these in product code) ---- */
+  --color-primary:        var(--color-green-600);
+  --color-primary-hover:  var(--color-green-700);
+  --color-secondary:      var(--color-blue-500);
+  --color-accent:         var(--color-gold-500);
+  --color-bg:             var(--color-paper);
+  --color-card:           var(--color-surface);
+  --color-ink:            var(--color-ink-900);
+  --color-muted:          var(--color-ink-500);
+  --color-line:           var(--color-ink-200);
+  --color-success:        var(--color-green-600);
+  --color-info:           var(--color-blue-500);
+  --color-warning:        var(--color-gold-500);
+  --color-danger:         var(--color-coral-600);
+
+  /* ---- Type ---- */
+  --font-display: 'Bricolage Grotesque', 'Hanken Grotesk', system-ui, sans-serif;
+  --font-sans:    'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono:    'Space Mono', ui-monospace, Menlo, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-xs:  0.75rem;
+  --text-sm:  0.875rem;
+  --text-base:1rem;
+  --text-lg:  1.0625rem;
+  --text-h4:  1.125rem;
+  --text-h3:  1.375rem;
+  --text-h2:  1.75rem;
+  --text-h1:  2.25rem;
+  --text-display: 3.5rem;
+
+  /* ---- Radii ---- */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-card: 18px;
+  --radius-xl:   18px;
+  --radius-2xl:  26px;
+
+  /* ---- Shadows ---- */
+  --shadow-xs: 0 1px 2px rgba(38, 32, 20, 0.05);
+  --shadow-sm: 0 1px 3px rgba(38, 32, 20, 0.08), 0 1px 2px rgba(38, 32, 20, 0.04);
+  --shadow-card: 0 4px 12px rgba(38, 32, 20, 0.08), 0 2px 4px rgba(38, 32, 20, 0.04);
+  --shadow-lg: 0 12px 28px rgba(38, 32, 20, 0.10), 0 4px 8px rgba(38, 32, 20, 0.05);
+  --shadow-xl: 0 24px 48px rgba(38, 32, 20, 0.14), 0 8px 16px rgba(38, 32, 20, 0.06);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-duration-fast: 120ms;
+}

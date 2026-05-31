@@ -1,0 +1,443 @@
+import { useEffect, useState } from 'react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hand, CircleUser, Copy, Pencil, Trash2, X } from 'lucide-react'
+import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
+import { useAuth } from '../context/AuthContext'
+import {
+  getEvents,
+  getLocations,
+  signUpForEvent,
+  leaveEvent,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  addTodo,
+  setTodoAssignee,
+  deleteTodo,
+  initials,
+} from '../lib/api'
+import LocationAutocomplete from '../components/LocationAutocomplete'
+import { useRealtime } from '../lib/useRealtime'
+
+const TODAY = new Date().toISOString().slice(0, 10)
+
+export default function Events() {
+  const { user } = useAuth()
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editEvent, setEditEvent] = useState(null)
+
+  const load = () =>
+    getEvents().then((data) => {
+      setEvents(data)
+      setLoading(false)
+    })
+
+  useEffect(() => {
+    load()
+  }, [])
+  useRealtime(['events', 'event_signups', 'event_todos'], load)
+
+  const upcoming = events.filter((e) => e.date >= TODAY)
+  const past = events.filter((e) => e.date < TODAY).reverse()
+
+  function openCreate() {
+    setEditEvent(null)
+    setFormOpen(true)
+  }
+  function openEdit(ev) {
+    setEditEvent(ev)
+    setFormOpen(true)
+  }
+
+  return (
+    <>
+      <PageHeader
+        title="Events"
+        subtitle="Sign up for events to earn hours, and divide up who brings what."
+        action={<Button icon={Plus} onClick={openCreate}>Add event</Button>}
+      />
+
+      {loading ? (
+        <LoadingRows />
+      ) : (
+        <>
+          <Section title="Upcoming" count={upcoming.length}>
+            {upcoming.map((e) => (
+              <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
+            ))}
+          </Section>
+
+          <Section title="Past" count={past.length}>
+            {past.map((e) => (
+              <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
+            ))}
+          </Section>
+        </>
+      )}
+
+      <EventFormModal
+        open={formOpen}
+        event={editEvent}
+        onClose={() => setFormOpen(false)}
+        onSaved={() => {
+          setFormOpen(false)
+          load()
+        }}
+      />
+    </>
+  )
+}
+
+function LoadingRows() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {[0, 1, 2, 3].map((i) => (
+        <Card key={i} className="h-40 animate-pulse bg-ink-50" />
+      ))}
+    </div>
+  )
+}
+
+function Section({ title, count, children }) {
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+        {title} · {count}
+      </h2>
+      {count === 0 ? (
+        <p className="text-sm text-ink-400">Nothing here yet.</p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">{children}</div>
+      )}
+    </section>
+  )
+}
+
+function EventCard({ event, myId, onChange, onEdit }) {
+  const isPast = event.date < TODAY
+  const signups = event.event_signups ?? []
+  const todos = event.event_todos ?? []
+  const isSignedUp = signups.some((s) => s.member_id === myId)
+  const atCapacity = event.max_people && signups.length >= event.max_people
+  const understaffed = signups.length < event.min_people
+  const [busy, setBusy] = useState(false)
+  const [newTodo, setNewTodo] = useState('')
+
+  async function toggleSignup() {
+    setBusy(true)
+    if (isSignedUp) await leaveEvent(event.id, myId)
+    else await signUpForEvent(event.id, myId)
+    await onChange()
+    setBusy(false)
+  }
+
+  async function submitTodo(e) {
+    e.preventDefault()
+    if (!newTodo.trim()) return
+    await addTodo(event.id, newTodo.trim())
+    setNewTodo('')
+    await onChange()
+  }
+
+  async function removeEvent() {
+    if (!window.confirm(`Delete "${event.name}"? This can't be undone.`)) return
+    await deleteEvent(event.id)
+    await onChange()
+  }
+
+  return (
+    <Card className="flex flex-col p-5 transition-shadow hover:shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-display text-h4 font-semibold text-ink-900">{event.name}</h3>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
+            <MapPin size={14} className="text-ink-400" /> {event.location}
+          </p>
+          {event.address && (
+            <button
+              type="button"
+              onClick={() => navigator.clipboard?.writeText(event.address)}
+              className="mt-1 flex max-w-full items-center gap-1.5 text-xs text-ink-500 transition-colors hover:text-green-700"
+              title="Copy address"
+            >
+              <Copy size={12} className="shrink-0" />
+              <span className="truncate">{event.address}</span>
+            </button>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="rounded-xl bg-ink-50 px-3 py-1.5 text-center">
+            <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
+              {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
+            </p>
+            <p className="font-display text-lg font-bold leading-tight text-ink-900">
+              {new Date(event.date + 'T00:00:00').getDate()}
+            </p>
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => onEdit(event)}
+              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+              aria-label="Edit event"
+            >
+              <Pencil size={14} />
+            </button>
+            <button
+              onClick={removeEvent}
+              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-coral-50 hover:text-coral-600"
+              aria-label="Delete event"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
+        <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {event.hours} hrs each</span>
+        {Number(event.raised) > 0 && (
+          <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-green-600" /> ${Number(event.raised).toLocaleString()} raised</span>
+        )}
+      </div>
+
+      {/* Crew / capacity */}
+      <div className="mt-4 rounded-xl bg-ink-50 p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
+            <Users size={15} className="text-ink-400" />
+            {isPast ? 'Attended' : 'Crew'}
+          </span>
+          <span className={`font-mono text-sm font-semibold tabular-nums ${understaffed && !isPast ? 'text-gold-700' : 'text-ink-700'}`}>
+            {signups.length}
+            {!isPast && (
+              <span className="font-normal text-ink-400">
+                {' '}/ {event.max_people ?? '∞'} · min {event.min_people}
+              </span>
+            )}
+          </span>
+        </div>
+
+        {!isPast && event.max_people > 0 && (
+          <ProgressBar value={signups.length} max={event.max_people} tone={understaffed ? 'gold' : 'green'} />
+        )}
+
+        {signups.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {signups.map((s) => (
+              <span key={s.member_id} className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2 py-0.5 text-xs text-ink-600 ring-1 ring-ink-200">
+                <span className="grid h-4 w-4 place-items-center rounded-full bg-green-100 text-[9px] font-bold text-green-700">
+                  {initials(s.profiles?.name)}
+                </span>
+                {s.profiles?.name ?? 'Member'}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-1 text-xs text-ink-400">{isPast ? 'No attendance recorded.' : 'Nobody signed up yet.'}</p>
+        )}
+
+        {!isPast && (
+          <button
+            onClick={toggleSignup}
+            disabled={busy || (atCapacity && !isSignedUp)}
+            className={`mt-3 w-full rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              isSignedUp
+                ? 'bg-surface text-ink-700 ring-1 ring-ink-200 hover:bg-ink-50'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {isSignedUp ? 'Leave event' : atCapacity ? 'Event full' : 'Sign up'}
+          </button>
+        )}
+      </div>
+
+      {/* To-dos (upcoming only) */}
+      {!isPast && (
+        <div className="mt-4">
+          <p className="mb-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+            To-dos · who brings what
+          </p>
+          <ul className="space-y-1.5">
+            {todos.map((t) => (
+              <TodoRow key={t.id} todo={t} myId={myId} onChange={onChange} />
+            ))}
+            {todos.length === 0 && <li className="text-xs text-ink-400">No items yet.</li>}
+          </ul>
+          <form onSubmit={submitTodo} className="mt-2 flex gap-2">
+            <input
+              value={newTodo}
+              onChange={(e) => setNewTodo(e.target.value)}
+              placeholder="Add an item (e.g. Tables)"
+              className="flex-1 rounded-lg border border-ink-200 px-3 py-1.5 text-sm outline-none focus:border-green-400"
+            />
+            <button type="submit" className="rounded-lg bg-ink-100 px-3 text-sm font-medium text-ink-600 transition-colors hover:bg-ink-200">
+              Add
+            </button>
+          </form>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+function TodoRow({ todo, myId, onChange }) {
+  const owner = todo.profiles
+  const mine = todo.assignee_id === myId
+
+  async function claim() {
+    await setTodoAssignee(todo.id, mine ? null : myId)
+    await onChange()
+  }
+  async function remove() {
+    await deleteTodo(todo.id)
+    await onChange()
+  }
+
+  return (
+    <li className="group flex items-center gap-2 text-sm">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-300" />
+      <span className="text-ink-700">{todo.item}</span>
+
+      <span className="ml-auto flex items-center gap-2">
+        {owner ? (
+          <span className="flex items-center gap-1 text-xs text-ink-500">
+            <CircleUser size={13} /> {owner.name?.split(' ')[0]}
+          </span>
+        ) : (
+          <span className="text-xs text-gold-700">unclaimed</span>
+        )}
+        <button
+          onClick={claim}
+          className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
+            mine ? 'bg-ink-100 text-ink-600 hover:bg-ink-200' : 'bg-green-50 text-green-700 hover:bg-green-100'
+          }`}
+        >
+          {mine ? 'Drop' : owner ? 'Take' : <span className="flex items-center gap-1"><Hand size={11} /> Claim</span>}
+        </button>
+        <button
+          onClick={remove}
+          className="rounded p-0.5 text-ink-300 transition-colors hover:bg-coral-50 hover:text-coral-600"
+          aria-label="Delete to-do"
+        >
+          <X size={13} />
+        </button>
+      </span>
+    </li>
+  )
+}
+
+const blank = { name: '', date: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '' }
+
+function EventFormModal({ open, event, onClose, onSaved }) {
+  const [form, setForm] = useState(blank)
+  const [busy, setBusy] = useState(false)
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const editing = Boolean(event)
+  const [saved, setSaved] = useState([])
+
+  useEffect(() => {
+    if (open) getLocations().then(setSaved)
+  }, [open])
+
+  useEffect(() => {
+    if (event) {
+      setForm({
+        name: event.name ?? '',
+        date: event.date ?? '',
+        location: event.location ?? '',
+        address: event.address ?? '',
+        hours: event.hours ?? 3,
+        min_people: event.min_people ?? 2,
+        max_people: event.max_people ?? 6,
+        raised: event.raised ?? 0,
+        notes: event.notes ?? '',
+      })
+    } else {
+      setForm(blank)
+    }
+  }, [event, open])
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    const fields = {
+      name: form.name,
+      date: form.date,
+      location: form.location,
+      address: form.address,
+      hours: Number(form.hours),
+      min_people: Number(form.min_people),
+      max_people: Number(form.max_people),
+      raised: Number(form.raised),
+      notes: form.notes,
+    }
+    if (editing) await updateEvent(event.id, fields)
+    else await createEvent({ ...fields, type: 'other' })
+    setBusy(false)
+    onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit event' : 'Add event'}>
+      <form onSubmit={submit} className="space-y-3">
+        <FormField label="Event name">
+          <input className={inputClass} value={form.name} onChange={set('name')} required placeholder="Library STEM session" />
+        </FormField>
+        <FormField label="Date">
+          <input type="date" className={inputClass} value={form.date} onChange={set('date')} required />
+        </FormField>
+        {saved.length > 0 && (
+          <FormField label="Use a saved spot">
+            <select
+              className={inputClass}
+              value=""
+              onChange={(e) => {
+                const loc = saved.find((s) => s.id === e.target.value)
+                if (loc) setForm({ ...form, location: loc.name, address: loc.address || '' })
+              }}
+            >
+              <option value="">Pick a saved location…</option>
+              {saved.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </FormField>
+        )}
+        <FormField label="Location">
+          <LocationAutocomplete
+            value={form.location}
+            placeholder="Search a place…"
+            onChange={(v) => setForm({ ...form, location: v })}
+            onSelect={({ name, address }) => setForm({ ...form, location: name, address })}
+          />
+        </FormField>
+        <FormField label="Address">
+          <input className={inputClass} value={form.address} onChange={set('address')} placeholder="Auto-fills from the search above" />
+        </FormField>
+        <div className="grid grid-cols-3 gap-3">
+          <FormField label="Hours each">
+            <input type="number" min="0" step="0.5" className={inputClass} value={form.hours} onChange={set('hours')} />
+          </FormField>
+          <FormField label="Min people">
+            <input type="number" min="0" className={inputClass} value={form.min_people} onChange={set('min_people')} />
+          </FormField>
+          <FormField label="Max people">
+            <input type="number" min="0" className={inputClass} value={form.max_people} onChange={set('max_people')} />
+          </FormField>
+        </div>
+        <FormField label="Amount raised ($)">
+          <input type="number" min="0" step="1" className={inputClass} value={form.raised} onChange={set('raised')} />
+          <span className="mt-1 block text-xs text-ink-500">In-person money raised at this event — feeds the fundraising graph.</span>
+        </FormField>
+        <FormField label="Notes">
+          <textarea className={inputClass} rows={2} value={form.notes} onChange={set('notes')} />
+        </FormField>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add event'}</Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
