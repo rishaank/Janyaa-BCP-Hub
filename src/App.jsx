@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -35,6 +36,7 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <SpeedInsights />
       </BrowserRouter>
     </AuthProvider>
   )
