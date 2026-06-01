@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, MapPin, Users, DollarSign, Clock, Hand, CircleUser, Copy, Pencil, Trash2, X } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hand, CircleUser, Copy, Pencil, Trash2, X, CalendarPlus, Check } from 'lucide-react'
 import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -26,6 +26,7 @@ export default function Events() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editEvent, setEditEvent] = useState(null)
+  const [showCal, setShowCal] = useState(false)
 
   const load = () =>
     getEvents().then((data) => {
@@ -55,7 +56,12 @@ export default function Events() {
       <PageHeader
         title="Events"
         subtitle="Sign up for events to earn hours, and divide up who brings what."
-        action={<Button icon={Plus} onClick={openCreate}>Add event</Button>}
+        action={
+          <div className="flex gap-2">
+            <Button variant="soft" icon={CalendarPlus} onClick={() => setShowCal(true)}>Subscribe</Button>
+            <Button icon={Plus} onClick={openCreate}>Add event</Button>
+          </div>
+        }
       />
 
       {loading ? (
@@ -85,7 +91,55 @@ export default function Events() {
           load()
         }}
       />
+      <CalendarSubscribeModal open={showCal} onClose={() => setShowCal(false)} />
     </>
+  )
+}
+
+function CalendarSubscribeModal({ open, onClose }) {
+  const httpsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar`
+  const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://')
+  const [copied, setCopied] = useState(false)
+
+  function copy() {
+    navigator.clipboard?.writeText(httpsUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Subscribe to the Janyaa calendar">
+      <div className="space-y-4">
+        <p className="text-sm text-ink-600">
+          Add every Janyaa event to your own calendar. It stays in sync — new events and changes
+          show up automatically, no re-adding.
+        </p>
+        <a
+          href={webcalUrl}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+        >
+          <CalendarPlus size={16} /> Add to calendar (Apple / Outlook)
+        </a>
+        <div>
+          <p className="mb-1 text-sm font-semibold text-ink-800">Or copy the link</p>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={httpsUrl}
+              onFocus={(e) => e.target.select()}
+              className={`${inputClass} text-xs`}
+            />
+            <Button variant="soft" icon={copied ? Check : Copy} onClick={copy}>
+              {copied ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+        </div>
+        <div className="space-y-1.5 rounded-lg bg-ink-50 p-3 text-xs text-ink-600">
+          <p><span className="font-semibold text-ink-700">Google Calendar:</span> Other calendars → From URL → paste the link → Add calendar.</p>
+          <p><span className="font-semibold text-ink-700">Apple / Outlook:</span> tap the green button, or File → New Calendar Subscription → paste the link.</p>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
@@ -147,10 +201,10 @@ function EventCard({ event, myId, onChange, onEdit }) {
   }
 
   return (
-    <Card className="flex flex-col p-5 transition-shadow hover:shadow-card">
+    <Card className="flex min-w-0 flex-col p-5 transition-shadow hover:shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="font-display text-h4 font-semibold text-ink-900">{event.name}</h3>
+          <h3 className="break-words font-display text-h4 font-semibold text-ink-900">{event.name}</h3>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
             <MapPin size={14} className="text-ink-400" /> {event.location}
           </p>
@@ -297,9 +351,9 @@ function TodoRow({ todo, myId, onChange }) {
   return (
     <li className="group flex items-center gap-2 text-sm">
       <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-300" />
-      <span className="text-ink-700">{todo.item}</span>
+      <span className="min-w-0 flex-1 break-words text-ink-700">{todo.item}</span>
 
-      <span className="ml-auto flex items-center gap-2">
+      <span className="flex shrink-0 items-center gap-2">
         {owner ? (
           <span className="flex items-center gap-1 text-xs text-ink-500">
             <CircleUser size={13} /> {owner.name?.split(' ')[0]}

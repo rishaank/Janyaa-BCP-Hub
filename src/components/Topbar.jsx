@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { Menu, LogOut, ChevronDown } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { Avatar, roleLabels, roleOptions } from './ui'
+import { Avatar, roleLabels } from './ui'
 import { initials } from '../lib/api'
 
 // Top bar: mobile menu trigger + the signed-in user with a sign-out menu.
 export default function Topbar({ onMenu }) {
-  const { profile, user, signOut, updateProfile } = useAuth()
+  const { profile, user, signOut } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -50,23 +50,6 @@ export default function Topbar({ onMenu }) {
             <div className="border-b border-slate-100 px-3 py-2">
               <p className="truncate text-sm font-medium text-slate-900">{name}</p>
               <p className="truncate text-xs text-slate-500">{user?.email}</p>
-            </div>
-            <div className="border-b border-slate-100 px-3 py-2">
-              <label className="mb-1 block text-xs font-medium text-slate-500">Your role</label>
-              <select
-                value={roleOptions.includes(profile?.role) ? profile.role : ''}
-                onChange={(e) => updateProfile({ role: e.target.value })}
-                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 outline-none focus:border-indigo-300"
-              >
-                <option value="" disabled>
-                  Select your role…
-                </option>
-                {roleOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {roleLabels[value]}
-                  </option>
-                ))}
-              </select>
             </div>
             <button
               onClick={() => signOut()}

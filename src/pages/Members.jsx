@@ -104,7 +104,12 @@ export default function Members() {
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <Badge tone={roleTones[m.role] ?? 'ink'}>{roleLabels[m.role] ?? 'Member'}</Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge tone={roleTones[m.role] ?? 'ink'}>{roleLabels[m.role] ?? 'Member'}</Badge>
+                        {m.is_admin && (
+                          <Badge tone="blue"><Shield size={11} /> Admin</Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-ink-600">{m.joined_date ? formatDate(m.joined_date) : '—'}</td>
                     <td className="px-5 py-3 font-mono font-semibold tabular-nums text-ink-900">{m.hours} hrs</td>
@@ -134,7 +139,7 @@ export default function Members() {
 }
 
 function EditMemberModal({ member, onClose, onSaved }) {
-  const [form, setForm] = useState({ name: '', role: 'member', hours_adjustment: 0 })
+  const [form, setForm] = useState({ name: '', role: 'member', hours_adjustment: 0, is_admin: false })
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -143,6 +148,7 @@ function EditMemberModal({ member, onClose, onSaved }) {
         name: member.name ?? '',
         role: member.role ?? 'member',
         hours_adjustment: member.hours_adjustment ?? 0,
+        is_admin: member.is_admin ?? false,
       })
     }
   }, [member])
@@ -154,6 +160,7 @@ function EditMemberModal({ member, onClose, onSaved }) {
       name: form.name,
       role: form.role,
       hours_adjustment: Number(form.hours_adjustment),
+      is_admin: form.is_admin,
     })
     setBusy(false)
     onSaved()
@@ -183,6 +190,15 @@ function EditMemberModal({ member, onClose, onSaved }) {
           />
           <span className="mt-1 block text-xs text-ink-500">Added on top of hours earned from event sign-ups (can be negative).</span>
         </FormField>
+        <label className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-ink-200 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={form.is_admin}
+            onChange={(e) => setForm({ ...form, is_admin: e.target.checked })}
+            className="h-4 w-4 rounded border-ink-300 accent-green-600"
+          />
+          <span className="text-sm font-medium text-ink-800">Admin — can manage all members, events &amp; settings</span>
+        </label>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
