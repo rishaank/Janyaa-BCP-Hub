@@ -48,7 +48,7 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Brand panel */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-700 to-green-700 p-12 text-white lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-blue-800 to-green-800 p-12 text-white lg:flex">
         <div
           className="absolute inset-0 opacity-20"
           style={{
@@ -62,17 +62,17 @@ export default function Login() {
         </div>
         <div className="relative">
           <h1 className="max-w-md text-3xl font-bold leading-tight">The operational home for Janyaa BCP.</h1>
-          <p className="mt-3 max-w-md text-indigo-100">
+          <p className="mt-3 max-w-md text-white/75">
             Members, events, and fundraising in one place — so the club can scale its STEM impact
             without drowning in spreadsheets.
           </p>
-          <div className="mt-8 flex flex-wrap gap-6 text-sm text-indigo-100">
+          <div className="mt-8 flex flex-wrap gap-6 text-sm text-white/75">
             <span className="flex items-center gap-2"><Users size={16} /> Member hours</span>
             <span className="flex items-center gap-2"><CalendarDays size={16} /> Event ops</span>
             <span className="flex items-center gap-2"><PiggyBank size={16} /> Fundraising</span>
           </div>
         </div>
-        <p className="relative text-xs text-indigo-200">A Janyaa Foundation chapter · Bellarmine College Prep</p>
+        <p className="relative text-xs text-white/60">A Janyaa Foundation chapter · Bellarmine College Prep</p>
       </div>
 
       {/* Auth form */}
@@ -164,7 +164,7 @@ function Field({ label, type, value, onChange, placeholder, required }) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+        className="w-full rounded-xl border border-slate-200 bg-surface px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
       />
     </label>
   )

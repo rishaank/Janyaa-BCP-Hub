@@ -78,7 +78,7 @@ export default function Insights() {
         <Card className="mb-6 border-coral-200 bg-coral-50 p-4 text-sm text-coral-700">{error}</Card>
       ) : null}
 
-      <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-700 to-green-700 p-6 text-white">
+      <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">
         <div className="flex items-center gap-2">
           <Sparkles size={18} />
           <p className="text-sm font-semibold">Powered by Gemini</p>

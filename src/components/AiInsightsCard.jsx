@@ -11,7 +11,7 @@ export default function AiInsightsCard({ compact = false, insights }) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-700 to-green-700 p-5 text-white">
+      <div className="bg-gradient-to-r from-blue-800 to-green-800 p-5 text-white">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles size={18} />

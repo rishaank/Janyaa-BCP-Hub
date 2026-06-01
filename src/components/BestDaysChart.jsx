@@ -17,7 +17,7 @@ export default function BestDaysChart({ events }) {
     <div className="h-48 w-full">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 4 }}>
-          <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: '#e7e1d7' }} />
+          <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
           <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#8c8475' }} tickLine={false} axisLine={false} width={48} />
           <Tooltip
             cursor={{ fill: 'rgba(0,0,0,0.04)' }}

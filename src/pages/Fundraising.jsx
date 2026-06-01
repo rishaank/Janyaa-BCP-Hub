@@ -231,8 +231,8 @@ export default function Fundraising() {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(140,132,117,0.18)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
                 <YAxis
                   tickFormatter={(v) => `$${v}`}
                   tick={{ fontSize: 12, fill: '#8c8475' }}
@@ -244,7 +244,7 @@ export default function Fundraising() {
                 {target <= Math.max(...chartData.map((d) => d.projected ?? d.actual ?? 0)) && (
                   <ReferenceLine
                     y={target}
-                    stroke="#cbd5e1"
+                    stroke="rgba(140,132,117,0.45)"
                     strokeDasharray="4 4"
                     label={{ value: `Goal $${target}`, position: 'insideTopRight', fontSize: 11, fill: '#8c8475' }}
                   />

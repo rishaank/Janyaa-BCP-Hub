@@ -148,3 +148,57 @@
   .ja-fade, .ja-pop { animation: none; }
   .ja-userdot::after { animation: none; }
 }
+
+/* ============================================================
+   Dark theme — re-maps the brand tokens (warm dark surfaces,
+   inverted ink, brand hues lifted a step) per the design system's
+   dark-theme.css. Activated by data-theme="dark" on <html>.
+   Every existing utility flips automatically; no per-component work.
+   ============================================================ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* surfaces: warm near-black bg, lifted cards */
+  --color-paper: oklch(0.165 0.008 70);
+  --color-surface: oklch(0.205 0.009 72);
+
+  /* warm-ink ramp inverted: low steps = dark fills, high steps = light text */
+  --color-ink-50: oklch(0.255 0.010 72);
+  --color-ink-100: oklch(0.278 0.010 72);
+  --color-ink-150: oklch(0.298 0.010 72);
+  --color-ink-200: oklch(0.322 0.010 72); /* hairline borders */
+  --color-ink-300: oklch(0.390 0.012 72); /* strong borders / inputs */
+  --color-ink-400: oklch(0.520 0.012 74);
+  --color-ink-500: oklch(0.645 0.013 74); /* muted / placeholder text */
+  --color-ink-600: oklch(0.745 0.012 78); /* secondary text */
+  --color-ink-700: oklch(0.820 0.010 82);
+  --color-ink-800: oklch(0.895 0.008 86);
+  --color-ink-900: oklch(0.955 0.006 90); /* primary text */
+  --color-ink-950: oklch(0.140 0.008 70); /* stays dark: scrims + on-gold text */
+
+  /* brand subtle fills -> dark tints over the surface */
+  --color-green-50: color-mix(in oklch, var(--color-green-500) 15%, oklch(0.205 0.009 72));
+  --color-green-100: color-mix(in oklch, var(--color-green-500) 24%, oklch(0.205 0.009 72));
+  --color-blue-50: color-mix(in oklch, var(--color-blue-400) 15%, oklch(0.205 0.009 72));
+  --color-blue-100: color-mix(in oklch, var(--color-blue-400) 24%, oklch(0.205 0.009 72));
+  --color-gold-50: color-mix(in oklch, var(--color-gold-500) 14%, oklch(0.205 0.009 72));
+  --color-gold-100: color-mix(in oklch, var(--color-gold-500) 22%, oklch(0.205 0.009 72));
+  --color-coral-50: color-mix(in oklch, var(--color-coral-500) 16%, oklch(0.205 0.009 72));
+  --color-coral-100: color-mix(in oklch, var(--color-coral-500) 24%, oklch(0.205 0.009 72));
+
+  /* brand text steps -> lifted for legibility on dark */
+  --color-green-700: var(--color-green-300);
+  --color-blue-600: var(--color-blue-300);
+  --color-blue-700: var(--color-blue-300);
+  --color-gold-700: var(--color-gold-300);
+  --color-gold-800: var(--color-gold-300);
+  --color-coral-600: var(--color-coral-200);
+  --color-coral-700: var(--color-coral-200);
+
+  /* elevation: near-black shadows read on dark */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.46), 0 1px 2px rgba(0, 0, 0, 0.36);
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.56), 0 4px 8px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.62), 0 8px 16px rgba(0, 0, 0, 0.46);
+}

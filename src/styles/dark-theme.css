@@ -1,0 +1,76 @@
+/* =============================================================
+   JANYAA BCP HUB — DARK THEME
+   A re-mapping of the SEMANTIC role tokens only. The primitive
+   color scales, type, spacing, radii and motion in
+   colors_and_type.css are untouched — load that first, then this.
+   Activate by setting  data-theme="dark"  on <html>.
+   Warm dark surfaces (hue ~70) keep the same paper-and-ink soul,
+   just inverted; brand hues are lifted a step for legibility.
+   ============================================================= */
+
+:root[data-theme="dark"] {
+
+  /* ---- surfaces: warm near-black → lifted cards ---- */
+  --paper:           oklch(0.165 0.008 70);
+  --surface:         oklch(0.205 0.009 72);
+  --bg:              oklch(0.165 0.008 70);
+  --bg-sunken:       oklch(0.130 0.008 70);
+  --surface-1:       oklch(0.205 0.009 72);
+  --surface-2:       oklch(0.250 0.010 72);
+  --surface-inverse: var(--neutral-50);
+
+  /* ---- text: warm whites ---- */
+  --text:            oklch(0.955 0.006 90);
+  --text-secondary:  oklch(0.760 0.011 80);
+  --text-muted:      oklch(0.620 0.012 74);
+  --text-on-color:   var(--neutral-0);
+  --text-inverse:    var(--neutral-900);
+
+  /* ---- borders: hairlines that read on dark ---- */
+  --border:          oklch(0.300 0.010 72);
+  --border-strong:   oklch(0.385 0.012 72);
+  --border-focus:    var(--green-400);
+
+  /* ---- primary (green stays AA on dark; hover lifts) ---- */
+  --primary:         var(--green-600);
+  --primary-hover:   var(--green-500);
+  --primary-active:  var(--green-400);
+  --primary-subtle:  color-mix(in oklch, var(--green-500) 16%, var(--surface-1));
+  --primary-on:      var(--neutral-0);
+
+  --secondary:        var(--blue-400);
+  --secondary-hover:  var(--blue-300);
+  --secondary-subtle: color-mix(in oklch, var(--blue-400) 16%, var(--surface-1));
+
+  --accent:           var(--gold-500);
+  --accent-strong:    var(--gold-300);
+  --accent-subtle:    color-mix(in oklch, var(--gold-500) 18%, var(--surface-1));
+
+  /* ---- status: text lifted to 200/300, bg = tint over surface ---- */
+  --success:      var(--green-400);
+  --success-text: var(--green-300);
+  --success-bg:   color-mix(in oklch, var(--green-500) 18%, var(--surface-1));
+  --info:         var(--blue-400);
+  --info-text:    var(--blue-300);
+  --info-bg:      color-mix(in oklch, var(--blue-400) 18%, var(--surface-1));
+  --warning:      var(--gold-500);
+  --warning-text: var(--gold-300);
+  --warning-bg:   color-mix(in oklch, var(--gold-500) 18%, var(--surface-1));
+  --danger:       var(--coral-500);
+  --danger-text:  var(--coral-200);
+  --danger-bg:    color-mix(in oklch, var(--coral-500) 20%, var(--surface-1));
+
+  --ring:        0 0 0 3px color-mix(in oklch, var(--green-400) 42%, transparent);
+  --ring-danger: 0 0 0 3px color-mix(in oklch, var(--coral-500) 42%, transparent);
+
+  /* ---- elevation: deeper, near-black shadows on dark ---- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.46), 0 1px 2px rgba(0, 0, 0, 0.36);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50), 0 2px 4px rgba(0, 0, 0, 0.36);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.56), 0 4px 8px rgba(0, 0, 0, 0.40);
+  --shadow-xl: 0 24px 48px rgba(0, 0, 0, 0.62), 0 8px 16px rgba(0, 0, 0, 0.46);
+
+  /* signature gradients re-tuned so they glow rather than glare */
+  --grad-sun:    linear-gradient(165deg, var(--gold-500), var(--gold-700));
+  --grad-sprout: linear-gradient(150deg, var(--lime-500), var(--green-700));
+}
