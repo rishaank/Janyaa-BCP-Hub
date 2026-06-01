@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, MapPin, Users, DollarSign, Clock, Hand, CircleUser, Copy, Pencil, Trash2, X, CalendarPlus, Check } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hand, CircleUser, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp } from 'lucide-react'
 import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -14,9 +14,11 @@ import {
   setTodoAssignee,
   deleteTodo,
   initials,
+  autoGenerateInsights,
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import { useRealtime } from '../lib/useRealtime'
+import { bestDays, topDay } from '../lib/planning'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -85,10 +87,12 @@ export default function Events() {
       <EventFormModal
         open={formOpen}
         event={editEvent}
+        events={events}
         onClose={() => setFormOpen(false)}
         onSaved={() => {
           setFormOpen(false)
           load()
+          autoGenerateInsights() // new/edited event → refresh AI insights (throttled)
         }}
       />
       <CalendarSubscribeModal open={showCal} onClose={() => setShowCal(false)} />
@@ -383,12 +387,16 @@ function TodoRow({ todo, myId, onChange }) {
 
 const blank = { name: '', date: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '' }
 
-function EventFormModal({ open, event, onClose, onSaved }) {
+function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const [form, setForm] = useState(blank)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const editing = Boolean(event)
   const [saved, setSaved] = useState([])
+
+  const planDays = bestDays(events)
+  const planBest = topDay(planDays)
+  const picked = form.date ? planDays[new Date(form.date + 'T00:00:00').getDay()] : null
 
   useEffect(() => {
     if (open) getLocations().then(setSaved)
@@ -441,6 +449,17 @@ function EventFormModal({ open, event, onClose, onSaved }) {
         <FormField label="Date">
           <input type="date" className={inputClass} value={form.date} onChange={set('date')} required />
         </FormField>
+        {picked && planBest && (
+          <div className="-mt-1 flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs text-gold-800">
+            <TrendingUp size={14} className="mt-0.5 shrink-0" />
+            <span>
+              {picked.count > 0
+                ? `Past ${picked.day} events averaged $${picked.avgRaised} across ${picked.count}.`
+                : `No past ${picked.day} events yet.`}{' '}
+              Best day so far: <b>{planBest.day}</b> (~${planBest.avgRaised}).
+            </span>
+          </div>
+        )}
         {saved.length > 0 && (
           <FormField label="Use a saved spot">
             <select

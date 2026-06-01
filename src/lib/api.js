@@ -134,6 +134,19 @@ export async function generateInsights() {
   }
 }
 
+// Background, throttled auto-regen: only re-runs if the cached insights are older
+// than `minMinutes`. Called after real data changes (new event, GoFundMe change).
+export async function autoGenerateInsights(minMinutes = 10) {
+  try {
+    const { data } = await supabase.from('club_settings').select('ai_insights_at').eq('id', true).single()
+    const ageMin = data?.ai_insights_at ? (Date.now() - new Date(data.ai_insights_at).getTime()) / 60000 : Infinity
+    if (ageMin < minMinutes) return
+    await supabase.functions.invoke('ai-insights')
+  } catch {
+    /* best effort — never blocks the UI */
+  }
+}
+
 // ---- Locations -----------------------------------------------------------
 
 export async function getLocations() {

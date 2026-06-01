@@ -22,8 +22,10 @@ import {
   Check,
 } from 'lucide-react'
 import { PageHeader, Card, StatCard, Button, Skeleton, formatDate } from '../components/ui'
-import { getFundraisingEvents, getSettings, updateRaiseTarget, syncGoFundme } from '../lib/api'
+import { getFundraisingEvents, getSettings, updateRaiseTarget, syncGoFundme, autoGenerateInsights } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import BestDaysChart from '../components/BestDaysChart'
+import { bestDays, topDay } from '../lib/planning'
 
 const DAY = 86400000
 const ts = (iso) => new Date(iso + 'T00:00:00').getTime()
@@ -66,11 +68,18 @@ export default function Fundraising() {
       setEvents(data)
       setLoading(false)
     })
-    loadSettings()
-    // Background refresh from GoFundMe — silently no-ops if the function isn't deployed yet.
-    syncGoFundme().then(({ error }) => {
-      if (!error) loadSettings()
-    })
+    // Sync GoFundMe; if the amount actually changed, refresh AI insights (throttled).
+    ;(async () => {
+      const before = await getSettings()
+      setSettings(before)
+      const { error } = await syncGoFundme()
+      if (error) return
+      const after = await getSettings()
+      setSettings(after)
+      if (before && after && Number(before.gofundme_raised) !== Number(after.gofundme_raised)) {
+        autoGenerateInsights()
+      }
+    })()
   }, [])
   useRealtime(['club_settings', 'events'], () => {
     loadSettings()
@@ -87,6 +96,7 @@ export default function Fundraising() {
   const target = Number(settings?.raise_target ?? 500)
   const gfmRaised = settings?.gofundme_raised != null ? Number(settings.gofundme_raised) : null
   const pctFunded = target > 0 && gfmRaised != null ? Math.round((gfmRaised / target) * 100) : 0
+  const bestDay = topDay(bestDays(events))
 
   // Cumulative running total of in-person events over time.
   let cum = 0
@@ -256,6 +266,16 @@ export default function Fundraising() {
             </p>
           </div>
         )}
+      </Card>
+
+      {/* Best days to fundraise — peak times for planning */}
+      <Card className="mt-6 p-5">
+        <h3 className="mb-1 font-semibold text-ink-900">Best days to fundraise</h3>
+        <p className="mb-3 text-sm text-ink-500">
+          Average raised per weekday from past events.
+          {bestDay && ` ${bestDay.day} leads at about $${bestDay.avgRaised} per event.`}
+        </p>
+        <BestDaysChart events={events} />
       </Card>
 
       {/* Per-event breakdown */}

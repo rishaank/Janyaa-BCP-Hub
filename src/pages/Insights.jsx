@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Sparkles, TrendingUp, AlertTriangle, Info, RefreshCw, Loader2 } from 'lucide-react'
 import { PageHeader, Card, Badge, Button } from '../components/ui'
 import { getSettings, generateInsights } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import { plannedInsights } from '../data/mockData'
 
 const toneMeta = {
@@ -22,6 +23,8 @@ function timeAgo(iso) {
 }
 
 export default function Insights() {
+  const { profile } = useAuth()
+  const isAdmin = !!profile?.is_admin
   const [settings, setSettings] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -52,9 +55,18 @@ export default function Insights() {
         title="AI Insights"
         subtitle="Specific, actionable patterns pulled from your real events, hours, and fundraising."
         action={
-          <Button icon={busy ? Loader2 : RefreshCw} onClick={generate} disabled={busy}>
-            {busy ? 'Analyzing…' : insights.length ? 'Regenerate' : 'Generate'}
-          </Button>
+          isAdmin ? (
+            <div className="flex flex-col items-end gap-1">
+              <Button icon={busy ? Loader2 : RefreshCw} onClick={generate} disabled={busy}>
+                {busy ? 'Analyzing…' : insights.length ? 'Regenerate' : 'Generate'}
+              </Button>
+              {settings?.ai_insights_at && (
+                <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)}</span>
+              )}
+            </div>
+          ) : settings?.ai_insights_at ? (
+            <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)} · auto-refreshes on changes</span>
+          ) : null
         }
       />
 
@@ -85,7 +97,10 @@ export default function Insights() {
           </span>
           <h3 className="mt-4 font-display text-h4 font-semibold text-ink-900">No insights yet</h3>
           <p className="mt-1 text-sm text-ink-500">
-            Hit <span className="font-medium text-ink-700">Generate</span> to analyze the club's data. Gemini will look for things like:
+            {isAdmin
+              ? 'Hit Generate to analyze the club’s data.'
+              : 'Insights generate automatically as the club logs events and fundraising.'}{' '}
+            Gemini will look for things like:
           </p>
           <ul className="mx-auto mt-4 max-w-md space-y-2 text-left text-sm text-ink-600">
             {plannedInsights.map((t, i) => (

@@ -15,8 +15,9 @@ import {
   statusLabels,
   formatDate,
 } from '../components/ui'
-import { getLocations, saveLocation, updateLocation, deleteLocation } from '../lib/api'
+import { getLocations, getEvents, saveLocation, updateLocation, deleteLocation } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { locationPerformance } from '../lib/planning'
 
 // Green dot for a not-yet-saved pin.
 const pendingIcon = L.divIcon({
@@ -34,13 +35,13 @@ const userIcon = L.divIcon({
   iconAnchor: [9, 9],
 })
 
-// Numbered green teardrop pin for a saved location (matches the list numbering).
-const numberedIcon = (n) =>
+// Numbered teardrop pin for a saved location. Gold = the top-earning spot.
+const pinIcon = (n, gold = false) =>
   L.divIcon({
     className: '',
-    html: `<div style="display:grid;place-items:center;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(45deg);background:#2a943b;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"><span style="transform:rotate(-45deg);color:#fff;font:700 12px/1 system-ui,sans-serif">${n}</span></div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 26],
+    html: `<div style="display:grid;place-items:center;width:${gold ? 28 : 26}px;height:${gold ? 28 : 26}px;border-radius:50% 50% 50% 0;transform:rotate(45deg);background:${gold ? '#fba631' : '#2a943b'};border:2px solid #fff;box-shadow:0 2px ${gold ? 8 : 6}px rgba(0,0,0,.35)"><span style="transform:rotate(-45deg);color:${gold ? '#3a2e10' : '#fff'};font:700 12px/1 system-ui,sans-serif">${n}</span></div>`,
+    iconSize: gold ? [28, 28] : [26, 26],
+    iconAnchor: gold ? [14, 28] : [13, 26],
     popupAnchor: [0, -24],
   })
 
@@ -65,6 +66,7 @@ async function reverseGeocode(lat, lng) {
 
 export default function Locations() {
   const [locations, setLocations] = useState([])
+  const [events, setEvents] = useState([])
   const [loaded, setLoaded] = useState(false)
   const [pending, setPending] = useState(null) // {lat, lng, name, address}
   const [editing, setEditing] = useState(null) // saved location being edited
@@ -102,8 +104,15 @@ export default function Locations() {
   useEffect(() => {
     load()
     locate()
+    getEvents().then(setEvents)
   }, [])
   useRealtime('locations', load)
+
+  // Which saved spots have earned the most across past events.
+  const perf = locationPerformance(events, locations)
+  const topId = Object.entries(perf)
+    .filter(([, p]) => p.count > 0)
+    .sort((a, b) => b[1].raised - a[1].raised)[0]?.[0]
 
   const pinPoints = locations
     .filter((l) => l.latitude != null)
@@ -160,7 +169,7 @@ export default function Locations() {
 
               {locations.map((loc, i) =>
                 loc.latitude != null ? (
-                  <Marker key={loc.id} position={[Number(loc.latitude), Number(loc.longitude)]} icon={numberedIcon(i + 1)}>
+                  <Marker key={loc.id} position={[Number(loc.latitude), Number(loc.longitude)]} icon={pinIcon(i + 1, loc.id === topId)}>
                     <Popup>
                       <p className="font-semibold">{loc.name}</p>
                       <p className="text-xs text-slate-500">{statusLabels[loc.status]}</p>
@@ -207,6 +216,12 @@ export default function Locations() {
                   </p>
                 )}
                 {loc.description && <p className="mt-2 text-sm text-ink-600">{loc.description}</p>}
+                {perf[loc.id]?.count > 0 && (
+                  <p className="mt-2 text-xs font-semibold text-green-700">
+                    ${perf[loc.id].raised.toLocaleString()} raised · {perf[loc.id].count} event
+                    {perf[loc.id].count === 1 ? '' : 's'} here{loc.id === topId ? ' · top earner' : ''}
+                  </p>
+                )}
                 <div className="mt-2 flex items-center justify-between border-t border-ink-100 pt-2 text-xs text-ink-400">
                   <span>{loc.contact_person || 'No contact'} · {formatDate(loc.saved_at.slice(0, 10))}</span>
                   <div className="flex items-center gap-1">
