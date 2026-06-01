@@ -234,19 +234,25 @@ function AdminControls({ member, derivedHours, onSaved }) {
         <Shield size={16} className="text-blue-600" />
         <h3 className="font-display text-h4 font-semibold text-ink-900">Admin controls</h3>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label="Name">
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
-        </FormField>
-        <FormField label="Role">
-          <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="member">Member (unassigned)</option>
-            {roleOptions.map((r) => (
-              <option key={r} value={r}>{roleLabels[r]}</option>
-            ))}
-          </select>
-        </FormField>
-        <FormField label="Volunteer hours">
+      <div className="space-y-5">
+        {/* Identity */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Name">
+            <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
+          </FormField>
+          <FormField label="Role">
+            <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="member">Member (unassigned)</option>
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>{roleLabels[r]}</option>
+              ))}
+            </select>
+          </FormField>
+        </div>
+
+        {/* Hours */}
+        <div>
+          <p className="mb-1.5 text-sm font-semibold text-ink-800">Volunteer hours</p>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -262,7 +268,7 @@ function AdminControls({ member, derivedHours, onSaved }) {
               step="1"
               value={hours}
               onChange={(e) => setHours(e.target.value)}
-              className={`${inputClass} text-center`}
+              className={`${inputClass} w-24 text-center`}
             />
             <button
               type="button"
@@ -272,16 +278,22 @@ function AdminControls({ member, derivedHours, onSaved }) {
             >
               <Plus size={15} />
             </button>
+            <span className="ml-1 text-xs text-ink-400">total, incl. event sign-ups</span>
           </div>
-        </FormField>
-        <label className="flex items-center gap-2.5 self-end rounded-lg border border-ink-200 px-3 py-2.5">
+        </div>
+
+        {/* Permission */}
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-ink-200 p-3">
           <input
             type="checkbox"
             checked={admin}
             onChange={(e) => setAdmin(e.target.checked)}
-            className="h-4 w-4 rounded border-ink-300 accent-green-600"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-ink-300 accent-green-600"
           />
-          <span className="text-sm font-medium text-ink-800">Admin — full control over the Hub</span>
+          <span>
+            <span className="block text-sm font-medium text-ink-800">Admin access</span>
+            <span className="block text-xs text-ink-500">Full control over members, events, fundraising, and settings.</span>
+          </span>
         </label>
       </div>
       <div className="mt-4 flex items-center justify-end gap-3">

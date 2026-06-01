@@ -119,7 +119,7 @@ export function ProgressBar({ value, max, tone = 'gold' }) {
 
 // Round initials avatar — solid brand fill, display initials.
 export function Avatar({ initials, tone = 'green', src, size = 'md' }) {
-  const sizes = { sm: 'h-7 w-7 text-[10px]', md: 'h-9 w-9 text-xs', lg: 'h-20 w-20 text-2xl' }
+  const sizes = { xs: 'h-5 w-5 text-[9px]', sm: 'h-7 w-7 text-[10px]', md: 'h-9 w-9 text-xs', lg: 'h-20 w-20 text-2xl' }
   const dim = sizes[size] ?? sizes.md
 
   if (src) {

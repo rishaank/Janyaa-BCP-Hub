@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, MapPin, Users, DollarSign, Clock, Hand, CircleUser, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp } from 'lucide-react'
 import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -13,10 +13,10 @@ import {
   addTodo,
   setTodoAssignee,
   deleteTodo,
-  initials,
   autoGenerateInsights,
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
+import MemberChip from '../components/MemberChip'
 import { useRealtime } from '../lib/useRealtime'
 import { bestDays, topDay } from '../lib/planning'
 
@@ -281,14 +281,9 @@ function EventCard({ event, myId, onChange, onEdit }) {
         )}
 
         {signups.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap gap-x-1 gap-y-0.5">
             {signups.map((s) => (
-              <span key={s.member_id} className="inline-flex items-center gap-1.5 rounded-full bg-surface px-2 py-0.5 text-xs text-ink-600 ring-1 ring-ink-200">
-                <span className="grid h-4 w-4 place-items-center rounded-full bg-green-100 text-[9px] font-bold text-green-700">
-                  {initials(s.profiles?.name)}
-                </span>
-                {s.profiles?.name ?? 'Member'}
-              </span>
+              <MemberChip key={s.member_id} id={s.member_id} name={s.profiles?.name} role={s.profiles?.role} />
             ))}
           </div>
         ) : (
@@ -359,9 +354,7 @@ function TodoRow({ todo, myId, onChange }) {
 
       <span className="flex shrink-0 items-center gap-2">
         {owner ? (
-          <span className="flex items-center gap-1 text-xs text-ink-500">
-            <CircleUser size={13} /> {owner.name?.split(' ')[0]}
-          </span>
+          <MemberChip id={owner.id} name={owner.name} role={owner.role} />
         ) : (
           <span className="text-xs text-gold-700">unclaimed</span>
         )}

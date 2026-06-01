@@ -81,8 +81,8 @@ export async function getEvents() {
     .from('events')
     .select(
       `*,
-       event_signups ( member_id, profiles ( id, name ) ),
-       event_todos ( id, item, done, assignee_id, profiles ( id, name ) )`,
+       event_signups ( member_id, profiles ( id, name, role ) ),
+       event_todos ( id, item, done, assignee_id, profiles ( id, name, role ) )`,
     )
     .order('date', { ascending: true })
   return data ?? []
