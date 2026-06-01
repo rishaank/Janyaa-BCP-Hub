@@ -46,7 +46,7 @@ export default function Topbar({ onMenu }) {
         </button>
 
         {open && (
-          <div className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          <div className="absolute right-0 mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
             <div className="border-b border-slate-100 px-3 py-2">
               <p className="truncate text-sm font-medium text-slate-900">{name}</p>
               <p className="truncate text-xs text-slate-500">{user?.email}</p>
