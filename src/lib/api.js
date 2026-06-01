@@ -125,6 +125,15 @@ export async function syncGoFundme() {
   }
 }
 
+// Ask the ai-insights Edge Function to regenerate insights from live club data.
+export async function generateInsights() {
+  try {
+    return await supabase.functions.invoke('ai-insights')
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
 // ---- Locations -----------------------------------------------------------
 
 export async function getLocations() {

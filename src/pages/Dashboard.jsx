@@ -128,7 +128,7 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-6">
-        <AiInsightsCard compact />
+        <AiInsightsCard compact insights={settings?.ai_insights} />
       </div>
         </>
       )}
