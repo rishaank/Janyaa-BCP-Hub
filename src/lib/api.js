@@ -34,6 +34,45 @@ export function adminUpdateProfile(id, fields) {
   return supabase.from('profiles').update(fields).eq('id', id)
 }
 
+// Full detail for one member: profile + the events they signed up for + the
+// to-dos they took responsibility for + their total hours.
+export async function getProfileDetails(id) {
+  const [{ data: profile }, { data: signups }, { data: todos }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', id).single(),
+    supabase.from('event_signups').select('events ( id, name, date, location, raised, hours )').eq('member_id', id),
+    supabase.from('event_todos').select('id, item, done, events ( id, name, date )').eq('assignee_id', id),
+  ])
+  const today = new Date().toISOString().slice(0, 10)
+  const events = (signups ?? []).map((s) => s.events).filter(Boolean)
+  const hours =
+    events.filter((e) => e.date < today).reduce((sum, e) => sum + Number(e.hours), 0) +
+    Number(profile?.hours_adjustment ?? 0)
+  return {
+    profile: profile ? { ...profile, avatar: initials(profile.name) } : null,
+    events,
+    todos: todos ?? [],
+    hours,
+  }
+}
+
+// Upload (or replace) a member's profile picture and store its public URL.
+export async function uploadAvatar(userId, file) {
+  const path = `${userId}/avatar`
+  const { error: upErr } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type })
+  if (upErr) return { error: upErr }
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  const url = `${data.publicUrl}?v=${Date.now()}` // cache-bust so the new image shows
+  const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId)
+  return { url, error }
+}
+
+// Revert to the default initials avatar.
+export function removeAvatar(userId) {
+  return supabase.from('profiles').update({ avatar_url: null }).eq('id', userId)
+}
+
 // ---- Events --------------------------------------------------------------
 
 // Events with their signups (incl. member names) and to-dos, newest first.

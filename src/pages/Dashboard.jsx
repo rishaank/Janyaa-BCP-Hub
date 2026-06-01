@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Users, Clock, DollarSign, CalendarDays, ArrowRight } from 'lucide-react'
 import {
   StatCard,
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [events, setEvents] = useState([])
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     Promise.all([getMembersWithHours(), getEvents(), getSettings()]).then(([m, e, s]) => {
@@ -112,9 +113,13 @@ export default function Dashboard() {
           ) : (
             <ul className="space-y-3">
               {leaderboard.map((m, i) => (
-                <li key={m.id} className="flex items-center gap-3">
+                <li
+                  key={m.id}
+                  onClick={() => navigate(`/members/${m.id}`)}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg px-1 py-0.5 hover:bg-ink-50"
+                >
                   <span className="w-4 text-sm font-semibold text-slate-400">{i + 1}</span>
-                  <Avatar initials={m.avatar} tone={roleTones[m.role]} />
+                  <Avatar initials={m.avatar} tone={roleTones[m.role]} src={m.avatar_url} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-slate-900">{m.name}</p>
                     <ProgressBar value={m.hours} max={topHours} />

@@ -118,7 +118,14 @@ export function ProgressBar({ value, max, tone = 'gold' }) {
 }
 
 // Round initials avatar — solid brand fill, display initials.
-export function Avatar({ initials, tone = 'green' }) {
+export function Avatar({ initials, tone = 'green', src, size = 'md' }) {
+  const sizes = { sm: 'h-7 w-7 text-[10px]', md: 'h-9 w-9 text-xs', lg: 'h-20 w-20 text-2xl' }
+  const dim = sizes[size] ?? sizes.md
+
+  if (src) {
+    return <img src={src} alt="" className={`${dim} shrink-0 rounded-full object-cover`} />
+  }
+
   const tones = {
     green: 'bg-green-600',
     blue: 'bg-blue-500',
@@ -134,7 +141,7 @@ export function Avatar({ initials, tone = 'green' }) {
     slate: 'bg-ink-400',
   }
   return (
-    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full font-display text-xs font-bold text-white ${tones[tone] ?? tones.green}`}>
+    <span className={`grid ${dim} shrink-0 place-items-center rounded-full font-display font-bold text-white ${tones[tone] ?? tones.green}`}>
       {initials}
     </span>
   )

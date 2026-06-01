@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, Link } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
@@ -14,6 +14,7 @@ import {
   Moon,
   Monitor,
   ChevronsUpDown,
+  User,
 } from 'lucide-react'
 import { Logo, Avatar, roleLabels, roleTones } from './ui'
 import { useAuth } from '../context/AuthContext'
@@ -106,6 +107,13 @@ function AccountCard() {
           <div className="border-b border-ink-100 px-3 py-2">
             <p className="truncate text-xs text-ink-500">{user?.email}</p>
           </div>
+          <Link
+            to={`/members/${user?.id}`}
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 border-b border-ink-100 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50"
+          >
+            <User size={16} /> Your profile
+          </Link>
           <div className="border-b border-ink-100 px-3 py-2">
             <p className="mb-1.5 text-xs font-medium text-ink-500">Theme</p>
             <div className="flex gap-0.5 rounded-lg bg-ink-100 p-0.5">
@@ -137,7 +145,7 @@ function AccountCard() {
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition-colors hover:bg-ink-50"
       >
-        <Avatar initials={initials(name)} tone={roleTones[profile?.role] ?? 'blue'} />
+        <Avatar initials={initials(name)} tone={roleTones[profile?.role] ?? 'blue'} src={profile?.avatar_url} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink-900">{name}</p>
           <p className="truncate text-xs text-ink-500">{role}</p>
