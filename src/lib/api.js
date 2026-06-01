@@ -205,6 +205,69 @@ export function deleteLocation(id) {
   return supabase.from('locations').delete().eq('id', id)
 }
 
+// ---- Activity log (admin-only) -------------------------------------------
+
+// The audit trail, newest first. RLS returns rows only for admins.
+export async function getActivityLog(limit = 150) {
+  const { data } = await supabase
+    .from('activity_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return data ?? []
+}
+
+// ---- Admin user management (Edge Function: admin-users) ------------------
+
+const setPwRedirect = () => `${window.location.origin}/set-password`
+
+// Invoke the admin-users function and normalize the result to { ok, error, data }
+// (so callers can show the server's message on 4xx without unwrapping the error).
+async function callAdminUsers(payload) {
+  const { data, error } = await supabase.functions.invoke('admin-users', { body: payload })
+  if (error) {
+    let msg = error.message
+    try {
+      const body = await error.context.json()
+      if (body?.error) msg = body.error
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: msg }
+  }
+  return { ok: true, data }
+}
+
+// Create an account with a password the admin sets (member can sign in right away).
+export const adminCreateUser = ({ email, name, password }) =>
+  callAdminUsers({ action: 'create', email, name, password })
+
+// Create an account and email the member an invite link to set their own password.
+export const adminInviteUser = ({ email, name }) =>
+  callAdminUsers({ action: 'create', email, name, redirectTo: setPwRedirect() })
+
+// Set a new password directly for a member.
+export const adminSetPassword = (id, password) =>
+  callAdminUsers({ action: 'setPassword', id, password })
+
+// Email a member a password-reset link.
+export const adminSendReset = (email) =>
+  callAdminUsers({ action: 'sendReset', email, redirectTo: setPwRedirect() })
+
+// Permanently delete a member's account (auth user + profile).
+export const adminDeleteUser = (id) => callAdminUsers({ action: 'delete', id })
+
+// ---- Reminder emails (Edge Function: send-reminders) ---------------------
+
+// Manually trigger tomorrow's to-do reminder emails (admin "Send now" button).
+export async function sendRemindersNow() {
+  try {
+    return await supabase.functions.invoke('send-reminders', { body: {} })
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
 // ---- helpers -------------------------------------------------------------
 
 export function initials(name) {

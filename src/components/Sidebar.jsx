@@ -8,6 +8,7 @@ import {
   MapPin,
   UtensilsCrossed,
   Sparkles,
+  History,
   X,
   LogOut,
   Sun,
@@ -20,6 +21,7 @@ import { Logo, Avatar, roleLabels, roleTones } from './ui'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { initials } from '../lib/api'
+import WhatsNew from './WhatsNew'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -29,9 +31,12 @@ const navItems = [
   { to: '/locations', label: 'Locations', icon: MapPin },
   { to: '/restaurants', label: 'Restaurants', icon: UtensilsCrossed },
   { to: '/insights', label: 'AI Insights', icon: Sparkles },
+  { to: '/history', label: 'History', icon: History, adminOnly: true },
 ]
 
 export default function Sidebar({ open, onClose }) {
+  const { profile } = useAuth()
+  const isAdmin = !!profile?.is_admin
   return (
     <>
       {open && <div className="fixed inset-0 z-30 bg-ink-950/40 lg:hidden" onClick={onClose} />}
@@ -53,7 +58,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
-          {navItems.map((item) => {
+          {navItems.filter((item) => !item.adminOnly || isAdmin).map((item) => {
             const Icon = item.icon
             return (
               <NavLink
@@ -76,6 +81,7 @@ export default function Sidebar({ open, onClose }) {
           })}
         </nav>
 
+        <WhatsNew />
         <AccountCard />
       </aside>
     </>

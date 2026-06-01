@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, MapPin, Users, DollarSign, Clock, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail } from 'lucide-react'
 import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -14,6 +14,7 @@ import {
   setTodoAssignee,
   deleteTodo,
   autoGenerateInsights,
+  sendRemindersNow,
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
@@ -22,13 +23,37 @@ import { bestDays, topDay } from '../lib/planning'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
+// "15:00:00" → "3:00 PM"
+function fmtTime(t) {
+  if (!t) return ''
+  const [h, m] = t.split(':')
+  return new Date(2000, 0, 1, Number(h), Number(m)).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+function timeRangeOf(start, end) {
+  if (!start) return ''
+  return end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)
+}
+
 export default function Events() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isAdmin = !!profile?.is_admin
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editEvent, setEditEvent] = useState(null)
   const [showCal, setShowCal] = useState(false)
+  const [reminding, setReminding] = useState('')
+
+  async function remindNow() {
+    setReminding('Sending…')
+    const { data, error } = await sendRemindersNow()
+    if (error || !data?.ok) setReminding('Failed')
+    else setReminding(data.sent > 0 ? `Sent ${data.sent}` : 'Nothing due')
+    setTimeout(() => setReminding(''), 2500)
+  }
 
   const load = () =>
     getEvents().then((data) => {
@@ -59,7 +84,12 @@ export default function Events() {
         title="Events"
         subtitle="Sign up for events to earn hours, and divide up who brings what."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Button variant="soft" icon={Mail} onClick={remindNow} disabled={reminding === 'Sending…'}>
+                {reminding || 'Email reminders'}
+              </Button>
+            )}
             <Button variant="soft" icon={CalendarPlus} onClick={() => setShowCal(true)}>Subscribe</Button>
             <Button icon={Plus} onClick={openCreate}>Add event</Button>
           </div>
@@ -181,6 +211,17 @@ function EventCard({ event, myId, onChange, onEdit }) {
   const understaffed = signups.length < event.min_people
   const [busy, setBusy] = useState(false)
   const [newTodo, setNewTodo] = useState('')
+  const [copied, setCopied] = useState('')
+  const timeRange = timeRangeOf(event.start_time, event.end_time)
+  const mapsUrl = event.address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`
+    : null
+
+  function copy(text, key) {
+    navigator.clipboard?.writeText(text)
+    setCopied(key)
+    setTimeout(() => setCopied(''), 1500)
+  }
 
   async function toggleSignup() {
     setBusy(true)
@@ -213,15 +254,40 @@ function EventCard({ event, myId, onChange, onEdit }) {
             <MapPin size={14} className="text-ink-400" /> {event.location}
           </p>
           {event.address && (
-            <button
-              type="button"
-              onClick={() => navigator.clipboard?.writeText(event.address)}
-              className="mt-1 flex max-w-full items-center gap-1.5 text-xs text-ink-500 transition-colors hover:text-green-700"
-              title="Copy address"
-            >
-              <Copy size={12} className="shrink-0" />
-              <span className="truncate">{event.address}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => copy(event.address, 'addr')}
+                className="mt-1 flex max-w-full items-center gap-1.5 text-xs text-ink-500 transition-colors hover:text-green-700"
+                title="Copy address"
+              >
+                {copied === 'addr' ? (
+                  <Check size={12} className="shrink-0 text-green-600" />
+                ) : (
+                  <Copy size={12} className="shrink-0" />
+                )}
+                <span className="truncate">{event.address}</span>
+              </button>
+              <div className="mt-1 flex items-center gap-3 text-xs">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 font-medium text-blue-600 transition-colors hover:text-blue-700"
+                >
+                  <ExternalLink size={12} className="shrink-0" /> Open in Google Maps
+                </a>
+                <button
+                  type="button"
+                  onClick={() => copy(mapsUrl, 'maps')}
+                  className="flex items-center gap-1 text-ink-500 transition-colors hover:text-green-700"
+                  title="Copy Google Maps link"
+                >
+                  {copied === 'maps' ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                  {copied === 'maps' ? 'Copied link' : 'Copy link'}
+                </button>
+              </div>
+            </>
           )}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -253,7 +319,10 @@ function EventCard({ event, myId, onChange, onEdit }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
-        <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {event.hours} hrs each</span>
+        {timeRange && (
+          <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {timeRange}</span>
+        )}
+        <span className="flex items-center gap-1.5"><Hourglass size={14} className="text-ink-400" /> {event.hours} hrs each</span>
         {Number(event.raised) > 0 && (
           <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-green-600" /> ${Number(event.raised).toLocaleString()} raised</span>
         )}
@@ -378,7 +447,7 @@ function TodoRow({ todo, myId, onChange }) {
   )
 }
 
-const blank = { name: '', date: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '' }
+const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '' }
 
 function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const [form, setForm] = useState(blank)
@@ -400,6 +469,8 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
       setForm({
         name: event.name ?? '',
         date: event.date ?? '',
+        start_time: (event.start_time ?? '').slice(0, 5),
+        end_time: (event.end_time ?? '').slice(0, 5),
         location: event.location ?? '',
         address: event.address ?? '',
         hours: event.hours ?? 3,
@@ -419,6 +490,8 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
     const fields = {
       name: form.name,
       date: form.date,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
       location: form.location,
       address: form.address,
       hours: Number(form.hours),
@@ -442,6 +515,14 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         <FormField label="Date">
           <input type="date" className={inputClass} value={form.date} onChange={set('date')} required />
         </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Start time">
+            <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
+          </FormField>
+          <FormField label="End time">
+            <input type="time" className={inputClass} value={form.end_time} onChange={set('end_time')} />
+          </FormField>
+        </div>
         {picked && planBest && (
           <div className="-mt-1 flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs text-gold-800">
             <TrendingUp size={14} className="mt-0.5 shrink-0" />

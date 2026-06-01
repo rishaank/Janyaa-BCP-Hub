@@ -46,8 +46,10 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
 - **Live sync:** `src/lib/useRealtime.js` — `useRealtime(table(s), reloadFn)` subscribes to Postgres
   changes so the UI updates across clients. All core tables are in the `supabase_realtime` publication.
 - **Auth:** `src/context/AuthContext.jsx` exposes `session`, `user`, `profile`, `signIn/Up/Out`,
-  `updateProfile`. `ProtectedRoute` gates the app; `Login` is the only public page.
-  Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI.
+  `updateProfile`. `ProtectedRoute` gates the app; the public pages are `Login` and `SetPassword`
+  (`/set-password` — the landing for invite + reset email links; calls `auth.updateUser`).
+  Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI;
+  admin-only pages (e.g. `/history`) are gated in the sidebar nav **and** by RLS.
 - **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > AuthProvider > BrowserRouter`.
   Pages live in `src/pages/`, shared primitives in `src/components/ui.jsx`.
 - **`src/data/mockData.js`** only holds constants now (`CURRENT_TERM`, `eventTypes`,
@@ -91,9 +93,11 @@ brand tokens under `:root[data-theme='dark']`. **Gotchas when adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0007*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0010*.sql`
 (all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
-`event_todos`, `locations`, `club_settings` (single shared row, `id = true`).
+`event_todos`, `locations`, `club_settings` (single shared row, `id = true`), `activity_log`
+(admin-only audit trail). `events` also has optional `start_time` / `end_time` (migration 0008) —
+when set, the calendar feed emits a timed block (with a `VTIMEZONE` for America/Los_Angeles).
 
 **To change the schema:** write a new `supabase/migrations/000N_*.sql` AND apply it — via the
 **Supabase MCP** (`apply_migration` / `execute_sql` / `deploy_edge_function`, configured in `.mcp.json`,
@@ -113,7 +117,15 @@ self-update policy was dropped (migration 0005). First member was bootstrapped a
 (`gofundme_raised/goal/donations`) are scraped server-side. Per-event in-person revenue is `events.raised`.
 
 **Avatars:** public `avatars` storage bucket, users can only write their own `uid/…` folder;
-`profiles.avatar_url` holds the public URL.
+`profiles.avatar_url` holds the public URL. Photos are square-cropped client-side
+(`AvatarCropper`, react-easy-crop) before upload.
+
+**Activity log (migration 0009):** `activity_log` gets one human-readable row per change (events /
+signups / to-dos / locations / profiles / fundraising goal), written by the `log_activity()`
+SECURITY DEFINER trigger on each table (captures `auth.uid()`; NULL ⇒ "System" for cron/edge
+functions). **RLS: admins read only**; nothing writes directly (only the trigger does — its EXECUTE
+is revoked from `public`). It's in the realtime publication, so the admin `/history` page (which
+also merges in GitHub commits as "website updates" via `useGithubCommits`) updates live.
 
 ## Edge Functions (`supabase/functions/`)
 
@@ -129,6 +141,17 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   → Edge Functions → Secrets; free Gemini API tier). Admin can force-regenerate; auto-regenerates
   (throttled ~10 min) when an event or the GoFundMe total changes. Falls back to a "not set up" message
   if the key is missing.
+- **`admin-users`** (`verify_jwt: true`) — admin-only account management needing the service role:
+  create (with a set password OR an emailed invite), set password, send reset email, delete. Confirms
+  the caller is an admin (`profiles.is_admin`) before acting. Called via `src/lib/api.js`
+  (`adminCreateUser` / `adminInviteUser` / `adminSetPassword` / `adminSendReset` / `adminDeleteUser`),
+  surfaced in the Members "Add member" modal + the profile page's admin Account section.
+- **`send-reminders`** (`verify_jwt: false`) — emails each member the to-do items they claimed for
+  events happening **tomorrow**, via the club Gmail over SMTP. Runs daily on a **pg_cron schedule
+  (15:00 UTC ≈ 8 AM PT, migration 0010)** + a manual admin "Email reminders" button on the Events page.
+  **Requires the `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `FROM_EMAIL` secrets** (the
+  club Gmail + an app password — the same custom-SMTP creds Supabase uses for invite/reset emails).
+  Returns a "SMTP not set" message until configured.
 
 ## Deployment (Vercel)
 
@@ -137,7 +160,9 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 - `vercel.json` has the **SPA fallback rewrite** (`/(.*) → /index.html`) so deep links like `/events`
   work on hard refresh. Don't remove it.
 - After deploying, the Supabase **Auth → URL Configuration** Site/Redirect URLs should include the
-  Vercel domain.
+  Vercel domain **and `…/set-password`** (so invite/reset email links land in the app). For those
+  emails to actually send, **custom SMTP** must be set (Project Settings → Auth → SMTP — the club
+  Gmail + app password); the same creds go in the Edge Function secrets for `send-reminders`.
 
 ## Gotchas / house rules
 

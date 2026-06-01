@@ -13,8 +13,17 @@ import {
   roleTones,
   formatDate,
 } from '../components/ui'
-import { getProfileDetails, adminUpdateProfile, uploadAvatar, removeAvatar } from '../lib/api'
+import {
+  getProfileDetails,
+  adminUpdateProfile,
+  uploadAvatar,
+  removeAvatar,
+  adminSetPassword,
+  adminSendReset,
+  adminDeleteUser,
+} from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import AvatarCropper from '../components/AvatarCropper'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -110,7 +119,15 @@ export default function ProfilePage() {
         )}
       </Card>
 
-      {isAdmin && <AdminControls member={p} derivedHours={derivedHours} onSaved={load} />}
+      {isAdmin && (
+        <AdminControls
+          member={p}
+          derivedHours={derivedHours}
+          isSelf={user?.id === p.id}
+          onSaved={load}
+          onDeleted={() => navigate('/members')}
+        />
+      )}
     </>
   )
 }
@@ -118,14 +135,26 @@ export default function ProfilePage() {
 function ProfilePhoto({ profile, canEdit, onChange }) {
   const inputRef = useRef(null)
   const [busy, setBusy] = useState(false)
+  const [cropSrc, setCropSrc] = useState(null)
 
-  async function onFile(e) {
+  function onFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    setCropSrc(URL.createObjectURL(file)) // open the cropper instead of uploading raw
+    e.target.value = '' // let the same file be re-picked later
+  }
+  async function onCropped(file) {
+    const url = cropSrc
+    setCropSrc(null)
     setBusy(true)
     await uploadAvatar(profile.id, file)
     setBusy(false)
+    if (url) URL.revokeObjectURL(url)
     onChange()
+  }
+  function cancelCrop() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc)
+    setCropSrc(null)
   }
   async function useDefault() {
     setBusy(true)
@@ -155,6 +184,7 @@ function ProfilePhoto({ profile, canEdit, onChange }) {
           Use default
         </button>
       )}
+      <AvatarCropper open={!!cropSrc} src={cropSrc} onCancel={cancelCrop} onSave={onCropped} />
     </div>
   )
 }
@@ -197,13 +227,17 @@ function EventList({ title, events, empty }) {
   )
 }
 
-function AdminControls({ member, derivedHours, onSaved }) {
+function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
   const [name, setName] = useState(member.name ?? '')
   const [role, setRole] = useState(member.role ?? 'member')
   const [admin, setAdmin] = useState(!!member.is_admin)
   const [hours, setHours] = useState(derivedHours + Number(member.hours_adjustment ?? 0))
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pw, setPw] = useState('')
+  const [acctBusy, setAcctBusy] = useState('')
+  const [acctMsg, setAcctMsg] = useState('')
+  const [acctErr, setAcctErr] = useState('')
 
   useEffect(() => {
     setName(member.name ?? '')
@@ -226,6 +260,37 @@ function AdminControls({ member, derivedHours, onSaved }) {
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
     onSaved()
+  }
+
+  async function doSetPassword() {
+    setAcctErr('')
+    setAcctMsg('')
+    if (pw.length < 8) return setAcctErr('Password must be at least 8 characters.')
+    setAcctBusy('pw')
+    const res = await adminSetPassword(member.id, pw)
+    setAcctBusy('')
+    if (!res.ok) return setAcctErr(res.error || 'Could not set the password.')
+    setPw('')
+    setAcctMsg('Password updated.')
+  }
+  async function doSendReset() {
+    setAcctErr('')
+    setAcctMsg('')
+    setAcctBusy('reset')
+    const res = await adminSendReset(member.email)
+    setAcctBusy('')
+    if (!res.ok) return setAcctErr(res.error || 'Could not send the reset email.')
+    setAcctMsg('Reset email sent.')
+  }
+  async function doDelete() {
+    if (!window.confirm(`Permanently delete ${member.name || 'this member'}'s account? This can't be undone.`)) return
+    setAcctErr('')
+    setAcctMsg('')
+    setAcctBusy('delete')
+    const res = await adminDeleteUser(member.id)
+    setAcctBusy('')
+    if (!res.ok) return setAcctErr(res.error || 'Could not delete the account.')
+    onDeleted()
   }
 
   return (
@@ -295,6 +360,38 @@ function AdminControls({ member, derivedHours, onSaved }) {
             <span className="block text-xs text-ink-500">Full control over members, events, fundraising, and settings.</span>
           </span>
         </label>
+
+        {/* Account */}
+        <div className="border-t border-ink-200 pt-4">
+          <p className="mb-2 text-sm font-semibold text-ink-800">Account</p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              placeholder="New password (min 8)"
+              className={`${inputClass} sm:flex-1`}
+            />
+            <Button variant="soft" type="button" onClick={doSetPassword} disabled={acctBusy === 'pw'}>
+              {acctBusy === 'pw' ? 'Setting…' : 'Set password'}
+            </Button>
+            <Button variant="soft" type="button" onClick={doSendReset} disabled={acctBusy === 'reset'}>
+              {acctBusy === 'reset' ? 'Sending…' : 'Email reset link'}
+            </Button>
+          </div>
+          {acctMsg && <p className="mt-2 text-xs font-medium text-green-700">{acctMsg}</p>}
+          {acctErr && <p className="mt-2 text-xs text-coral-700">{acctErr}</p>}
+          {!isSelf && (
+            <button
+              type="button"
+              onClick={doDelete}
+              disabled={acctBusy === 'delete'}
+              className="mt-3 text-sm font-medium text-coral-700 transition-colors hover:text-coral-800 disabled:opacity-60"
+            >
+              {acctBusy === 'delete' ? 'Deleting…' : 'Delete this account'}
+            </button>
+          )}
+        </div>
       </div>
       <div className="mt-4 flex items-center justify-end gap-3">
         {saved && <span className="text-sm font-medium text-green-700">Saved</span>}

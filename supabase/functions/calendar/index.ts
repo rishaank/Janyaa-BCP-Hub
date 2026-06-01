@@ -27,6 +27,19 @@ function fold(line: string) {
 
 const ymd = (d: Date) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}`
 
+// "2026-06-07" + "15:00:00" → "20260607T150000" (local wall-clock, paired with a TZID).
+const localDT = (date: string, time: string) =>
+  `${date.replace(/-/g, '')}T${time.replace(/:/g, '').padEnd(6, '0').slice(0, 6)}`
+
+// Add whole hours to a wall-clock time → "HHMMSS". Used to derive an end time when
+// only a start was given. Crossing midnight is ignored (club events don't).
+function addHoursHMS(time: string, hrs: number) {
+  const [h, m] = time.split(':').map(Number)
+  const d = new Date(Date.UTC(2000, 0, 1, h, m))
+  d.setUTCHours(d.getUTCHours() + Math.max(1, Math.ceil(hrs)))
+  return `${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00`
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { 'Access-Control-Allow-Origin': '*' } })
@@ -38,7 +51,7 @@ Deno.serve(async (req) => {
   )
   const { data: events } = await supabase
     .from('events')
-    .select('id,name,date,location,address,notes,hours')
+    .select('id,name,date,location,address,notes,hours,start_time,end_time')
     .order('date')
 
   const now = new Date()
@@ -56,10 +69,29 @@ Deno.serve(async (req) => {
     'X-PUBLISHED-TTL:PT6H',
   ]
 
+  // Timezone definition so timed events render in America/Los_Angeles everywhere.
+  lines.push(
+    'BEGIN:VTIMEZONE',
+    'TZID:America/Los_Angeles',
+    'X-LIC-LOCATION:America/Los_Angeles',
+    'BEGIN:DAYLIGHT',
+    'TZOFFSETFROM:-0800',
+    'TZOFFSETTO:-0700',
+    'TZNAME:PDT',
+    'DTSTART:19700308T020000',
+    'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU',
+    'END:DAYLIGHT',
+    'BEGIN:STANDARD',
+    'TZOFFSETFROM:-0700',
+    'TZOFFSETTO:-0800',
+    'TZNAME:PST',
+    'DTSTART:19701101T020000',
+    'RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU',
+    'END:STANDARD',
+    'END:VTIMEZONE',
+  )
+
   for (const e of events ?? []) {
-    const start = new Date(e.date + 'T00:00:00Z')
-    const end = new Date(start)
-    end.setUTCDate(end.getUTCDate() + 1)
     const desc = []
     if (e.hours) desc.push(`${e.hours} hrs each`)
     if (e.notes) desc.push(e.notes)
@@ -68,8 +100,19 @@ Deno.serve(async (req) => {
     lines.push('BEGIN:VEVENT')
     lines.push(`UID:${e.id}@janyaa-bcp-hub`)
     lines.push(`DTSTAMP:${stamp}`)
-    lines.push(`DTSTART;VALUE=DATE:${ymd(start)}`)
-    lines.push(`DTEND;VALUE=DATE:${ymd(end)}`)
+    if (e.start_time) {
+      const endHMS = e.end_time
+        ? e.end_time.replace(/:/g, '').padEnd(6, '0').slice(0, 6)
+        : addHoursHMS(e.start_time, Number(e.hours) || 1)
+      lines.push(`DTSTART;TZID=America/Los_Angeles:${localDT(e.date, e.start_time)}`)
+      lines.push(`DTEND;TZID=America/Los_Angeles:${e.date.replace(/-/g, '')}T${endHMS}`)
+    } else {
+      const start = new Date(e.date + 'T00:00:00Z')
+      const end = new Date(start)
+      end.setUTCDate(end.getUTCDate() + 1)
+      lines.push(`DTSTART;VALUE=DATE:${ymd(start)}`)
+      lines.push(`DTEND;VALUE=DATE:${ymd(end)}`)
+    }
     lines.push(fold(`SUMMARY:${esc(e.name)}`))
     if (e.address || e.location) lines.push(fold(`LOCATION:${esc(e.address || e.location)}`))
     lines.push(fold(`DESCRIPTION:${esc(desc.join('\n'))}`))
