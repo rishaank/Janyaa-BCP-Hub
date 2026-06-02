@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Minus, Plus } from 'lucide-react'
 import {
   Card,
   Badge,
@@ -74,6 +74,9 @@ export default function ProfilePage() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-display text-h2 font-bold text-ink-900">{p.name || '—'}</h1>
               <Badge tone={roleTones[p.role] ?? 'ink'}>{roleLabels[p.role] ?? 'Member'}</Badge>
+              {p.is_founder && (
+                <Badge tone="gold"><Crown size={11} /> Founder</Badge>
+              )}
               {p.is_admin && (
                 <Badge tone="blue"><Shield size={11} /> Admin</Badge>
               )}

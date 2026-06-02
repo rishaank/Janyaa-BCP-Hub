@@ -15,20 +15,25 @@ function apply(theme) {
   const el = document.documentElement
   if (dark) el.setAttribute('data-theme', 'dark')
   else el.removeAttribute('data-theme')
+  return dark
 }
 
 export function ThemeProvider({ children }) {
   const [theme, setThemeState] = useState(() => localStorage.getItem(KEY) || 'system')
+  const [isDark, setIsDark] = useState(() => {
+    const t = localStorage.getItem(KEY) || 'system'
+    return t === 'dark' || (t === 'system' && prefersDark())
+  })
 
   useEffect(() => {
-    apply(theme)
+    setIsDark(apply(theme))
   }, [theme])
 
   // When following the system, re-apply if the OS preference changes live.
   useEffect(() => {
     if (theme !== 'system') return
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => apply('system')
+    const onChange = () => setIsDark(apply('system'))
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [theme])
@@ -38,7 +43,7 @@ export function ThemeProvider({ children }) {
     setThemeState(t)
   }
 
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>
+  return <ThemeContext.Provider value={{ theme, setTheme, isDark }}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme() {

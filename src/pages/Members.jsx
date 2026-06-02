@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Clock, Award, Shield, UserPlus } from 'lucide-react'
+import { Users, Clock, Award, Shield, UserPlus, Crown } from 'lucide-react'
 import { PageHeader, Card, StatCard, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
 import { getMembersWithHours, adminCreateUser, adminInviteUser } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
@@ -96,6 +96,7 @@ export default function Members() {
                     <td className="px-5 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge tone={roleTones[m.role] ?? 'ink'}>{roleLabels[m.role] ?? 'Member'}</Badge>
+                        {m.is_founder && <Badge tone="gold"><Crown size={11} /> Founder</Badge>}
                         {m.is_admin && <Badge tone="blue"><Shield size={11} /> Admin</Badge>}
                       </div>
                     </td>

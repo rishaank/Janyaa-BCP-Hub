@@ -107,6 +107,14 @@
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
+  /* Interactive elements get the hand cursor (Tailwind v4 Preflight doesn't add it). */
+  button:not(:disabled),
+  [role='button'],
+  label[for],
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 /* Live user-location indicator on the Locations map */

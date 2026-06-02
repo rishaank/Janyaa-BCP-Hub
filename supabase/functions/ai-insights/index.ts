@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   )
 
   const [{ data: events }, { data: profiles }, { data: settings }, { data: locations }] = await Promise.all([
-    supabase.from('events').select('id,name,date,location,raised,hours,min_people,max_people,event_signups(member_id)'),
+    supabase.from('events').select('id,name,date,location,raised,hours,min_people,max_people,notes,start_time,end_time,event_signups(member_id)'),
     supabase.from('profiles').select('id,name,role,hours_adjustment'),
     supabase.from('club_settings').select('raise_target,gofundme_raised,gofundme_goal,gofundme_donations').eq('id', true).single(),
     supabase.from('locations').select('name,status'),
@@ -52,12 +52,14 @@ Deno.serve(async (req) => {
       name: e.name,
       date: e.date,
       day: DOW[new Date(e.date + 'T00:00:00Z').getUTCDay()],
+      time: e.start_time ?? null,
       past: e.date < today,
       crew: (e.event_signups ?? []).length,
       raised: Number(e.raised),
       hours: Number(e.hours),
       min: e.min_people,
       max: e.max_people,
+      notes: e.notes ?? '',
     })),
     members: (profiles ?? []).map((p) => ({
       name: p.name,
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
   }
 
   const prompt =
-    'You are a data analyst for the Janyaa BCP club, a high-school STEM-education nonprofit that runs events, tracks member volunteer hours, and fundraises. Analyze the REAL club data below and return 3 to 5 specific, actionable insights a student leader could act on this week. Cite real numbers from the data and avoid generic advice. For each insight give a short title, a one to two sentence detail with concrete numbers, a brief metric string (for example +130% or 5 members or $340 to goal), and a tone of positive, warning, or neutral. DATA: ' +
+    'You are a data analyst for the Janyaa BCP club, a high-school STEM-education nonprofit that runs events, tracks member volunteer hours, and fundraises. Analyze the REAL club data below and return 3 to 5 specific, actionable insights a student leader could act on this week. Cite real numbers from the data and avoid generic advice. Event notes often contain revenue breakdowns (online vs cash) and useful context worth drawing on. For each insight give a short title, a one to two sentence detail with concrete numbers, a brief metric string (for example +130% or 5 members or $340 to goal), and a tone of positive, warning, or neutral. DATA: ' +
     JSON.stringify(summary)
 
   const geminiRes = await fetch(

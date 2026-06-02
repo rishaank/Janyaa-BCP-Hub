@@ -17,6 +17,7 @@ import {
 } from '../components/ui'
 import { getLocations, getEvents, saveLocation, updateLocation, deleteLocation } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useTheme } from '../context/ThemeContext'
 import { locationPerformance } from '../lib/planning'
 
 // Green dot for a not-yet-saved pin.
@@ -65,6 +66,7 @@ async function reverseGeocode(lat, lng) {
 }
 
 export default function Locations() {
+  const { isDark } = useTheme()
   const [locations, setLocations] = useState([])
   const [events, setEvents] = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -145,8 +147,17 @@ export default function Locations() {
           <div className="relative z-0 h-[460px] w-full isolate">
             <MapContainer center={SAN_JOSE} zoom={10} className="h-full w-full" scrollWheelZoom>
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                key={isDark ? 'dark' : 'light'}
+                attribution={
+                  isDark
+                    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }
+                url={
+                  isDark
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+                    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+                }
               />
               <FlyTo target={flyTo} />
               <ClickToPin onPin={dropPin} />

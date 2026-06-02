@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail, Instagram, List, CalendarDays } from 'lucide-react'
 import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -18,6 +18,7 @@ import {
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
+import EventsCalendar from '../components/EventsCalendar'
 import { useRealtime } from '../lib/useRealtime'
 import { bestDays, topDay } from '../lib/planning'
 
@@ -37,6 +38,11 @@ function timeRangeOf(start, end) {
   return end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)
 }
 
+const segBtn = (active) =>
+  `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+    active ? 'bg-green-600 text-white shadow-xs' : 'text-ink-600 hover:text-ink-900'
+  }`
+
 export default function Events() {
   const { user, profile } = useAuth()
   const isAdmin = !!profile?.is_admin
@@ -46,6 +52,7 @@ export default function Events() {
   const [editEvent, setEditEvent] = useState(null)
   const [showCal, setShowCal] = useState(false)
   const [reminding, setReminding] = useState('')
+  const [view, setView] = useState('list')
 
   async function remindNow() {
     setReminding('Sending…')
@@ -96,8 +103,21 @@ export default function Events() {
         }
       />
 
+      <div className="mb-5 flex justify-end">
+        <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
+          <button onClick={() => setView('list')} className={segBtn(view === 'list')}>
+            <List size={15} /> List
+          </button>
+          <button onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
+            <CalendarDays size={15} /> Calendar
+          </button>
+        </div>
+      </div>
+
       {loading ? (
         <LoadingRows />
+      ) : view === 'calendar' ? (
+        <EventsCalendar events={events} onSelect={openEdit} />
       ) : (
         <>
           <Section title="Upcoming" count={upcoming.length}>
@@ -328,6 +348,22 @@ function EventCard({ event, myId, onChange, onEdit }) {
         )}
       </div>
 
+      {event.instagram_urls?.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {event.instagram_urls.map((url, i) => (
+            <a
+              key={i}
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-700 transition-colors hover:bg-blue-50 hover:text-blue-700"
+            >
+              <Instagram size={13} /> {event.instagram_urls.length > 1 ? `Post ${i + 1}` : 'Instagram'}
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* Crew / capacity */}
       <div className="mt-4 rounded-xl bg-ink-50 p-3">
         <div className="mb-2 flex items-center justify-between">
@@ -447,7 +483,7 @@ function TodoRow({ todo, myId, onChange }) {
   )
 }
 
-const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '' }
+const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [] }
 
 function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const [form, setForm] = useState(blank)
@@ -478,6 +514,7 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         max_people: event.max_people ?? 6,
         raised: event.raised ?? 0,
         notes: event.notes ?? '',
+        instagram_urls: event.instagram_urls ?? [],
       })
     } else {
       setForm(blank)
@@ -499,6 +536,7 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
       max_people: Number(form.max_people),
       raised: Number(form.raised),
       notes: form.notes,
+      instagram_urls: (form.instagram_urls ?? []).map((s) => s.trim()).filter(Boolean),
     }
     if (editing) await updateEvent(event.id, fields)
     else await createEvent({ ...fields, type: 'other' })
@@ -579,6 +617,39 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         </FormField>
         <FormField label="Notes">
           <textarea className={inputClass} rows={2} value={form.notes} onChange={set('notes')} />
+        </FormField>
+        <FormField label="Instagram posts">
+          <div className="space-y-2">
+            {(form.instagram_urls ?? []).map((url, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  className={inputClass}
+                  value={url}
+                  onChange={(e) => {
+                    const next = [...form.instagram_urls]
+                    next[i] = e.target.value
+                    setForm({ ...form, instagram_urls: next })
+                  }}
+                  placeholder="https://www.instagram.com/p/…"
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, instagram_urls: form.instagram_urls.filter((_, j) => j !== i) })}
+                  className="shrink-0 rounded-lg border border-ink-300 px-2.5 text-ink-500 transition-colors hover:bg-coral-50 hover:text-coral-600"
+                  aria-label="Remove link"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, instagram_urls: [...(form.instagram_urls ?? []), ''] })}
+              className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+            >
+              <Plus size={14} /> Add Instagram link
+            </button>
+          </div>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>

@@ -14,6 +14,7 @@ import Locations from './pages/Locations'
 import Restaurants from './pages/Restaurants'
 import Insights from './pages/Insights'
 import History from './pages/History'
+import ClubInfo from './pages/ClubInfo'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/insights" element={<Insights />} />
               <Route path="/history" element={<History />} />
+              <Route path="/club" element={<ClubInfo />} />
             </Route>
           </Route>
 
