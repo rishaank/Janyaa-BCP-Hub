@@ -22,9 +22,11 @@ compiles. The codebase is **JSX (not TypeScript)** except the Supabase Edge Func
 - **React 19 + Vite 6 + React Router 7** (SPA, `BrowserRouter`)
 - **Tailwind CSS v4** (CSS-first config via `@theme`; no `tailwind.config.js`) + `@tailwindcss/vite`
 - **Supabase** — Postgres + Auth + Storage + Edge Functions (project ref `sgjcliwmzshhkhjlbdjy`)
-- **lucide-react** icons · **recharts** charts · **react-leaflet / leaflet** maps (OpenStreetMap)
+- **lucide-react** icons · **recharts** charts · **react-leaflet / leaflet** maps (OpenStreetMap) ·
+  **react-easy-crop** (avatar + theme image cropping)
 - **Gemini API** (`gemini-2.5-flash`) for AI insights, called server-side from an Edge Function
-- Deployed on **Vercel** (auto-deploys `main`). Remote: `github.com/rishaank/Janyaa-BCP-Hub`.
+- Deployed on **Vercel** (auto-deploys `main`). Remote: `github.com/rishaank/Janyaa-BCP-Hub` —
+  a **public** repo, so the What's-new bell can read its commits via the unauthenticated GitHub API.
 
 ## Environment
 
@@ -54,6 +56,14 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   Pages live in `src/pages/`, shared primitives in `src/components/ui.jsx`.
 - **`src/data/mockData.js`** only holds constants now (`CURRENT_TERM`, `eventTypes`,
   `plannedInsights`) — not live data.
+- **Notable pages** (`src/pages/`): `Dashboard` (stat chips + hours leaderboard + top AI-insight chips),
+  `Members` / `ProfilePage` (**Founder** + **Admin** badges, avatar cropping, admin Account controls),
+  `Events` (**List ↔ Calendar** toggle via `EventsCalendar.jsx`; times, Maps link, linked Instagram
+  posts, to-dos), `Fundraising`, `Locations` (Leaflet, dark-aware tiles), `Insights` (Gemini),
+  `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`, member-accessible — Janyaa
+  reference links + impact facts), `Restaurants` (placeholder). AI insight cards are the shared
+  `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
+  `src/lib/useGithubCommits.js` (30-min `localStorage` cache).
 
 ## Design system — READ THIS BEFORE TOUCHING UI
 
@@ -76,12 +86,18 @@ The brand system is grounded in the club logo (`public/janyaa-logo.png`). Source
   `<Avatar src={...}>`. **Inline references use initials in role color via `<MemberChip>`** (event
   attendees, to-do owners) — keep that consistent and clickable to `/members/:id`.
 
-### Dark mode
+### Theming (light / dark / custom)
 
-`src/context/ThemeContext.jsx` toggles `light | dark | system` (default system), persisted to
-`localStorage('janyaa-theme')`, applied as `data-theme="dark"` on `<html>`. A small inline script in
-`index.html` sets it before paint (no flash). The whole app flips because `index.css` overrides the
-brand tokens under `:root[data-theme='dark']`. **Gotchas when adding UI:**
+`src/context/ThemeContext.jsx` toggles `light | dark | system | custom` (default system), persisted to
+`localStorage('janyaa-theme')`. Light/dark/system apply `data-theme="dark"` on `<html>` (a small inline
+script in `index.html` sets it before paint; the whole app flips via `index.css` token overrides under
+`:root[data-theme='dark']`). **`custom`** is a per-user **image theme** (`src/lib/customTheme.js` +
+`src/components/CustomThemeModal.jsx`, the 4th icon in the sidebar theme switcher): an uploaded
+background (compressed to a data URL in `localStorage('janyaa-custom-theme')`) plus an auto-extracted,
+overridable palette, applied as inline CSS-var overrides on `<html>` — `--color-paper` goes transparent
+over the photo (with a `--ja-veil` scrim for contrast) and surface/text/accent + the ink ramp are
+overridden. Picking light/dark/system clears the overrides but keeps the saved image. **Gotchas when
+adding UI:**
 
 - Brand `-700` steps (e.g. `green-700`, `blue-700`) are remapped to *light* text in dark mode, so they
   **cannot** be used as gradient backgrounds. Brand gradients use `-800` steps (which aren't flipped),
@@ -93,11 +109,16 @@ brand tokens under `:root[data-theme='dark']`. **Gotchas when adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0010*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0012*.sql`
 (all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `locations`, `club_settings` (single shared row, `id = true`), `activity_log`
-(admin-only audit trail). `events` also has optional `start_time` / `end_time` (migration 0008) —
-when set, the calendar feed emits a timed block (with a `VTIMEZONE` for America/Los_Angeles).
+(admin-only audit trail). Notable added columns:
+
+- **`events`:** `address`, `start_time` / `end_time` (migration 0008 — when set, the calendar feed emits
+  a timed block with a `VTIMEZONE` for America/Los_Angeles), `instagram_urls` (`text[]` of linked IG
+  posts shown on the event card; migration 0012).
+- **`profiles`:** `is_admin`, `hours_adjustment`, `avatar_url`, and `is_founder` (migration 0012 — drives
+  the **Founder** badge on Members + the profile header; set on the club founders).
 
 **To change the schema:** write a new `supabase/migrations/000N_*.sql` AND apply it — via the
 **Supabase MCP** (`apply_migration` / `execute_sql` / `deploy_edge_function`, configured in `.mcp.json`,
@@ -172,3 +193,9 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 - `src/pages/Restaurants.jsx` is an **intentional placeholder** ("coming soon").
 - The bundle-size warning on build is known/acceptable (Leaflet + Recharts); not an error.
 - Keep changes scoped and on-brand; don't reintroduce raw `slate/indigo/...` when a brand token fits.
+- The repo is **public** on purpose — required for the **What's-new** bell + History "website updates"
+  to read commit messages via the unauthenticated GitHub API. Never commit secrets (`.env.local` is
+  gitignored; only the publishable Supabase key appears in code, which is safe).
+- Custom **SMTP is configured** (the club Gmail + an app password) for Auth invite/reset emails **and**
+  reused as the `SMTP_*` Edge Function secrets for `send-reminders`. Gmail rejects an app password with
+  spaces — store the 16 chars with **no spaces**.
