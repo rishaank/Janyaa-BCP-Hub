@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import SetPassword from './pages/SetPassword'
+import Privacy from './pages/Privacy'
+import Terms from './pages/Terms'
 import Dashboard from './pages/Dashboard'
 import Members from './pages/Members'
 import ProfilePage from './pages/ProfilePage'
@@ -25,9 +27,11 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
         <Routes>
-          {/* Public auth screens (no app shell). */}
+          {/* Public screens (no app shell). */}
           <Route path="/login" element={<Login />} />
           <Route path="/set-password" element={<SetPassword />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
 
           {/* App shell. The dashboard is public; everything else needs a session. */}
           <Route element={<Layout />}>

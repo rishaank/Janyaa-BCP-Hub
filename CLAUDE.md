@@ -52,9 +52,12 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   `get_public_dashboard()` RPC (returns only the dashboard's own data: counts, hours, fundraising,
   leaderboard, insights, goals, upcoming events/meetings — no emails, no raw tables). `ProtectedRoute`
   gates **every other** page; the sidebar shows those locked (→ `/login`) and the account card becomes a
-  Sign-in CTA for guests. Other public routes are `Login` and `SetPassword` (`/set-password` — the
-  landing for invite + reset email links; calls `auth.updateUser`). Email/password with **auto-confirm
-  ON** (no email step). `profile.is_admin` drives admin UI; admin-only pages (e.g. `/history`) are gated
+  Sign-in CTA for guests. Other public routes are `Login`, `SetPassword` (`/set-password` — the
+  landing for invite + reset email links; calls `auth.updateUser`), and the **`/privacy` + `/terms`**
+  legal pages (`LegalPage.jsx`, linked from the Login screen + the `Layout` footer). **Signup is
+  invite-only** — admins create accounts (the public Login is sign-in only); a member can **delete their
+  own account + data** from their profile (`deleteOwnAccount` → admin-users `deleteSelf`, the California
+  SB 568 "eraser" right). Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI; admin-only pages (e.g. `/history`) are gated
   in the sidebar nav **and** by RLS.
 - **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > AuthProvider > BrowserRouter`. The
   `<Layout>` shell wraps **both** the public `/` and the `<ProtectedRoute>`-gated children. Pages live in

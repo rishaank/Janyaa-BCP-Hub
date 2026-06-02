@@ -1,0 +1,4 @@
+# The Janyaa BCP Hub's public dashboard lists club members (mostly minors).
+# It stays reachable by anyone with the link, but we ask crawlers not to index it.
+User-agent: *
+Disallow: /

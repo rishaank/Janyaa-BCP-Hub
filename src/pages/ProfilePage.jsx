@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Minus, Plus } from 'lucide-react'
+import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Minus, Plus, Trash2, AlertTriangle } from 'lucide-react'
 import {
   Card,
   Badge,
@@ -21,6 +21,7 @@ import {
   adminSetPassword,
   adminSendReset,
   adminDeleteUser,
+  deleteOwnAccount,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import AvatarCropper from '../components/AvatarCropper'
@@ -30,7 +31,7 @@ const TODAY = new Date().toISOString().slice(0, 10)
 export default function ProfilePage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, profile: me } = useAuth()
+  const { user, profile: me, signOut } = useAuth()
   const isAdmin = !!me?.is_admin
   const isOwn = user?.id === id
 
@@ -131,7 +132,63 @@ export default function ProfilePage() {
           onDeleted={() => navigate('/members')}
         />
       )}
+
+      {isOwn && (
+        <SelfDangerZone
+          onDeleted={async () => {
+            await signOut()
+            navigate('/', { replace: true })
+          }}
+        />
+      )}
     </>
+  )
+}
+
+// Self-service account + data deletion, shown on your own profile (SB 568 eraser).
+function SelfDangerZone({ onDeleted }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function remove() {
+    if (
+      !window.confirm(
+        'Delete your account and all your data? This removes your profile, photo, event sign-ups, and meeting attendance. This cannot be undone.',
+      )
+    )
+      return
+    setBusy(true)
+    setErr('')
+    const res = await deleteOwnAccount()
+    if (!res.ok) {
+      setBusy(false)
+      setErr(res.error || 'Could not delete your account. Please try again or contact a club lead.')
+      return
+    }
+    await onDeleted()
+  }
+
+  return (
+    <Card className="mt-6 border-coral-200 p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <AlertTriangle size={16} className="text-coral-600" />
+        <h3 className="font-display text-h4 font-semibold text-ink-900">Delete your account</h3>
+      </div>
+      <p className="text-sm text-ink-600">
+        Permanently delete your account and personal data — your profile, photo, event sign-ups, and
+        meeting attendance. This can&rsquo;t be undone.
+      </p>
+      {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
+      <button
+        type="button"
+        onClick={remove}
+        disabled={busy}
+        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-coral-200 bg-surface px-3.5 py-2 text-sm font-semibold text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-60"
+      >
+        {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+        {busy ? 'Deleting…' : 'Delete my account'}
+      </button>
+    </Card>
   )
 }
 

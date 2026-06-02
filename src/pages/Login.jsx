@@ -5,41 +5,26 @@ import { Logo } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { session, signIn, signUp } = useAuth()
+  const { session, signIn } = useAuth()
   const navigate = useNavigate()
 
-  const [mode, setMode] = useState('signin') // 'signin' | 'signup'
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
   // Already signed in? Skip the form.
   if (session) return <Navigate to="/" replace />
 
+  // Sign-in only — accounts are created by club admins (invite-only).
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-    setNotice('')
     setBusy(true)
-
-    const { data, error } =
-      mode === 'signin'
-        ? await signIn(email, password)
-        : await signUp(email, password, name)
-
+    const { error } = await signIn(email, password)
     setBusy(false)
-
     if (error) {
       setError(error.message)
-      return
-    }
-    // If email confirmation is on, sign-up returns no session yet.
-    if (mode === 'signup' && !data.session) {
-      setNotice('Account created. Check your email to confirm, then sign in.')
-      setMode('signin')
       return
     }
     navigate('/')
@@ -72,7 +57,7 @@ export default function Login() {
             <span className="flex items-center gap-2"><PiggyBank size={16} /> Fundraising</span>
           </div>
         </div>
-        <p className="relative text-xs text-white/60">A Janyaa Foundation chapter · Bellarmine College Prep</p>
+        <p className="relative text-xs text-white/60">A Janyaa Foundation chapter · BCP</p>
       </div>
 
       {/* Auth form */}
@@ -81,26 +66,10 @@ export default function Login() {
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            {mode === 'signin' ? 'Sign in' : 'Create your account'}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {mode === 'signin'
-              ? 'Welcome back to the Janyaa Hub.'
-              : 'Join the club workspace with your email.'}
-          </p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Sign in</h2>
+          <p className="mt-1 text-sm text-slate-500">Welcome back to the Janyaa Hub.</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-            {mode === 'signup' && (
-              <Field
-                label="Full name"
-                type="text"
-                value={name}
-                onChange={setName}
-                placeholder="Krishna Rao"
-                required
-              />
-            )}
             <Field
               label="Email"
               type="email"
@@ -121,9 +90,6 @@ export default function Login() {
             {error && (
               <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
             )}
-            {notice && (
-              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</p>
-            )}
 
             <button
               type="submit"
@@ -131,25 +97,22 @@ export default function Login() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:opacity-60"
             >
               {busy && <Loader2 size={16} className="animate-spin" />}
-              {mode === 'signin' ? 'Sign in' : 'Create account'}
+              Sign in
             </button>
           </form>
 
           <p className="mt-4 text-center text-sm text-slate-500">
-            {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              onClick={() => {
-                setMode(mode === 'signin' ? 'signup' : 'signin')
-                setError('')
-                setNotice('')
-              }}
-              className="font-semibold text-indigo-600 hover:text-indigo-500"
-            >
-              {mode === 'signin' ? 'Sign up' : 'Sign in'}
-            </button>
+            Need an account? Ask a club lead to invite you.
           </p>
 
-          <p className="mt-6 text-center text-sm">
+          <p className="mt-6 text-center text-xs text-slate-400">
+            By signing in you agree to our{' '}
+            <Link to="/terms" className="font-medium text-slate-500 hover:text-slate-700">Terms</Link>{' '}
+            and{' '}
+            <Link to="/privacy" className="font-medium text-slate-500 hover:text-slate-700">Privacy Policy</Link>.
+          </p>
+
+          <p className="mt-4 text-center text-sm">
             <Link to="/" className="text-slate-400 transition-colors hover:text-slate-600">
               ← Back to the dashboard
             </Link>

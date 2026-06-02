@@ -27,13 +27,28 @@ Deno.serve(async (req) => {
   const { data: { user }, error: userErr } = await caller.auth.getUser()
   if (userErr || !user) return json({ error: 'Not signed in' }, 401)
 
-  // Are they an admin?
   const admin = createClient(url, serviceKey)
-  const { data: me } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
-  if (!me?.is_admin) return json({ error: 'Admins only' }, 403)
 
   const body = await req.json().catch(() => ({}))
   const { action, redirectTo } = body
+
+  // Self-service account deletion (any signed-in member may delete THEIR OWN
+  // account + data — California SB 568 "eraser" right for minors). No admin
+  // needed. Deleting the auth user cascades the profile + sign-ups/attendance.
+  if (action === 'deleteSelf') {
+    try {
+      await admin.storage.from('avatars').remove([`${user.id}/avatar`])
+    } catch (_) {
+      /* no avatar or already gone — best effort */
+    }
+    const { error } = await admin.auth.admin.deleteUser(user.id)
+    if (error) return json({ error: String((error as Error)?.message ?? error) }, 400)
+    return json({ ok: true })
+  }
+
+  // Everything below requires the caller to be an admin.
+  const { data: me } = await admin.from('profiles').select('is_admin').eq('id', user.id).single()
+  if (!me?.is_admin) return json({ error: 'Admins only' }, 403)
 
   try {
     if (action === 'create') {

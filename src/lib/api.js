@@ -386,6 +386,10 @@ export const adminSendReset = (email) =>
 // Permanently delete a member's account (auth user + profile).
 export const adminDeleteUser = (id) => callAdminUsers({ action: 'delete', id })
 
+// Self-service: the signed-in member deletes THEIR OWN account + data (the
+// California SB 568 "eraser" right). No admin needed; sign out after it returns.
+export const deleteOwnAccount = () => callAdminUsers({ action: 'deleteSelf' })
+
 // ---- Reminder emails (Edge Function: send-reminders) ---------------------
 
 // Manually trigger tomorrow's to-do reminder emails (admin "Send now" button).

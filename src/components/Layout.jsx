@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, Link } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 
@@ -18,6 +18,15 @@ export default function Layout() {
             <Outlet />
           </div>
         </main>
+        <footer className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ink-200 pt-4 text-xs text-ink-400">
+            <span>© {new Date().getFullYear()} Janyaa BCP</span>
+            <span aria-hidden>·</span>
+            <Link to="/privacy" className="transition-colors hover:text-ink-700">Privacy</Link>
+            <span aria-hidden>·</span>
+            <Link to="/terms" className="transition-colors hover:text-ink-700">Terms</Link>
+          </div>
+        </footer>
       </div>
     </div>
   )

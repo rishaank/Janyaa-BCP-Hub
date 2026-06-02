@@ -14,6 +14,14 @@ const CORS = {
 const json = (obj: unknown, status = 200) => new Response(JSON.stringify(obj), { status, headers: CORS })
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// Members are mostly minors — send only first name + last initial to the model so
+// full names don't enter the free tier's training / human-review pipeline.
+const shortName = (n?: string) => {
+  const parts = (n ?? '').trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return 'A member'
+  return parts.length > 1 ? `${parts[0]} ${parts[1][0]}.` : parts[0]
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -67,7 +75,7 @@ Deno.serve(async (req) => {
       notes: e.notes ?? '',
     })),
     members: (profiles ?? []).map((p) => ({
-      name: p.name,
+      name: shortName(p.name),
       role: p.role,
       hours: (hoursByMember[p.id] ?? 0) + Number(p.hours_adjustment ?? 0),
     })),
