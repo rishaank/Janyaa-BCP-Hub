@@ -91,7 +91,15 @@ export default function Events() {
         title="Events"
         subtitle="Sign up for events to earn hours, and divide up who brings what."
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
+              <button onClick={() => setView('list')} className={segBtn(view === 'list')}>
+                <List size={15} /> List
+              </button>
+              <button onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
+                <CalendarDays size={15} /> Calendar
+              </button>
+            </div>
             {isAdmin && (
               <Button variant="soft" icon={Mail} onClick={remindNow} disabled={reminding === 'Sending…'}>
                 {reminding || 'Email reminders'}
@@ -102,17 +110,6 @@ export default function Events() {
           </div>
         }
       />
-
-      <div className="mb-5 flex justify-end">
-        <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
-          <button onClick={() => setView('list')} className={segBtn(view === 'list')}>
-            <List size={15} /> List
-          </button>
-          <button onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
-            <CalendarDays size={15} /> Calendar
-          </button>
-        </div>
-      </div>
 
       {loading ? (
         <LoadingRows />

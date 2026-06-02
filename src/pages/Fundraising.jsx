@@ -55,6 +55,20 @@ function linearFit(xs, ys) {
   return { slope, intercept }
 }
 
+// Themed chart tooltip — uses brand tokens so it adapts to light/dark instead of
+// the default white box. Shows the date + the single relevant dollar value.
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const pt = payload.find((p) => p.value != null)
+  if (!pt) return null
+  return (
+    <div className="rounded-xl border border-ink-200 bg-surface px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-ink-900">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-green-700">${Number(pt.value).toLocaleString()}</p>
+    </div>
+  )
+}
+
 export default function Fundraising() {
   const [events, setEvents] = useState([])
   const [settings, setSettings] = useState(null)
@@ -240,7 +254,7 @@ export default function Fundraising() {
                   axisLine={false}
                   width={56}
                 />
-                <Tooltip formatter={(v) => [`$${v}`, '']} labelStyle={{ color: '#0f172a', fontWeight: 600 }} />
+                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(140,132,117,0.45)' }} />
                 {target <= Math.max(...chartData.map((d) => d.projected ?? d.actual ?? 0)) && (
                   <ReferenceLine
                     y={target}
@@ -257,12 +271,11 @@ export default function Fundraising() {
         )}
 
         {canProject && (
-          <div className="mt-3 flex items-start gap-2 rounded-xl bg-indigo-50 p-3 text-sm text-indigo-900">
-            <Sparkles size={16} className="mt-0.5 shrink-0 text-indigo-500" />
+          <div className="mt-3 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
+            <Sparkles size={16} className="mt-0.5 shrink-0 text-blue-500" />
             <p>
-              At the current pace (~<span className="font-semibold">${perMonth}/month</span>), in-person events are on track for about{' '}
-              <span className="font-semibold">${projectedYearEnd.toLocaleString()}</span> by the end of 2026.
-              <span className="text-indigo-500"> Linear trend from past fundraisers — actual results will vary.</span>
+              At the current pace (~<span className="font-semibold text-ink-900">${perMonth}/month</span>), in-person events are on track for about{' '}
+              <span className="font-semibold text-ink-900">${projectedYearEnd.toLocaleString()}</span> by the end of 2026.
             </p>
           </div>
         )}
