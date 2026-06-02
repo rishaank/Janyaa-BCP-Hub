@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Loader2, Upload, Trash2 } from 'lucide-react'
 import { Modal, Button } from './ui'
-import { useCustomTheme } from '../context/CustomThemeContext'
-import { fileToThemeImage, analyzeImage } from '../lib/customTheme'
+import { useTheme } from '../context/ThemeContext'
+import {
+  fileToThemeImage,
+  analyzeImage,
+  loadCustomTheme,
+  storeCustomTheme,
+  applyCustomTheme,
+} from '../lib/customTheme'
 
 const baseBtn = (active) =>
   `flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
@@ -27,22 +33,26 @@ function Swatch({ label, value, onChange }) {
 }
 
 export default function CustomThemeModal({ open, onClose }) {
-  const { config, setConfig, remove, preview, restore } = useCustomTheme()
+  const { setTheme, reapply } = useTheme()
+  const [saved, setSaved] = useState(() => loadCustomTheme())
   const [draft, setDraft] = useState(null)
   const [busy, setBusy] = useState(false)
 
-  // Seed the editor from the saved theme whenever it opens.
+  // Seed from the saved theme whenever the modal opens.
   useEffect(() => {
-    if (open) setDraft(config)
-  }, [open, config])
+    if (open) {
+      const s = loadCustomTheme()
+      setSaved(s)
+      setDraft(s)
+    }
+  }, [open])
 
-  // Live-preview the draft while open; on close, snap back to the saved theme.
+  // Live-preview the draft while open; on close, snap back to the active theme.
   useEffect(() => {
-    if (open && draft?.image) preview(draft)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open && draft?.image) applyCustomTheme(draft)
   }, [open, draft])
   useEffect(() => {
-    if (!open) restore()
+    if (!open) reapply()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -60,12 +70,16 @@ export default function CustomThemeModal({ open, onClose }) {
   const update = (k) => (v) => setDraft((d) => ({ ...d, [k]: v }))
 
   function apply() {
-    setConfig(draft) // saves + applies for real
+    storeCustomTheme(draft)
+    applyCustomTheme(draft)
+    setTheme('custom')
     onClose()
   }
   function clearTheme() {
-    remove()
+    storeCustomTheme(null)
     setDraft(null)
+    setSaved(null)
+    setTheme('system') // clears the custom overrides + restores a base theme
     onClose()
   }
 
@@ -113,7 +127,7 @@ export default function CustomThemeModal({ open, onClose }) {
         )}
 
         <div className="flex items-center justify-between pt-1">
-          {config ? (
+          {saved ? (
             <Button variant="danger" icon={Trash2} onClick={clearTheme}>Remove theme</Button>
           ) : (
             <span />

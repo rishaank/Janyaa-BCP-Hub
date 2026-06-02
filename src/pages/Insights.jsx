@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Sparkles, TrendingUp, AlertTriangle, Info, RefreshCw, Loader2 } from 'lucide-react'
-import { PageHeader, Card, Badge, Button } from '../components/ui'
+import { Sparkles, RefreshCw, Loader2 } from 'lucide-react'
+import { PageHeader, Card, Button } from '../components/ui'
 import { getSettings, generateInsights } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { plannedInsights } from '../data/mockData'
-
-const toneMeta = {
-  positive: { icon: TrendingUp, chip: 'green', iconBg: 'bg-green-50 text-green-600' },
-  warning: { icon: AlertTriangle, chip: 'gold', iconBg: 'bg-gold-100 text-gold-700' },
-  neutral: { icon: Info, chip: 'blue', iconBg: 'bg-blue-50 text-blue-600' },
-}
+import InsightCard from '../components/InsightCard'
 
 function timeAgo(iso) {
   if (!iso) return ''
@@ -112,22 +107,9 @@ export default function Insights() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {insights.map((ins, i) => {
-            const meta = toneMeta[ins.tone] ?? toneMeta.neutral
-            const Icon = meta.icon
-            return (
-              <Card key={i} className="flex flex-col p-5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className={`grid h-10 w-10 place-items-center rounded-md ${meta.iconBg}`}>
-                    <Icon size={20} />
-                  </span>
-                  {ins.metric && <Badge tone={meta.chip}>{ins.metric}</Badge>}
-                </div>
-                <h3 className="mt-3 font-display text-h4 font-semibold text-ink-900">{ins.title}</h3>
-                <p className="mt-1.5 flex-1 text-sm text-ink-600">{ins.detail}</p>
-              </Card>
-            )
-          })}
+          {insights.map((ins, i) => (
+            <InsightCard key={i} ins={ins} />
+          ))}
         </div>
       )}
     </>

@@ -128,10 +128,15 @@ function AccountCard() {
           <div className="border-b border-ink-100 px-3 py-2">
             <p className="mb-1.5 text-xs font-medium text-ink-500">Theme</p>
             <div className="flex gap-0.5 rounded-lg bg-ink-100 p-0.5">
-              {[['light', Sun, 'Light'], ['dark', Moon, 'Dark'], ['system', Monitor, 'System']].map(([val, Icon, label]) => (
+              {[['light', Sun, 'Light'], ['dark', Moon, 'Dark'], ['system', Monitor, 'System'], ['custom', Palette, 'Custom']].map(([val, Icon, label]) => (
                 <button
                   key={val}
-                  onClick={() => setTheme(val)}
+                  onClick={() => {
+                    if (val === 'custom') {
+                      setOpen(false)
+                      setThemeModal(true)
+                    } else setTheme(val)
+                  }}
                   title={label}
                   aria-label={label}
                   className={`flex flex-1 items-center justify-center rounded-md py-1.5 transition-colors ${
@@ -143,15 +148,6 @@ function AccountCard() {
               ))}
             </div>
           </div>
-          <button
-            onClick={() => {
-              setOpen(false)
-              setThemeModal(true)
-            }}
-            className="flex w-full items-center gap-2 border-b border-ink-100 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50"
-          >
-            <Palette size={16} /> Custom theme
-          </button>
           <button
             onClick={() => signOut()}
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50"

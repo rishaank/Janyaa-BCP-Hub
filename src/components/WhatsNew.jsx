@@ -35,7 +35,7 @@ export default function WhatsNew() {
   }
 
   return (
-    <div className="relative px-3 pt-1" ref={ref}>
+    <div className="relative px-3 pb-2 pt-1" ref={ref}>
       {open && (
         <div className="absolute inset-x-3 bottom-full mb-2 overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-lg">
           <div className="flex items-center justify-between border-b border-ink-100 px-3 py-2">

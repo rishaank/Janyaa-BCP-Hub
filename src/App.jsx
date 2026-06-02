@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
-import { CustomThemeProvider } from './context/CustomThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
@@ -22,7 +21,6 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <CustomThemeProvider>
         <BrowserRouter>
         <Routes>
           {/* Public auth screens (no app shell). */}
@@ -48,7 +46,6 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </BrowserRouter>
-        </CustomThemeProvider>
       </AuthProvider>
     </ThemeProvider>
   )

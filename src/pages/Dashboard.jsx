@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Users, Clock, DollarSign, CalendarDays, ArrowRight } from 'lucide-react'
+import { Users, Clock, CalendarDays, ArrowRight, Sparkles } from 'lucide-react'
 import {
   StatCard,
   Card,
@@ -12,7 +12,7 @@ import {
 } from '../components/ui'
 import { getMembersWithHours, getEvents, getSettings } from '../lib/api'
 import { CURRENT_TERM } from '../data/mockData'
-import AiInsightsCard from '../components/AiInsightsCard'
+import InsightCard from '../components/InsightCard'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -37,7 +37,7 @@ export default function Dashboard() {
   const raised = settings?.gofundme_raised != null ? Number(settings.gofundme_raised) : 0
   const upcoming = events.filter((e) => e.date >= TODAY)
   const leaderboard = [...members].sort((a, b) => b.hours - a.hours).slice(0, 5)
-  const topHours = Math.max(1, leaderboard[0]?.hours ?? 1)
+  const insights = Array.isArray(settings?.ai_insights) ? settings.ai_insights : []
 
   return (
     <>
@@ -47,11 +47,10 @@ export default function Dashboard() {
         <DashboardSkeleton />
       ) : (
         <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard icon={Users} label="Members" value={members.length} />
         <StatCard icon={Clock} label="Hours this term" value={totalHours} tone="sky" hint="across all members" />
-        <StatCard icon={DollarSign} label="Raised" value={`$${raised.toLocaleString()}`} tone="emerald" hint={`of $${target.toLocaleString()} goal`} />
-        <StatCard icon={CalendarDays} label="Upcoming events" value={upcoming.length} tone="amber" />
+        <StatCard icon={CalendarDays} label="Total events" value={events.length} tone="amber" hint={`${upcoming.length} upcoming`} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -120,10 +119,7 @@ export default function Dashboard() {
                 >
                   <span className="w-4 text-sm font-semibold text-slate-400">{i + 1}</span>
                   <Avatar initials={m.avatar} tone={roleTones[m.role]} src={m.avatar_url} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900">{m.name}</p>
-                    <ProgressBar value={m.hours} max={topHours} />
-                  </div>
+                  <p className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">{m.name}</p>
                   <span className="text-sm font-semibold text-slate-700">{m.hours}h</span>
                 </li>
               ))}
@@ -132,9 +128,23 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="mt-6">
-        <AiInsightsCard compact insights={settings?.ai_insights} />
-      </div>
+      {insights.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="flex items-center gap-1.5 font-semibold text-ink-900">
+              <Sparkles size={16} className="text-blue-500" /> AI Insights
+            </h3>
+            <Link to="/insights" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+              View all <ArrowRight size={14} />
+            </Link>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {insights.slice(0, 3).map((ins, i) => (
+              <InsightCard key={i} ins={ins} />
+            ))}
+          </div>
+        </div>
+      )}
         </>
       )}
     </>
@@ -144,8 +154,8 @@ export default function Dashboard() {
 function DashboardSkeleton() {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[0, 1, 2].map((i) => (
           <Card key={i} className="p-5">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="mt-3 h-8 w-16" />
