@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 
 const REPO = 'rishaank/Janyaa-BCP-Hub'
 const CACHE_KEY = 'janyaa-gh-commits'
-const TTL = 15 * 60 * 1000 // 15 min — stay under GitHub's 60/hr unauth limit
+const TTL = 30 * 60 * 1000 // 30 min — keeps the whole club well under GitHub's 60/hr unauth limit
 
 // Recent commits to the repo, surfaced as "website updates" in the History page
 // and the What's-new bell. Cached in localStorage so page views don't re-fetch.
+// Requires the repo to be public (unauthenticated GitHub API).
 export function useGithubCommits(limit = 30) {
   const [commits, setCommits] = useState(() => readCache() ?? [])
   const [loading, setLoading] = useState(() => !readCache())
@@ -28,7 +29,7 @@ export function useGithubCommits(limit = 30) {
           date: c.commit?.author?.date ?? c.commit?.committer?.date,
           url: c.html_url,
         }))
-        writeCache(list)
+        if (list.length) writeCache(list) // never cache an empty/failed result
         setCommits(list)
         setLoading(false)
       })
@@ -43,10 +44,13 @@ export function useGithubCommits(limit = 30) {
   return { commits, loading }
 }
 
+// Only a non-empty, fresh list counts as a cache hit — so a failed fetch (e.g.
+// while the repo was still private) never poisons the feed, and it self-heals
+// the moment the repo becomes reachable.
 function readCache() {
   try {
     const raw = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null')
-    if (raw && Date.now() - raw.at < TTL && Array.isArray(raw.list)) return raw.list
+    if (raw && Date.now() - raw.at < TTL && Array.isArray(raw.list) && raw.list.length) return raw.list
   } catch {
     /* ignore */
   }
