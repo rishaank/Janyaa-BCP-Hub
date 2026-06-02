@@ -117,6 +117,26 @@
   }
 }
 
+/* ============================================================
+   Custom image theme — a per-user photo behind the app with a
+   readability veil over it. Inert unless --ja-bg-image is set
+   (driven by src/lib/customTheme.js).
+   ============================================================ */
+body {
+  background-image: var(--ja-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  background: var(--ja-veil, transparent);
+  pointer-events: none;
+}
+
 /* Live user-location indicator on the Locations map */
 .ja-userdot {
   width: 14px;

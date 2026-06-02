@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Palette,
   ChevronsUpDown,
   User,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { initials } from '../lib/api'
 import WhatsNew from './WhatsNew'
+import CustomThemeModal from './CustomThemeModal'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -95,6 +97,7 @@ function AccountCard() {
   const { profile, user, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
+  const [themeModal, setThemeModal] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -141,6 +144,15 @@ function AccountCard() {
             </div>
           </div>
           <button
+            onClick={() => {
+              setOpen(false)
+              setThemeModal(true)
+            }}
+            className="flex w-full items-center gap-2 border-b border-ink-100 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50"
+          >
+            <Palette size={16} /> Custom theme
+          </button>
+          <button
             onClick={() => signOut()}
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-600 hover:bg-ink-50"
           >
@@ -160,6 +172,8 @@ function AccountCard() {
         </div>
         <ChevronsUpDown size={16} className="shrink-0 text-ink-400" />
       </button>
+
+      <CustomThemeModal open={themeModal} onClose={() => setThemeModal(false)} />
     </div>
   )
 }
