@@ -130,6 +130,124 @@ export function setTodoDone(todoId, done) {
   return supabase.from('event_todos').update({ done }).eq('id', todoId)
 }
 
+// ---- Meetings ------------------------------------------------------------
+
+// All meetings with their attendees (incl. member names), earliest first.
+export async function getMeetings() {
+  const { data } = await supabase
+    .from('meetings')
+    .select(`*, meeting_attendees ( member_id, profiles ( id, name, role ) )`)
+    .order('date', { ascending: true })
+    .order('start_time', { ascending: true, nullsFirst: false })
+  return data ?? []
+}
+
+// The recurring meeting schedules (e.g. "every Thursday at 4pm").
+export async function getMeetingSeries() {
+  const { data } = await supabase.from('meeting_series').select('*').order('weekday')
+  return data ?? []
+}
+
+export function createMeeting(fields) {
+  return supabase.from('meetings').insert(fields).select().single()
+}
+export function updateMeeting(id, fields) {
+  return supabase.from('meetings').update(fields).eq('id', id)
+}
+export function deleteMeeting(id) {
+  return supabase.from('meetings').delete().eq('id', id)
+}
+// Cancel / restore a single occurrence (keeps the row so it isn't regenerated).
+export function setMeetingCanceled(id, canceled) {
+  return supabase.from('meetings').update({ canceled }).eq('id', id)
+}
+
+export function createMeetingSeries(fields) {
+  return supabase.from('meeting_series').insert(fields).select().single()
+}
+export function updateMeetingSeries(id, fields) {
+  return supabase.from('meeting_series').update(fields).eq('id', id)
+}
+export function deleteMeetingSeries(id) {
+  return supabase.from('meeting_series').delete().eq('id', id)
+}
+// Clear a series' still-upcoming auto-created occurrences (call before deleting
+// the series). Past meetings stay for the record.
+export function deleteSeriesUpcomingMeetings(seriesId) {
+  return supabase.from('meetings').delete().eq('series_id', seriesId).gte('date', isoLocal(new Date()))
+}
+
+// Attendance is own-row, just like event signups.
+export function markAttendance(meetingId, memberId) {
+  return supabase.from('meeting_attendees').insert({ meeting_id: meetingId, member_id: memberId })
+}
+export function unmarkAttendance(meetingId, memberId) {
+  return supabase
+    .from('meeting_attendees')
+    .delete()
+    .eq('meeting_id', meetingId)
+    .eq('member_id', memberId)
+}
+
+// Materialize concrete meeting rows from every active recurring series for the
+// next `weeks` weeks. Idempotent: skips any (series, date) that already has a
+// row, so cancelled/edited occurrences are never recreated. Best-effort — safe
+// to call on every Meetings-page load; races are caught by the unique index.
+export async function ensureUpcomingMeetings(weeks = 8) {
+  const { data: series } = await supabase.from('meeting_series').select('*').eq('active', true)
+  if (!series?.length) return false
+
+  const todayIso = isoLocal(new Date())
+  const { data: existing } = await supabase
+    .from('meetings')
+    .select('series_id, date')
+    .not('series_id', 'is', null)
+    .gte('date', todayIso)
+  const have = new Set((existing ?? []).map((m) => `${m.series_id}|${m.date}`))
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const rows = []
+  for (const s of series) {
+    for (let w = 0; w < weeks; w++) {
+      const iso = isoLocal(nextWeekday(today, s.weekday, w))
+      if (have.has(`${s.id}|${iso}`)) continue
+      rows.push({
+        series_id: s.id,
+        title: s.title,
+        date: iso,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        location: s.location,
+        notes: s.notes,
+      })
+    }
+  }
+  if (!rows.length) return false
+  const { error } = await supabase.from('meetings').insert(rows)
+  return !error // a lost race (unique-index conflict) just means someone else generated them
+}
+
+// ---- Leadership goals ----------------------------------------------------
+
+export async function getGoals() {
+  const { data } = await supabase
+    .from('goals')
+    .select(`*, owner:profiles!goals_owner_id_fkey ( id, name, role, avatar_url )`)
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
+export function createGoal(fields) {
+  return supabase.from('goals').insert(fields).select().single()
+}
+export function updateGoal(id, fields) {
+  return supabase.from('goals').update(fields).eq('id', id)
+}
+export function deleteGoal(id) {
+  return supabase.from('goals').delete().eq('id', id)
+}
+
 // ---- Fundraising ---------------------------------------------------------
 
 export async function getFundraisingEvents() {
@@ -146,6 +264,17 @@ export async function getFundraisingEvents() {
 // The single shared settings row (raise_target + latest GoFundMe figures).
 export async function getSettings() {
   const { data } = await supabase.from('club_settings').select('*').eq('id', true).single()
+  return data
+}
+
+// The whole dashboard as one blob, readable WITHOUT a session (Feature 6).
+// A SECURITY DEFINER RPC returns exactly what the dashboard renders — counts,
+// term + all-time hours, fundraising, the hours leaderboard, AI insights,
+// active goals, and the upcoming events + meetings lists — and nothing else
+// (no emails, no raw tables) so it's safe for anonymous visitors.
+export async function getPublicDashboard() {
+  const { data, error } = await supabase.rpc('get_public_dashboard')
+  if (error) return null
   return data
 }
 
@@ -274,4 +403,18 @@ export function initials(name) {
   if (!name) return '?'
   const parts = name.trim().split(/\s+/)
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?'
+}
+
+// Local YYYY-MM-DD (no UTC shift) — matches how the app reads `event.date`.
+function isoLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+// The date of the `weekOffset`-th occurrence of `weekday` (0=Sun…6=Sat) on or
+// after `from`. weekOffset 0 = the next such weekday (today counts).
+function nextWeekday(from, weekday, weekOffset) {
+  const d = new Date(from)
+  const diff = (weekday - d.getDay() + 7) % 7
+  d.setDate(d.getDate() + diff + weekOffset * 7)
+  return d
 }

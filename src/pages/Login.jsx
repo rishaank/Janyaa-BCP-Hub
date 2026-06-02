@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { Users, CalendarDays, PiggyBank, Loader2 } from 'lucide-react'
 import { Logo } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
@@ -147,6 +147,12 @@ export default function Login() {
             >
               {mode === 'signin' ? 'Sign up' : 'Sign in'}
             </button>
+          </p>
+
+          <p className="mt-6 text-center text-sm">
+            <Link to="/" className="text-slate-400 transition-colors hover:text-slate-600">
+              ← Back to the dashboard
+            </Link>
           </p>
         </div>
       </div>

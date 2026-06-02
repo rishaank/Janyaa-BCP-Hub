@@ -52,12 +52,14 @@ export default function Insights() {
         action={
           isAdmin ? (
             <div className="flex flex-col items-end gap-1">
-              <Button icon={busy ? Loader2 : RefreshCw} onClick={generate} disabled={busy}>
-                {busy ? 'Analyzing…' : insights.length ? 'Regenerate' : 'Generate'}
+              <Button icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
+                {busy ? (insights.length ? 'Regenerating…' : 'Generating…') : insights.length ? 'Regenerate' : 'Generate'}
               </Button>
-              {settings?.ai_insights_at && (
+              {busy ? (
+                <span className="text-xs text-ink-400">Analyzing club data — this takes ~20 seconds.</span>
+              ) : settings?.ai_insights_at ? (
                 <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)}</span>
-              )}
+              ) : null}
             </div>
           ) : settings?.ai_insights_at ? (
             <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)} · auto-refreshes on changes</span>

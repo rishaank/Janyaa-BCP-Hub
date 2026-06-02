@@ -169,7 +169,7 @@ export default function Fundraising() {
               </a>
             )}
           </div>
-          <Button variant="soft" icon={syncing ? Loader2 : RefreshCw} onClick={handleSync} disabled={syncing}>
+          <Button variant="soft" icon={syncing ? Loader2 : RefreshCw} loading={syncing} onClick={handleSync} disabled={syncing}>
             {syncing ? 'Syncing…' : 'Sync now'}
           </Button>
         </div>

@@ -9,7 +9,9 @@ import Dashboard from './pages/Dashboard'
 import Members from './pages/Members'
 import ProfilePage from './pages/ProfilePage'
 import Events from './pages/Events'
+import Meetings from './pages/Meetings'
 import Fundraising from './pages/Fundraising'
+import Goals from './pages/Goals'
 import Locations from './pages/Locations'
 import Restaurants from './pages/Restaurants'
 import Insights from './pages/Insights'
@@ -27,14 +29,16 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/set-password" element={<SetPassword />} />
 
-          {/* Everything else requires a session and renders in the sidebar layout. */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Dashboard />} />
+          {/* App shell. The dashboard is public; everything else needs a session. */}
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route element={<ProtectedRoute />}>
               <Route path="/members" element={<Members />} />
               <Route path="/members/:id" element={<ProfilePage />} />
               <Route path="/events" element={<Events />} />
+              <Route path="/meetings" element={<Meetings />} />
               <Route path="/fundraising" element={<Fundraising />} />
+              <Route path="/goals" element={<Goals />} />
               <Route path="/locations" element={<Locations />} />
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/insights" element={<Insights />} />

@@ -1,19 +1,16 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Logo } from './ui'
 
-// Gate for the app shell: shows a brief loader while the session resolves,
-// then either renders the page (signed in) or bounces to /login.
+// Gate for the non-public pages. Renders inside the app shell (Layout), so it
+// only fills the content area: a brief loader while the session resolves, then
+// the page (signed in) or a bounce to /login (the sign-in prompt).
 export default function ProtectedRoute() {
   const { session, loading } = useAuth()
 
   if (loading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-50">
-        <div className="flex flex-col items-center gap-3">
-          <Logo />
-          <p className="text-sm text-slate-400">Loading…</p>
-        </div>
+      <div className="grid place-items-center py-24">
+        <p className="text-sm text-ink-400">Loading…</p>
       </div>
     )
   }

@@ -161,7 +161,8 @@ export function EmptyState({ icon: Icon, title, children }) {
 }
 
 // Button. Green = the single primary action; blue secondary; gold for fundraising.
-export function Button({ children, variant = 'primary', icon: Icon, ...props }) {
+// Pass `loading` to spin the icon (e.g. during a slow regenerate/sync).
+export function Button({ children, variant = 'primary', icon: Icon, loading = false, ...props }) {
   const variants = {
     primary: 'bg-green-600 text-white hover:bg-green-700 shadow-xs',
     secondary: 'bg-blue-500 text-white hover:bg-blue-600',
@@ -171,10 +172,10 @@ export function Button({ children, variant = 'primary', icon: Icon, ...props }) 
   }
   return (
     <button
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-200 ${variants[variant] ?? variants.primary}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-200 disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant] ?? variants.primary}`}
       {...props}
     >
-      {Icon && <Icon size={16} />}
+      {Icon && <Icon size={16} className={loading ? 'animate-spin' : undefined} />}
       {children}
     </button>
   )

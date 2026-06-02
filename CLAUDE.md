@@ -48,21 +48,31 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
 - **Live sync:** `src/lib/useRealtime.js` — `useRealtime(table(s), reloadFn)` subscribes to Postgres
   changes so the UI updates across clients. All core tables are in the `supabase_realtime` publication.
 - **Auth:** `src/context/AuthContext.jsx` exposes `session`, `user`, `profile`, `signIn/Up/Out`,
-  `updateProfile`. `ProtectedRoute` gates the app; the public pages are `Login` and `SetPassword`
-  (`/set-password` — the landing for invite + reset email links; calls `auth.updateUser`).
-  Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI;
-  admin-only pages (e.g. `/history`) are gated in the sidebar nav **and** by RLS.
-- **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > AuthProvider > BrowserRouter`.
-  Pages live in `src/pages/`, shared primitives in `src/components/ui.jsx`.
-- **`src/data/mockData.js`** only holds constants now (`CURRENT_TERM`, `eventTypes`,
+  `updateProfile`. **The Dashboard (`/`) is public** — viewable logged-out via the
+  `get_public_dashboard()` RPC (returns only the dashboard's own data: counts, hours, fundraising,
+  leaderboard, insights, goals, upcoming events/meetings — no emails, no raw tables). `ProtectedRoute`
+  gates **every other** page; the sidebar shows those locked (→ `/login`) and the account card becomes a
+  Sign-in CTA for guests. Other public routes are `Login` and `SetPassword` (`/set-password` — the
+  landing for invite + reset email links; calls `auth.updateUser`). Email/password with **auto-confirm
+  ON** (no email step). `profile.is_admin` drives admin UI; admin-only pages (e.g. `/history`) are gated
+  in the sidebar nav **and** by RLS.
+- **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > AuthProvider > BrowserRouter`. The
+  `<Layout>` shell wraps **both** the public `/` and the `<ProtectedRoute>`-gated children. Pages live in
+  `src/pages/`, shared primitives in `src/components/ui.jsx`.
+- **`src/data/mockData.js`** only holds constants now (`CURRENT_TERM` = "Summer 2026", `eventTypes`,
   `plannedInsights`) — not live data.
-- **Notable pages** (`src/pages/`): `Dashboard` (stat chips + hours leaderboard + top AI-insight chips),
-  `Members` / `ProfilePage` (**Founder** + **Admin** badges, avatar cropping, admin Account controls),
-  `Events` (**List ↔ Calendar** toggle via `EventsCalendar.jsx`; times, Maps link, linked Instagram
-  posts, to-dos), `Fundraising`, `Locations` (Leaflet, dark-aware tiles), `Insights` (Gemini),
-  `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`, member-accessible — Janyaa
-  reference links + impact facts), `Restaurants` (placeholder). AI insight cards are the shared
-  `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
+- **Notable pages** (`src/pages/`): `Dashboard` (**public**, all data via `getPublicDashboard`; stat chips
+  with **upcoming events + meetings split side by side**, hours leaderboard with a **This term / All time**
+  toggle, active goals, top AI-insight chips), `Members` / `ProfilePage` (**Founder** + **Admin** badges,
+  avatar cropping, admin Account controls), `Events` (**List ↔ Calendar** toggle via `EventsCalendar.jsx`;
+  times, Maps link, linked Instagram posts, to-dos; **Tentative events** — a `Tentative` flag + “TBD”
+  date/time/location), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
+  **recurring schedules** in `meeting_series` auto-materialize occurrences you can cancel or edit
+  individually), `Fundraising`, `Goals` (`/goals` — leadership goals with owner/progress/target date, any
+  signed-in member can edit, surfaced on the dashboard), `Locations` (Leaflet, dark-aware tiles),
+  `Insights` (Gemini), `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`,
+  member-accessible — Janyaa reference links + impact facts), `Restaurants` (placeholder). AI insight
+  cards are the shared `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
   `src/lib/useGithubCommits.js` (30-min `localStorage` cache).
 
 ## Design system — READ THIS BEFORE TOUCHING UI
@@ -109,16 +119,28 @@ adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0012*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0014*.sql`
 (all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
-`event_todos`, `locations`, `club_settings` (single shared row, `id = true`), `activity_log`
-(admin-only audit trail). Notable added columns:
+`event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
+`goals` (leadership goals), `locations`, `club_settings` (single shared row, `id = true`),
+`activity_log` (admin-only audit trail). Notable added columns:
 
 - **`events`:** `address`, `start_time` / `end_time` (migration 0008 — when set, the calendar feed emits
   a timed block with a `VTIMEZONE` for America/Los_Angeles), `instagram_urls` (`text[]` of linked IG
-  posts shown on the event card; migration 0012).
+  posts shown on the event card; migration 0012), `is_tentative` + **nullable `date`** (migration 0013 —
+  a not-yet-confirmed event whose date/time/location can be left “TBD”; tentative events bucket into their
+  own section, never earn hours, and are marked `STATUS:TENTATIVE` / skipped in the `.ics` feed).
 - **`profiles`:** `is_admin`, `hours_adjustment`, `avatar_url`, and `is_founder` (migration 0012 — drives
   the **Founder** badge on Members + the profile header; set on the club founders).
+- **`club_settings`:** `term_start_date` (migration 0013 — when the current term began; default
+  `2026-06-01`, so the dashboard hours leaderboard's **This term** view resets each term).
+- **Meetings (migration 0013):** `meeting_series` holds recurring schedules (weekday + time);
+  `api.ensureUpcomingMeetings()` materializes concrete `meetings` rows for the next ~8 weeks on
+  Meetings-page load (idempotent — a unique `(series_id, date)` index means edited/cancelled occurrences
+  are never recreated). `meeting_attendees` is own-row attendance (like `event_signups`).
+- **`get_public_dashboard()` (migration 0014):** SECURITY DEFINER RPC, granted to `anon`, that returns the
+  whole dashboard payload (no emails/raw tables) so `/` works logged-out. `src/lib/api.js` →
+  `getPublicDashboard()`.
 
 **To change the schema:** write a new `supabase/migrations/000N_*.sql` AND apply it — via the
 **Supabase MCP** (`apply_migration` / `execute_sql` / `deploy_edge_function`, configured in `.mcp.json`,
@@ -126,13 +148,17 @@ needs auth) or by pasting the SQL into the Supabase dashboard SQL editor. After 
 `get_advisors` (security) if the MCP is available.
 
 **RLS model (deliberate — small trusted club):** any signed-in member can read everything and manage
-shared data (events / todos / locations / `club_settings`). Sign-ups are own-row only. Profiles are
-**admin-only to edit** (`is_admin()` SECURITY DEFINER helper + admin override policies); the prior
-self-update policy was dropped (migration 0005). First member was bootstrapped as admin.
+shared data (events / todos / meetings / `meeting_series` / goals / locations / `club_settings`).
+Sign-ups and meeting attendance are own-row only. Profiles are **admin-only to edit** (`is_admin()`
+SECURITY DEFINER helper + admin override policies); the prior self-update policy was dropped
+(migration 0005). First member was bootstrapped as admin. (The dashboard's anonymous read path is the
+`get_public_dashboard()` RPC, not table-level `anon` grants.)
 
 **Hours model:** a member's hours = sum of `events.hours` for **past** events they signed up for, plus
 `profiles.hours_adjustment` (admin correction). The admin hours stepper on the profile page shows the
-*total* and writes the adjustment delta behind the scenes.
+*total* and writes the adjustment delta behind the scenes. The dashboard leaderboard toggles **This term**
+(only past events on/after `club_settings.term_start_date`; adjustments excluded) vs **All time**; both are
+computed in `get_public_dashboard()`. Tentative events never count.
 
 **Fundraising:** `club_settings.raise_target` is the shared goal (anyone can edit). GoFundMe figures
 (`gofundme_raised/goal/donations`) are scraped server-side. Per-event in-person revenue is `events.raised`.
@@ -141,12 +167,14 @@ self-update policy was dropped (migration 0005). First member was bootstrapped a
 `profiles.avatar_url` holds the public URL. Photos are square-cropped client-side
 (`AvatarCropper`, react-easy-crop) before upload.
 
-**Activity log (migration 0009):** `activity_log` gets one human-readable row per change (events /
-signups / to-dos / locations / profiles / fundraising goal), written by the `log_activity()`
-SECURITY DEFINER trigger on each table (captures `auth.uid()`; NULL ⇒ "System" for cron/edge
-functions). **RLS: admins read only**; nothing writes directly (only the trigger does — its EXECUTE
-is revoked from `public`). It's in the realtime publication, so the admin `/history` page (which
-also merges in GitHub commits as "website updates" via `useGithubCommits`) updates live.
+**Activity log (migration 0009, extended in 0013):** `activity_log` gets one human-readable row per
+change (events / signups / to-dos / meetings / `meeting_series` / goals / locations / profiles /
+fundraising goal), written by the `log_activity()` SECURITY DEFINER trigger on each table (captures
+`auth.uid()`; NULL ⇒ "System" for cron/edge functions). Auto-generated recurring meeting occurrences are
+**not** logged (the schedule is); goal completion logs as `completed`. **RLS: admins read only**; nothing
+writes directly (only the trigger does — its EXECUTE is revoked from `public`). It's in the realtime
+publication, so the admin `/history` page (which also merges in GitHub commits as "website updates" via
+`useGithubCommits`) updates live.
 
 ## Edge Functions (`supabase/functions/`)
 
@@ -156,9 +184,12 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   (parses the `__NEXT_DATA__` Apollo cache) and writes the totals back. Runs on a **pg_cron schedule
   (every 3h)** + on the Fundraising page load + a manual "Sync now" button.
 - **`calendar`** (`verify_jwt: false`) — serves all events as an `.ics` feed for calendar subscriptions
-  (the Events page "Subscribe" button).
+  (the Events page "Subscribe" button). Tentative events are marked `STATUS:TENTATIVE` + `[Tentative]`
+  prefix; undated ones are skipped.
 - **`ai-insights`** (`verify_jwt: true`) — pulls real club data, asks Gemini for actionable insights,
-  caches them in `club_settings.ai_insights`. **Requires the `GEMINI_API_KEY` secret** (set in Supabase
+  caches them in `club_settings.ai_insights`. Now also feeds **club meetings** (with attendance) and
+  **leadership goals** (with % progress), and flags **tentative** events as unconfirmed (so Gemini treats
+  them as plans, never as earned hours/money). **Requires the `GEMINI_API_KEY` secret** (set in Supabase
   → Edge Functions → Secrets; free Gemini API tier). Admin can force-regenerate; auto-regenerates
   (throttled ~10 min) when an event or the GoFundMe total changes. Falls back to a "not set up" message
   if the key is missing.

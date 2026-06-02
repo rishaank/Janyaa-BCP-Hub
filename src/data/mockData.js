@@ -3,7 +3,7 @@
 // Supabase via src/lib/api.js. What remains here is just a couple of constants
 // and the event-type metadata used by the Events page.
 
-export const CURRENT_TERM = 'Spring 2026'
+export const CURRENT_TERM = 'Summer 2026'
 
 // Event type → label + badge color. Used by the Events page and create form.
 export const eventTypes = [

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail, Instagram, List, CalendarDays } from 'lucide-react'
-import { PageHeader, Card, Button, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
+import { PageHeader, Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
   getEvents,
@@ -73,8 +73,9 @@ export default function Events() {
   }, [])
   useRealtime(['events', 'event_signups', 'event_todos'], load)
 
-  const upcoming = events.filter((e) => e.date >= TODAY)
-  const past = events.filter((e) => e.date < TODAY).reverse()
+  const tentative = events.filter((e) => e.is_tentative)
+  const upcoming = events.filter((e) => !e.is_tentative && e.date && e.date >= TODAY)
+  const past = events.filter((e) => !e.is_tentative && e.date && e.date < TODAY).reverse()
 
   function openCreate() {
     setEditEvent(null)
@@ -122,6 +123,14 @@ export default function Events() {
               <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
             ))}
           </Section>
+
+          {tentative.length > 0 && (
+            <Section title="Tentative" count={tentative.length}>
+              {tentative.map((e) => (
+                <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
+              ))}
+            </Section>
+          )}
 
           <Section title="Past" count={past.length}>
             {past.map((e) => (
@@ -266,9 +275,13 @@ function EventCard({ event, myId, onChange, onEdit }) {
     <Card className="flex min-w-0 flex-col p-5 transition-shadow hover:shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-words font-display text-h4 font-semibold text-ink-900">{event.name}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="break-words font-display text-h4 font-semibold text-ink-900">{event.name}</h3>
+            {event.is_tentative && <Badge tone="gold">Tentative</Badge>}
+          </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
-            <MapPin size={14} className="text-ink-400" /> {event.location}
+            <MapPin size={14} className="text-ink-400" />{' '}
+            {event.location || (event.is_tentative ? <span className="text-ink-400">Location TBD</span> : '')}
           </p>
           {event.address && (
             <>
@@ -309,12 +322,21 @@ function EventCard({ event, myId, onChange, onEdit }) {
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="rounded-xl bg-ink-50 px-3 py-1.5 text-center">
-            <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
-              {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
-            </p>
-            <p className="font-display text-lg font-bold leading-tight text-ink-900">
-              {new Date(event.date + 'T00:00:00').getDate()}
-            </p>
+            {event.date ? (
+              <>
+                <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
+                  {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
+                </p>
+                <p className="font-display text-lg font-bold leading-tight text-ink-900">
+                  {new Date(event.date + 'T00:00:00').getDate()}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="font-mono text-2xs font-semibold uppercase text-ink-500">Date</p>
+                <p className="font-display text-sm font-bold leading-tight text-ink-500">TBD</p>
+              </>
+            )}
           </div>
           <div className="flex gap-1">
             <button
@@ -336,9 +358,11 @@ function EventCard({ event, myId, onChange, onEdit }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
-        {timeRange && (
+        {timeRange ? (
           <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {timeRange}</span>
-        )}
+        ) : event.is_tentative ? (
+          <span className="flex items-center gap-1.5 text-ink-400"><Clock size={14} className="text-ink-400" /> Time TBD</span>
+        ) : null}
         <span className="flex items-center gap-1.5"><Hourglass size={14} className="text-ink-400" /> {event.hours} hrs each</span>
         {Number(event.raised) > 0 && (
           <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-green-600" /> ${Number(event.raised).toLocaleString()} raised</span>
@@ -480,7 +504,7 @@ function TodoRow({ todo, myId, onChange }) {
   )
 }
 
-const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [] }
+const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [], is_tentative: false }
 
 function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const [form, setForm] = useState(blank)
@@ -512,6 +536,7 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         raised: event.raised ?? 0,
         notes: event.notes ?? '',
         instagram_urls: event.instagram_urls ?? [],
+        is_tentative: event.is_tentative ?? false,
       })
     } else {
       setForm(blank)
@@ -523,7 +548,8 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
     setBusy(true)
     const fields = {
       name: form.name,
-      date: form.date,
+      date: form.date || null,
+      is_tentative: form.is_tentative,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
       location: form.location,
@@ -547,8 +573,23 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         <FormField label="Event name">
           <input className={inputClass} value={form.name} onChange={set('name')} required placeholder="Library STEM session" />
         </FormField>
-        <FormField label="Date">
-          <input type="date" className={inputClass} value={form.date} onChange={set('date')} required />
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5">
+          <input
+            type="checkbox"
+            checked={form.is_tentative}
+            onChange={(e) => setForm({ ...form, is_tentative: e.target.checked })}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-green-600"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-ink-800">Tentative event</span>
+            <span className="mt-0.5 block text-xs text-ink-500">
+              Not locked in yet. Leave the date, time, location, or anything else blank and it shows as “TBD”.
+              AI Insights will treat it as unconfirmed.
+            </span>
+          </span>
+        </label>
+        <FormField label={form.is_tentative ? 'Date · optional' : 'Date'}>
+          <input type="date" className={inputClass} value={form.date} onChange={set('date')} required={!form.is_tentative} />
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Start time">

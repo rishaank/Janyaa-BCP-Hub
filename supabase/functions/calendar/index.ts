@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   )
   const { data: events } = await supabase
     .from('events')
-    .select('id,name,date,location,address,notes,hours,start_time,end_time')
+    .select('id,name,date,location,address,notes,hours,start_time,end_time,is_tentative')
     .order('date')
 
   const now = new Date()
@@ -92,14 +92,18 @@ Deno.serve(async (req) => {
   )
 
   for (const e of events ?? []) {
+    if (!e.date) continue // tentative event with an undecided date — skip the feed
+
     const desc = []
     if (e.hours) desc.push(`${e.hours} hrs each`)
     if (e.notes) desc.push(e.notes)
+    if (e.is_tentative) desc.push('Tentative — not yet confirmed.')
     desc.push('via the Janyaa BCP Hub')
 
     lines.push('BEGIN:VEVENT')
     lines.push(`UID:${e.id}@janyaa-bcp-hub`)
     lines.push(`DTSTAMP:${stamp}`)
+    lines.push(`STATUS:${e.is_tentative ? 'TENTATIVE' : 'CONFIRMED'}`)
     if (e.start_time) {
       const endHMS = e.end_time
         ? e.end_time.replace(/:/g, '').padEnd(6, '0').slice(0, 6)
@@ -113,7 +117,7 @@ Deno.serve(async (req) => {
       lines.push(`DTSTART;VALUE=DATE:${ymd(start)}`)
       lines.push(`DTEND;VALUE=DATE:${ymd(end)}`)
     }
-    lines.push(fold(`SUMMARY:${esc(e.name)}`))
+    lines.push(fold(`SUMMARY:${esc((e.is_tentative ? '[Tentative] ' : '') + e.name)}`))
     if (e.address || e.location) lines.push(fold(`LOCATION:${esc(e.address || e.location)}`))
     lines.push(fold(`DESCRIPTION:${esc(desc.join('\n'))}`))
     lines.push('END:VEVENT')

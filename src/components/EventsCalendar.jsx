@@ -80,18 +80,19 @@ export default function EventsCalendar({ events, onSelect }) {
               <div className="space-y-0.5">
                 {dayEvents.slice(0, 3).map((e) => {
                   const past = e.date < TODAY
+                  const tone = e.is_tentative
+                    ? 'bg-gold-100 text-gold-800 hover:bg-gold-200'
+                    : past
+                      ? 'bg-ink-100 text-ink-600 hover:bg-ink-200'
+                      : 'bg-green-100 text-green-700 hover:bg-green-200'
                   return (
                     <button
                       key={e.id}
                       onClick={() => onSelect(e)}
-                      title={e.name}
-                      className={`block w-full truncate rounded px-1.5 py-0.5 text-left text-2xs font-medium transition-colors ${
-                        past
-                          ? 'bg-ink-100 text-ink-600 hover:bg-ink-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      }`}
+                      title={e.is_tentative ? `${e.name} (tentative)` : e.name}
+                      className={`block w-full truncate rounded px-1.5 py-0.5 text-left text-2xs font-medium transition-colors ${tone}`}
                     >
-                      {e.name}
+                      {e.is_tentative ? '~ ' : ''}{e.name}
                     </button>
                   )
                 })}
