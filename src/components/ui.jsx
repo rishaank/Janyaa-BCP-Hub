@@ -191,7 +191,7 @@ export function Skeleton({ className = '' }) {
 export const roleLabels = {
   operations_lead: 'Operations Lead',
   event_lead: 'Event Lead',
-  pr_lead: 'PR Lead',
+  pr_lead: 'PR and Tech Lead',
   outreach_lead: 'Outreach Lead',
   secretary: 'Secretary',
   education_lead: 'Education Lead',

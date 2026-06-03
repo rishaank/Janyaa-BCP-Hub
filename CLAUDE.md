@@ -72,7 +72,8 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   date/time/location), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
   **recurring schedules** in `meeting_series` auto-materialize occurrences you can cancel or edit
   individually), `Fundraising`, `Goals` (`/goals` — leadership goals with owner/progress/target date, any
-  signed-in member can edit, surfaced on the dashboard), `Locations` (Leaflet, dark-aware tiles),
+  signed-in member can edit, surfaced on the dashboard), `AutoHours` (`/auto-hours` — role-based automatic
+  volunteer hours; rules are admin-editable, members view read-only), `Locations` (Leaflet, dark-aware tiles),
   `Insights` (Gemini), `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`,
   member-accessible — Janyaa reference links + impact facts), `Restaurants` (placeholder). AI insight
   cards are the shared `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
@@ -122,10 +123,11 @@ adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0014*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0015*.sql`
 (all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
-`goals` (leadership goals), `locations`, `club_settings` (single shared row, `id = true`),
+`goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
+`locations`, `club_settings` (single shared row, `id = true`),
 `activity_log` (admin-only audit trail). Notable added columns:
 
 - **`events`:** `address`, `start_time` / `end_time` (migration 0008 — when set, the calendar feed emits
@@ -162,6 +164,14 @@ SECURITY DEFINER helper + admin override policies); the prior self-update policy
 *total* and writes the adjustment delta behind the scenes. The dashboard leaderboard toggles **This term**
 (only past events on/after `club_settings.term_start_date`; adjustments excluded) vs **All time**; both are
 computed in `get_public_dashboard()`. Tentative events never count.
+
+**Auto hours (migration 0015):** members also accrue role-based hours. `role_hours_rules` (admin-editable
+per role: `hours` + `monthly`/`per_event` cadence; defaults seeded) writes to the `hours_grants` ledger
+via a per-event INSERT trigger (`grant_event_role_hours`) and the `ensure_monthly_role_hours()` monthly
+**pg_cron** (1st of month; admins can also top up the current month from the `/auto-hours` page). Grants
+fold into **both** total + term hours everywhere they're computed (`get_public_dashboard()`,
+`getMembersWithHours`, `getProfileDetails`, the ai-insights function). Accrual is forward-only, so set each
+member's accurate baseline via the profile hours stepper. Role `pr_lead` is labelled "PR and Tech Lead".
 
 **Fundraising:** `club_settings.raise_target` is the shared goal (anyone can edit). GoFundMe figures
 (`gofundme_raised/goal/donations`) are scraped server-side. Per-event in-person revenue is `events.raised`.

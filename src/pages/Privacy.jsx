@@ -2,7 +2,7 @@ import LegalPage, { Section } from '../components/LegalPage'
 
 // Contact for privacy questions + data requests. Change this to a dedicated club
 // address if you have one.
-const CONTACT = 'kotian.house@gmail.com'
+const CONTACT = 'janyaabcp@gmail.com'
 
 export default function Privacy() {
   return (

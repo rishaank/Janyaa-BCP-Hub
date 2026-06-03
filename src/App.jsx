@@ -14,6 +14,7 @@ import Events from './pages/Events'
 import Meetings from './pages/Meetings'
 import Fundraising from './pages/Fundraising'
 import Goals from './pages/Goals'
+import AutoHours from './pages/AutoHours'
 import Locations from './pages/Locations'
 import Restaurants from './pages/Restaurants'
 import Insights from './pages/Insights'
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/fundraising" element={<Fundraising />} />
               <Route path="/goals" element={<Goals />} />
+              <Route path="/auto-hours" element={<AutoHours />} />
               <Route path="/locations" element={<Locations />} />
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/insights" element={<Insights />} />

@@ -7,22 +7,27 @@ const TODAY = () => new Date().toISOString().slice(0, 10)
 // All profiles plus hours earned. Hours = sum of `hours` for every PAST event
 // the member signed up for (signing up for events is how hours are tracked).
 export async function getMembersWithHours() {
-  const [{ data: profiles }, { data: signups }] = await Promise.all([
+  const [{ data: profiles }, { data: signups }, { data: grants }] = await Promise.all([
     supabase.from('profiles').select('*').order('joined_date'),
     supabase.from('event_signups').select('member_id, events(date, hours)'),
+    supabase.from('hours_grants').select('member_id, hours'),
   ])
 
   const hoursByMember = {}
   for (const s of signups ?? []) {
     const ev = s.events
-    if (ev && ev.date < TODAY()) {
+    if (ev && ev.date && ev.date < TODAY()) {
       hoursByMember[s.member_id] = (hoursByMember[s.member_id] ?? 0) + Number(ev.hours)
     }
+  }
+  // Auto-hour grants (role-based) add to the same total.
+  for (const g of grants ?? []) {
+    hoursByMember[g.member_id] = (hoursByMember[g.member_id] ?? 0) + Number(g.hours)
   }
 
   return (profiles ?? []).map((p) => ({
     ...p,
-    // Hours earned from events + any admin adjustment.
+    // Hours earned from events + auto-hour grants + any admin adjustment.
     hours: (hoursByMember[p.id] ?? 0) + Number(p.hours_adjustment ?? 0),
     avatar: initials(p.name),
   }))
@@ -37,16 +42,19 @@ export function adminUpdateProfile(id, fields) {
 // Full detail for one member: profile + the events they signed up for + the
 // to-dos they took responsibility for + their total hours.
 export async function getProfileDetails(id) {
-  const [{ data: profile }, { data: signups }, { data: todos }] = await Promise.all([
+  const [{ data: profile }, { data: signups }, { data: todos }, { data: grants }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).single(),
     supabase.from('event_signups').select('events ( id, name, date, location, raised, hours )').eq('member_id', id),
     supabase.from('event_todos').select('id, item, done, events ( id, name, date )').eq('assignee_id', id),
+    supabase.from('hours_grants').select('hours').eq('member_id', id),
   ])
   const today = new Date().toISOString().slice(0, 10)
   const events = (signups ?? []).map((s) => s.events).filter(Boolean)
+  const grantHours = (grants ?? []).reduce((sum, g) => sum + Number(g.hours), 0)
   const hours =
-    events.filter((e) => e.date < today).reduce((sum, e) => sum + Number(e.hours), 0) +
-    Number(profile?.hours_adjustment ?? 0)
+    events.filter((e) => e.date && e.date < today).reduce((sum, e) => sum + Number(e.hours), 0) +
+    Number(profile?.hours_adjustment ?? 0) +
+    grantHours
   return {
     profile: profile ? { ...profile, avatar: initials(profile.name) } : null,
     events,
@@ -71,6 +79,27 @@ export async function uploadAvatar(userId, file) {
 // Revert to the default initials avatar.
 export function removeAvatar(userId) {
   return supabase.from('profiles').update({ avatar_url: null }).eq('id', userId)
+}
+
+// ---- Auto hours (role-based grants) --------------------------------------
+
+// The editable per-role rules (how many hours, how often). Admin-only to edit.
+export async function getRoleHoursRules() {
+  const { data } = await supabase.from('role_hours_rules').select('*')
+  return data ?? []
+}
+
+export function updateRoleHoursRule(role, fields) {
+  return supabase
+    .from('role_hours_rules')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('role', role)
+}
+
+// Materialize this month's monthly grants now (idempotent). Cron also runs it
+// on the 1st; this lets an admin top up the current month on demand.
+export function ensureMonthlyRoleHours() {
+  return supabase.rpc('ensure_monthly_role_hours')
 }
 
 // ---- Events --------------------------------------------------------------

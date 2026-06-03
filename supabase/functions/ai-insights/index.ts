@@ -33,13 +33,14 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  const [{ data: events }, { data: profiles }, { data: settings }, { data: locations }, { data: meetings }, { data: goals }] = await Promise.all([
+  const [{ data: events }, { data: profiles }, { data: settings }, { data: locations }, { data: meetings }, { data: goals }, { data: grants }] = await Promise.all([
     supabase.from('events').select('id,name,date,location,raised,hours,min_people,max_people,notes,start_time,end_time,is_tentative,event_signups(member_id)'),
     supabase.from('profiles').select('id,name,role,hours_adjustment'),
     supabase.from('club_settings').select('raise_target,gofundme_raised,gofundme_goal,gofundme_donations,term_start_date').eq('id', true).single(),
     supabase.from('locations').select('name,status'),
     supabase.from('meetings').select('title,date,start_time,canceled,meeting_attendees(member_id)'),
     supabase.from('goals').select('title,detail,progress,status,target_date'),
+    supabase.from('hours_grants').select('member_id,hours'),
   ])
 
   const today = new Date().toISOString().slice(0, 10)
@@ -49,6 +50,10 @@ Deno.serve(async (req) => {
     if (e.date && e.date < today && !e.is_tentative) for (const s of e.event_signups ?? []) {
       hoursByMember[s.member_id] = (hoursByMember[s.member_id] ?? 0) + Number(e.hours)
     }
+  }
+  // Role-based auto-hour grants add to the same totals.
+  for (const g of grants ?? []) {
+    hoursByMember[g.member_id] = (hoursByMember[g.member_id] ?? 0) + Number(g.hours)
   }
 
   const summary = {

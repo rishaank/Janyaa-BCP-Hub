@@ -1,6 +1,6 @@
 import LegalPage, { Section } from '../components/LegalPage'
 
-const CONTACT = 'kotian.house@gmail.com'
+const CONTACT = 'janyaabcp@gmail.com'
 
 export default function Terms() {
   return (
