@@ -59,4 +59,5 @@ as $$
     group by p.id, p.name, p.role, p.avatar_url
   ) t;
 $$;
+revoke execute on function public.get_hours_breakdowns(uuid) from public, anon;
 grant execute on function public.get_hours_breakdowns(uuid) to authenticated;
