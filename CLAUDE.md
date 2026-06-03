@@ -69,12 +69,16 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   toggle, active goals, top AI-insight chips), `Members` / `ProfilePage` (**Founder** + **Admin** badges,
   avatar cropping, admin Account controls), `Events` (**List ↔ Calendar** toggle via `EventsCalendar.jsx`;
   times, Maps link, linked Instagram posts, to-dos; **Tentative events** — a `Tentative` flag + “TBD”
-  date/time/location), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
+  date/time/location; click any event for a **public, shareable full-screen view** at `/events/:id`
+  (`EventView.jsx` — Leaflet map, full Instagram-post embeds, profits/hours/attendees; viewable
+  logged-out via the `get_public_event` RPC), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
   **recurring schedules** in `meeting_series` auto-materialize occurrences you can cancel or edit
   individually), `Fundraising`, `Goals` (`/goals` — leadership goals with owner/progress/target date, any
   signed-in member can edit, surfaced on the dashboard), `AutoHours` (`/auto-hours` — role-based automatic
   volunteer hours; rules are admin-editable, members view read-only), `Locations` (Leaflet, dark-aware tiles),
-  `Insights` (Gemini), `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`,
+  `Insights` (Gemini), `AIStudio` (`/studio` — AI event **planner** wizard that auto-creates an event +
+  to-dos + timeline, next-event + location **suggestions**, and monthly **social-media** ideas),
+  `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`,
   member-accessible — Janyaa reference links + impact facts), `Restaurants` (placeholder). AI insight
   cards are the shared `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
   `src/lib/useGithubCommits.js` (30-min `localStorage` cache).
@@ -123,7 +127,7 @@ adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0015*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0016*.sql`
 (all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
@@ -134,7 +138,10 @@ Base schema is `supabase/schema.sql`; incremental changes are `supabase/migratio
   a timed block with a `VTIMEZONE` for America/Los_Angeles), `instagram_urls` (`text[]` of linked IG
   posts shown on the event card; migration 0012), `is_tentative` + **nullable `date`** (migration 0013 —
   a not-yet-confirmed event whose date/time/location can be left “TBD”; tentative events bucket into their
-  own section, never earn hours, and are marked `STATUS:TENTATIVE` / skipped in the `.ics` feed).
+  own section, never earn hours, and are marked `STATUS:TENTATIVE` / skipped in the `.ics` feed),
+  `latitude` / `longitude` (migration 0016 — captured from the location autocomplete so the public event
+  view can show a map; the view geocodes the address as a fallback). `get_public_event(uuid)` (anon RPC,
+  migration 0016) returns one event's public data + attendees for `/events/:id`.
 - **`profiles`:** `is_admin`, `hours_adjustment`, `avatar_url`, and `is_founder` (migration 0012 — drives
   the **Founder** badge on Members + the profile header; set on the club founders).
 - **`club_settings`:** `term_start_date` (migration 0013 — when the current term began; default
@@ -206,6 +213,16 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   → Edge Functions → Secrets; free Gemini API tier). Admin can force-regenerate; auto-regenerates
   (throttled ~10 min) when an event or the GoFundMe total changes. Falls back to a "not set up" message
   if the key is missing.
+- **`ai-suggestions`** (`verify_jwt: true`) — Gemini next-event + location ideas from real history, cached in
+  `club_settings.ai_suggestions`. Surfaced on `/studio` (AI Studio).
+- **`ai-plan-event`** (`verify_jwt: true`) — the planner wizard's backend: takes the answers (blank field =
+  "you decide") and returns a full event plan (fields + timeline + to-dos) **without saving**; the client
+  creates the event + to-dos on accept (no cache).
+- **`ai-social`** (`verify_jwt: false`) — monthly Instagram content ideas using Gemini **Google-Search
+  grounding** (trend/audio hints are directional — no free API for exact trending audio). Cached in
+  `club_settings.social_posts`, throttled (>25 days), run by the **`monthly-social` pg_cron** (1st of
+  month, migration 0016) + an admin "Refresh". `verify_jwt:false` so the cron can call it (like
+  `send-reminders`).
 - **`admin-users`** (`verify_jwt: true`) — admin-only account management needing the service role:
   create (with a set password OR an emailed invite), set password, send reset email, delete. Confirms
   the caller is an admin (`profiles.is_admin`) before acting. Called via `src/lib/api.js`

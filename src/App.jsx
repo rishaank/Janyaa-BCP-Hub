@@ -18,8 +18,10 @@ import AutoHours from './pages/AutoHours'
 import Locations from './pages/Locations'
 import Restaurants from './pages/Restaurants'
 import Insights from './pages/Insights'
+import AIStudio from './pages/AIStudio'
 import History from './pages/History'
 import ClubInfo from './pages/ClubInfo'
+import EventView from './pages/EventView'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -33,6 +35,8 @@ export default function App() {
           <Route path="/set-password" element={<SetPassword />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          {/* Shareable full-screen event view — public (Feature 2). */}
+          <Route path="/events/:id" element={<EventView />} />
 
           {/* App shell. The dashboard is public; everything else needs a session. */}
           <Route element={<Layout />}>
@@ -48,6 +52,7 @@ export default function App() {
               <Route path="/locations" element={<Locations />} />
               <Route path="/restaurants" element={<Restaurants />} />
               <Route path="/insights" element={<Insights />} />
+              <Route path="/studio" element={<AIStudio />} />
               <Route path="/history" element={<History />} />
               <Route path="/club" element={<ClubInfo />} />
             </Route>

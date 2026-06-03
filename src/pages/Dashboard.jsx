@@ -106,13 +106,15 @@ export default function Dashboard() {
           <div className="grid gap-6 sm:grid-cols-2">
             <ListCard title="Upcoming events" to="/events" empty="No upcoming events scheduled.">
               {events.map((e) => (
-                <li key={e.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <DateTile iso={e.date} />
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 truncate font-medium text-ink-900">{e.name}</p>
-                    <p className="truncate text-sm text-ink-500">{e.location || '—'}</p>
-                  </div>
-                  <span className="shrink-0 text-xs text-ink-500">{e.signups} in</span>
+                <li key={e.id} className="first:pt-0 last:pb-0">
+                  <Link to={`/events/${e.id}`} className="group flex items-center gap-3 py-3">
+                    <DateTile iso={e.date} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink-900 group-hover:text-green-700">{e.name}</p>
+                      <p className="truncate text-sm text-ink-500">{e.location || '—'}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-ink-500">{e.signups} in</span>
+                  </Link>
                 </li>
               ))}
             </ListCard>

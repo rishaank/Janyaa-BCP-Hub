@@ -11,6 +11,7 @@ import {
   MapPin,
   UtensilsCrossed,
   Sparkles,
+  Wand2,
   History,
   Info,
   X,
@@ -42,6 +43,7 @@ const navItems = [
   { to: '/locations', label: 'Locations', icon: MapPin },
   { to: '/restaurants', label: 'Restaurants', icon: UtensilsCrossed },
   { to: '/insights', label: 'AI Insights', icon: Sparkles },
+  { to: '/studio', label: 'AI Studio', icon: Wand2 },
   { to: '/club', label: 'Club Info', icon: Info },
   { to: '/history', label: 'History', icon: History, adminOnly: true },
 ]

@@ -307,6 +307,45 @@ export async function getPublicDashboard() {
   return data
 }
 
+// One event's public data for the shareable full-screen view (Feature 2), readable
+// without a session (no emails) via a SECURITY DEFINER RPC.
+export async function getPublicEvent(id) {
+  const { data, error } = await supabase.rpc('get_public_event', { p_id: id })
+  if (error) return null
+  return data
+}
+
+// ---- AI tools (suggestions / planner / social) ---------------------------
+
+// Regenerate cached next-event + location suggestions (Feature 3).
+export async function generateSuggestions() {
+  try {
+    return await supabase.functions.invoke('ai-suggestions')
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+// Ask the AI planner to draft a full event from the wizard answers (Feature 4).
+// Returns { data: { ok, plan }, error } — the caller saves it on accept.
+export async function planEvent(answers) {
+  try {
+    return await supabase.functions.invoke('ai-plan-event', { body: { answers } })
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+// Regenerate the monthly social-media suggestions (Feature 5). `force` re-runs even
+// if the cache is fresh; the monthly cron passes `scheduled` instead.
+export async function generateSocial(force = false) {
+  try {
+    return await supabase.functions.invoke('ai-social', { body: { force } })
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
 // Anyone signed in can change the fundraising goal — it applies for everyone.
 export function updateRaiseTarget(value) {
   return supabase.from('club_settings').update({ raise_target: value }).eq('id', true)

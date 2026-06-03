@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail, Instagram, List, CalendarDays } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail, Instagram, List, CalendarDays, Maximize2 } from 'lucide-react'
 import { PageHeader, Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -276,7 +277,12 @@ function EventCard({ event, myId, onChange, onEdit }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="break-words font-display text-h4 font-semibold text-ink-900">{event.name}</h3>
+            <Link
+              to={`/events/${event.id}`}
+              className="break-words font-display text-h4 font-semibold text-ink-900 transition-colors hover:text-green-700"
+            >
+              {event.name}
+            </Link>
             {event.is_tentative && <Badge tone="gold">Tentative</Badge>}
           </div>
           <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
@@ -339,6 +345,14 @@ function EventCard({ event, myId, onChange, onEdit }) {
             )}
           </div>
           <div className="flex gap-1">
+            <Link
+              to={`/events/${event.id}`}
+              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+              aria-label="Open full view"
+              title="Open shareable view"
+            >
+              <Maximize2 size={14} />
+            </Link>
             <button
               onClick={() => onEdit(event)}
               className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
@@ -504,7 +518,7 @@ function TodoRow({ todo, myId, onChange }) {
   )
 }
 
-const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [], is_tentative: false }
+const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', latitude: null, longitude: null, hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [], is_tentative: false }
 
 function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const [form, setForm] = useState(blank)
@@ -530,6 +544,8 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         end_time: (event.end_time ?? '').slice(0, 5),
         location: event.location ?? '',
         address: event.address ?? '',
+        latitude: event.latitude ?? null,
+        longitude: event.longitude ?? null,
         hours: event.hours ?? 3,
         min_people: event.min_people ?? 2,
         max_people: event.max_people ?? 6,
@@ -554,6 +570,8 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
       end_time: form.end_time || null,
       location: form.location,
       address: form.address,
+      latitude: form.latitude,
+      longitude: form.longitude,
       hours: Number(form.hours),
       min_people: Number(form.min_people),
       max_people: Number(form.max_people),
@@ -617,7 +635,7 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
               value=""
               onChange={(e) => {
                 const loc = saved.find((s) => s.id === e.target.value)
-                if (loc) setForm({ ...form, location: loc.name, address: loc.address || '' })
+                if (loc) setForm({ ...form, location: loc.name, address: loc.address || '', latitude: loc.latitude ?? null, longitude: loc.longitude ?? null })
               }}
             >
               <option value="">Pick a saved location…</option>
@@ -632,7 +650,7 @@ function EventFormModal({ open, event, events = [], onClose, onSaved }) {
             value={form.location}
             placeholder="Search a place…"
             onChange={(v) => setForm({ ...form, location: v })}
-            onSelect={({ name, address }) => setForm({ ...form, location: name, address })}
+            onSelect={({ name, address, lat, lng }) => setForm({ ...form, location: name, address, latitude: lat ?? null, longitude: lng ?? null })}
           />
         </FormField>
         <FormField label="Address">
