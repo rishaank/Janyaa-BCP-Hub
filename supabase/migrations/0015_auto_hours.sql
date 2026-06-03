@@ -86,6 +86,7 @@ begin
   on conflict do nothing;
 end;
 $$;
+revoke execute on function public.ensure_monthly_role_hours() from public, anon;
 grant execute on function public.ensure_monthly_role_hours() to authenticated;
 
 -- Monthly schedule: 1st of the month at 13:00 UTC.
