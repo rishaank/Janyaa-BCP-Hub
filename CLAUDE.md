@@ -127,7 +127,7 @@ adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0016*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0019*.sql`
 (all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
@@ -179,6 +179,25 @@ via a per-event INSERT trigger (`grant_event_role_hours`) and the `ensure_monthl
 fold into **both** total + term hours everywhere they're computed (`get_public_dashboard()`,
 `getMembersWithHours`, `getProfileDetails`, the ai-insights function). Accrual is forward-only, so set each
 member's accurate baseline via the profile hours stepper. Role `pr_lead` is labelled "PR and Tech Lead".
+
+**Unified hours ledger (migrations 0017–0019):** `hours_grants` is now the general ledger (added
+`entry_date`, `meeting_id`; sources `import` / `role_*` / `manual`). A member's **total = ledger +
+cutoff-filtered event sign-ups + meeting attendance + `hours_adjustment`**, all computed in
+`get_public_dashboard()` and `get_hours_breakdowns(member)`. `club_settings.hours_cutoff_date` (set to the
+import date) makes derived event/meeting hours count only **on/after** the cutoff, so the imported history
+(below) doesn't double-count old sign-ups; sign-ups stay for attendance display. **Meetings grant hours**
+(0017): `meeting_attendees.role` — *attendee* earns the meeting length, *contributor* earns length + 1.
+**Hours breakdown (Feature 3):** `get_hours_breakdowns(p_member uuid)` (null = everyone) returns each
+member's itemized history; shown on `ProfilePage` and exported to **.xlsx** via `src/lib/exportHours.js`
+(SheetJS, lazy-loaded) — per-user on the profile, **global on the Members page**. **Spreadsheet import
+(0019):** a one-time load from "Janyaa Member Hours.xlsx" set everyone's history (exact per-member totals,
+event rows linked by date); the member **Aarush** was created (auth user, no password) and **Rohan**'s
+sign-up hours were materialized into the ledger.
+
+**Pinned AI cards (Feature 1, migration 0017):** `pinned_items` (surface + kind + jsonb payload snapshot)
+lets any member **pin** an AI insight / suggestion / social idea so it survives regeneration. `PinButton`
+in `ui.jsx`; pinned cards render in a "Pinned" section on `Insights` + `AIStudio` (suggestions + social),
+de-duped from the live cards by title.
 
 **Fundraising:** `club_settings.raise_target` is the shared goal (anyone can edit). GoFundMe figures
 (`gofundme_raised/goal/donations`) are scraped server-side. Per-event in-person revenue is `events.raised`.

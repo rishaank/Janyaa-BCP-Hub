@@ -1,5 +1,5 @@
 import { TrendingUp, AlertTriangle, Info, Sparkles } from 'lucide-react'
-import { Card, Badge } from './ui'
+import { Card, Badge, PinButton } from './ui'
 
 // tone → icon + colours for an AI insight card.
 export const toneMeta = {
@@ -10,7 +10,7 @@ export const toneMeta = {
 
 // One AI insight as a card. The small Sparkles marks it as AI-generated. Shared by
 // the AI Insights page and the Dashboard.
-export default function InsightCard({ ins }) {
+export default function InsightCard({ ins, pin }) {
   const meta = toneMeta[ins.tone] ?? toneMeta.neutral
   const Icon = meta.icon
   return (
@@ -19,9 +19,10 @@ export default function InsightCard({ ins }) {
         <span className={`grid h-10 w-10 place-items-center rounded-md ${meta.iconBg}`}>
           <Icon size={20} />
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {ins.metric && <Badge tone={meta.chip}>{ins.metric}</Badge>}
           <Sparkles size={13} className="text-ink-300" aria-label="AI-generated" />
+          {pin && <PinButton pinned={pin.pinned} onClick={pin.onToggle} />}
         </div>
       </div>
       <h3 className="mt-3 font-display text-h4 font-semibold text-ink-900">{ins.title}</h3>

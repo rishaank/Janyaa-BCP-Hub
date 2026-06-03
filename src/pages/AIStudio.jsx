@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom'
 import {
   Sparkles, Wand2, Lightbulb, MapPin, RefreshCw, Loader2, Instagram, Check, Copy, ArrowRight, CalendarPlus, Clock, TrendingUp,
 } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, FormField, inputClass } from '../components/ui'
+import { PageHeader, Card, Button, Badge, FormField, inputClass, PinButton } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
   getSettings, generateSuggestions, generateSocial, planEvent, createEvent, addTodo,
+  getPins, addPin, removePin,
 } from '../lib/api'
 
 function timeAgo(iso) {
@@ -21,11 +22,25 @@ function timeAgo(iso) {
 }
 
 export default function AIStudio() {
+  const { user } = useAuth()
   const [settings, setSettings] = useState(null)
+  const [pins, setPins] = useState([])
   const load = () => getSettings().then(setSettings)
+  const loadPins = () => getPins().then(setPins)
   useEffect(() => {
     load()
+    loadPins()
   }, [])
+
+  async function pin(surface, kind, payload) {
+    await addPin({ surface, kind, payload, by: user?.id })
+    loadPins()
+  }
+  async function unpin(id) {
+    await removePin(id)
+    loadPins()
+  }
+  const pinProps = (surface) => ({ pins: pins.filter((p) => p.surface === surface), pin, unpin })
 
   return (
     <>
@@ -45,8 +60,8 @@ export default function AIStudio() {
       </Card>
 
       <Planner />
-      <Suggestions settings={settings} onChange={load} />
-      <Social settings={settings} onChange={load} />
+      <Suggestions settings={settings} onChange={load} {...pinProps('suggestions')} />
+      <Social settings={settings} onChange={load} {...pinProps('social')} />
     </>
   )
 }
@@ -231,12 +246,16 @@ function PlanResult({ plan, onCreated, onDiscard }) {
 
 /* -------------------------------------------------------------- Suggestions */
 
-function Suggestions({ settings, onChange }) {
+function Suggestions({ settings, onChange, pins, pin, unpin }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const sug = settings?.ai_suggestions ?? null
   const events = sug?.events ?? []
   const locations = sug?.locations ?? []
+  const pinnedEvents = pins.filter((p) => p.kind === 'suggestion_event')
+  const pinnedLocs = pins.filter((p) => p.kind === 'suggestion_location')
+  const pinnedET = new Set(pinnedEvents.map((p) => p.payload?.title))
+  const pinnedLN = new Set(pinnedLocs.map((p) => p.payload?.name))
 
   async function generate() {
     setBusy(true)
@@ -266,7 +285,7 @@ function Suggestions({ settings, onChange }) {
       </div>
       {error && <Card className="mb-3 border-coral-200 bg-coral-50 p-3 text-sm text-coral-700">{error}</Card>}
 
-      {events.length === 0 && locations.length === 0 ? (
+      {events.length === 0 && locations.length === 0 && pins.length === 0 ? (
         <Card className="p-6 text-center text-sm text-ink-500">
           Hit Generate to get event + location ideas pulled from what’s worked before.
         </Card>
@@ -275,26 +294,22 @@ function Suggestions({ settings, onChange }) {
           <Card className="p-5">
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink-800"><CalendarPlus size={15} className="text-green-600" /> Event ideas</h3>
             <ul className="space-y-3">
-              {events.map((e, i) => (
-                <li key={i} className="border-b border-ink-100 pb-3 last:border-0 last:pb-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-ink-900">{e.title}</p>
-                    {e.bestDay && <Badge tone="blue">{e.bestDay}</Badge>}
-                  </div>
-                  <p className="mt-1 text-sm text-ink-600">{e.why}</p>
-                  {e.expected && <p className="mt-1 text-xs font-medium text-green-700">{e.expected}</p>}
-                </li>
+              {pinnedEvents.map((p) => (
+                <EventIdea key={p.id} e={p.payload} pin={{ pinned: true, onToggle: () => unpin(p.id) }} />
+              ))}
+              {events.filter((e) => !pinnedET.has(e.title)).map((e, i) => (
+                <EventIdea key={i} e={e} pin={{ pinned: false, onToggle: () => pin('suggestions', 'suggestion_event', e) }} />
               ))}
             </ul>
           </Card>
           <Card className="p-5">
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink-800"><MapPin size={15} className="text-blue-600" /> Locations to try</h3>
             <ul className="space-y-3">
-              {locations.map((l, i) => (
-                <li key={i} className="border-b border-ink-100 pb-3 last:border-0 last:pb-0">
-                  <p className="font-medium text-ink-900">{l.name}</p>
-                  <p className="mt-1 text-sm text-ink-600">{l.why}</p>
-                </li>
+              {pinnedLocs.map((p) => (
+                <LocationIdea key={p.id} l={p.payload} pin={{ pinned: true, onToggle: () => unpin(p.id) }} />
+              ))}
+              {locations.filter((l) => !pinnedLN.has(l.name)).map((l, i) => (
+                <LocationIdea key={i} l={l} pin={{ pinned: false, onToggle: () => pin('suggestions', 'suggestion_location', l) }} />
               ))}
             </ul>
           </Card>
@@ -304,12 +319,41 @@ function Suggestions({ settings, onChange }) {
   )
 }
 
+function EventIdea({ e, pin }) {
+  return (
+    <li className="border-b border-ink-100 pb-3 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium text-ink-900">{e.title}</p>
+          {e.bestDay && <Badge tone="blue">{e.bestDay}</Badge>}
+        </div>
+        <PinButton pinned={pin.pinned} onClick={pin.onToggle} />
+      </div>
+      <p className="mt-1 text-sm text-ink-600">{e.why}</p>
+      {e.expected && <p className="mt-1 text-xs font-medium text-green-700">{e.expected}</p>}
+    </li>
+  )
+}
+
+function LocationIdea({ l, pin }) {
+  return (
+    <li className="border-b border-ink-100 pb-3 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium text-ink-900">{l.name}</p>
+        <PinButton pinned={pin.pinned} onClick={pin.onToggle} />
+      </div>
+      <p className="mt-1 text-sm text-ink-600">{l.why}</p>
+    </li>
+  )
+}
+
 /* -------------------------------------------------------------------- Social */
 
-function Social({ settings, onChange }) {
+function Social({ settings, onChange, pins, pin, unpin }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const posts = Array.isArray(settings?.social_posts) ? settings.social_posts : []
+  const pinnedIdeas = new Set(pins.map((p) => p.payload?.idea))
 
   async function generate() {
     setBusy(true)
@@ -345,12 +389,15 @@ function Social({ settings, onChange }) {
         <span>Trend + audio hints are directional. There’s no public API for exact Instagram trending audio, so treat these as starting points and check what’s actually trending in the app.</span>
       </Card>
 
-      {posts.length === 0 ? (
+      {posts.length === 0 && pins.length === 0 ? (
         <Card className="p-6 text-center text-sm text-ink-500">Hit Generate for this month’s post ideas.</Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {posts.map((p, i) => (
-            <SocialCard key={i} post={p} />
+          {pins.map((p) => (
+            <SocialCard key={p.id} post={p.payload} pin={{ pinned: true, onToggle: () => unpin(p.id) }} />
+          ))}
+          {posts.filter((p) => !pinnedIdeas.has(p.idea)).map((p, i) => (
+            <SocialCard key={i} post={p} pin={{ pinned: false, onToggle: () => pin('social', 'social', p) }} />
           ))}
         </div>
       )}
@@ -358,7 +405,7 @@ function Social({ settings, onChange }) {
   )
 }
 
-function SocialCard({ post }) {
+function SocialCard({ post, pin }) {
   const [copied, setCopied] = useState(false)
   const hashtags = Array.isArray(post.hashtags) ? post.hashtags : []
 
@@ -372,8 +419,11 @@ function SocialCard({ post }) {
   return (
     <Card className="flex flex-col p-4">
       <div className="flex items-center justify-between gap-2">
-        {post.format && <Badge tone="blue">{post.format}</Badge>}
-        {post.bestTime && <span className="flex items-center gap-1 text-2xs text-ink-400"><Clock size={11} /> {post.bestTime}</span>}
+        {post.format ? <Badge tone="blue">{post.format}</Badge> : <span />}
+        <div className="flex items-center gap-1">
+          {post.bestTime && <span className="flex items-center gap-1 text-2xs text-ink-400"><Clock size={11} /> {post.bestTime}</span>}
+          {pin && <PinButton pinned={pin.pinned} onClick={pin.onToggle} />}
+        </div>
       </div>
       <p className="mt-2 font-medium text-ink-900">{post.idea}</p>
       {post.caption && (

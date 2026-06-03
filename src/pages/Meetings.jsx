@@ -6,7 +6,7 @@ import {
   getMeetings, getMeetingSeries, ensureUpcomingMeetings,
   createMeeting, updateMeeting, deleteMeeting, setMeetingCanceled,
   createMeetingSeries, updateMeetingSeries, deleteMeetingSeries, deleteSeriesUpcomingMeetings,
-  markAttendance, unmarkAttendance,
+  registerMeeting, unmarkAttendance,
 } from '../lib/api'
 import MemberChip from '../components/MemberChip'
 import { useRealtime } from '../lib/useRealtime'
@@ -22,6 +22,16 @@ function fmtTime(t) {
 function timeRangeOf(start, end) {
   if (!start) return ''
   return end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)
+}
+// Meeting length in hours (default 1 if untimed). Attendees earn this; contributors earn +1.
+function meetingLength(m) {
+  if (m.start_time && m.end_time) {
+    const [sh, sm] = m.start_time.split(':').map(Number)
+    const [eh, em] = m.end_time.split(':').map(Number)
+    const d = (eh * 60 + em - (sh * 60 + sm)) / 60
+    if (d > 0) return Math.round(d * 10) / 10
+  }
+  return 1
 }
 
 export default function Meetings() {
@@ -129,14 +139,20 @@ function MeetingCard({ meeting, myId, onChange, onEdit }) {
   const isPast = meeting.date < TODAY
   const canceled = meeting.canceled
   const attendees = meeting.meeting_attendees ?? []
-  const iAmIn = attendees.some((a) => a.member_id === myId)
+  const myReg = attendees.find((a) => a.member_id === myId)
   const [busy, setBusy] = useState(false)
   const timeRange = timeRangeOf(meeting.start_time, meeting.end_time)
+  const len = meetingLength(meeting)
 
-  async function toggleAttend() {
+  async function register(role) {
     setBusy(true)
-    if (iAmIn) await unmarkAttendance(meeting.id, myId)
-    else await markAttendance(meeting.id, myId)
+    await registerMeeting(meeting.id, myId, role)
+    await onChange()
+    setBusy(false)
+  }
+  async function leave() {
+    setBusy(true)
+    await unmarkAttendance(meeting.id, myId)
     await onChange()
     setBusy(false)
   }
@@ -217,26 +233,62 @@ function MeetingCard({ meeting, myId, onChange, onEdit }) {
           <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{attendees.length}</span>
         </div>
         {attendees.length > 0 ? (
-          <div className="flex flex-wrap gap-x-1 gap-y-0.5">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
             {attendees.map((a) => (
-              <MemberChip key={a.member_id} id={a.member_id} name={a.profiles?.name} role={a.profiles?.role} />
+              <span key={a.member_id} className="inline-flex items-center">
+                <MemberChip id={a.member_id} name={a.profiles?.name} role={a.profiles?.role} />
+                {a.role === 'contributor' && (
+                  <span className="ml-0.5 rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700" title="Contributor (+1 hr)">+1</span>
+                )}
+              </span>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-ink-400">{isPast ? 'No attendance recorded.' : 'Nobody marked yet.'}</p>
+          <p className="text-xs text-ink-400">{isPast ? 'No attendance recorded.' : 'Nobody registered yet.'}</p>
         )}
+
+        {!canceled &&
+          (myReg ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-ink-700">
+                You&rsquo;re {myReg.role === 'contributor' ? 'contributing' : 'attending'} ·{' '}
+                {myReg.role === 'contributor' ? len + 1 : len}h
+              </span>
+              <button
+                onClick={() => register(myReg.role === 'contributor' ? 'attendee' : 'contributor')}
+                disabled={busy}
+                className="rounded-md bg-ink-100 px-2 py-1 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-200 disabled:opacity-50"
+              >
+                Switch to {myReg.role === 'contributor' ? 'attendee' : 'contributor'}
+              </button>
+              <button
+                onClick={leave}
+                disabled={busy}
+                className="rounded-md px-2 py-1 text-xs font-medium text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-50"
+              >
+                Leave
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => register('attendee')}
+                disabled={busy}
+                className="rounded-lg bg-green-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              >
+                {isPast ? 'I attended' : 'Attend'} · {len}h
+              </button>
+              <button
+                onClick={() => register('contributor')}
+                disabled={busy}
+                className="rounded-lg border border-blue-300 bg-surface py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50"
+              >
+                Contribute · {len + 1}h
+              </button>
+            </div>
+          ))}
         {!canceled && (
-          <button
-            onClick={toggleAttend}
-            disabled={busy}
-            className={`mt-3 w-full rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
-              iAmIn
-                ? 'bg-surface text-ink-700 ring-1 ring-ink-200 hover:bg-ink-50'
-                : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
-          >
-            {iAmIn ? (isPast ? 'Remove me' : "I'm out") : isPast ? 'I was there' : "I'll be there"}
-          </button>
+          <p className="mt-2 text-2xs text-ink-400">Contributors earn the meeting length + 1 hr; attendees earn the length.</p>
         )}
       </div>
     </Card>

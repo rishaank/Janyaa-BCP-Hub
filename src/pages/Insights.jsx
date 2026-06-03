@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Sparkles, RefreshCw, Loader2 } from 'lucide-react'
+import { Sparkles, RefreshCw, Loader2, Pin } from 'lucide-react'
 import { PageHeader, Card, Button } from '../components/ui'
-import { getSettings, generateInsights } from '../lib/api'
+import { getSettings, generateInsights, getPins, addPin, removePin } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { plannedInsights } from '../data/mockData'
 import InsightCard from '../components/InsightCard'
@@ -18,18 +18,30 @@ function timeAgo(iso) {
 }
 
 export default function Insights() {
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const isAdmin = !!profile?.is_admin
   const [settings, setSettings] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [pins, setPins] = useState([])
 
   const load = () => getSettings().then(setSettings)
+  const loadPins = () => getPins('insights').then(setPins)
   useEffect(() => {
     load()
+    loadPins()
   }, [])
 
   const insights = Array.isArray(settings?.ai_insights) ? settings.ai_insights : []
+  const pinnedTitles = new Set(pins.map((p) => p.payload?.title))
+  async function pinIns(ins) {
+    await addPin({ surface: 'insights', kind: 'insight', payload: ins, by: user?.id })
+    loadPins()
+  }
+  async function unpin(id) {
+    await removePin(id)
+    loadPins()
+  }
 
   async function generate() {
     setBusy(true)
@@ -87,6 +99,19 @@ export default function Insights() {
         </p>
       </Card>
 
+      {pins.length > 0 && (
+        <div className="mb-6">
+          <h3 className="mb-3 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+            <Pin size={12} /> Pinned
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {pins.map((p) => (
+              <InsightCard key={p.id} ins={p.payload} pin={{ pinned: true, onToggle: () => unpin(p.id) }} />
+            ))}
+          </div>
+        </div>
+      )}
+
       {insights.length === 0 ? (
         <Card className="p-8 text-center">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-blue-500">
@@ -109,8 +134,8 @@ export default function Insights() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {insights.map((ins, i) => (
-            <InsightCard key={i} ins={ins} />
+          {insights.filter((i) => !pinnedTitles.has(i.title)).map((ins, i) => (
+            <InsightCard key={i} ins={ins} pin={{ pinned: false, onToggle: () => pinIns(ins) }} />
           ))}
         </div>
       )}

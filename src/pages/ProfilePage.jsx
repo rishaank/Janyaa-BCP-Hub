@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Minus, Plus, Trash2, AlertTriangle } from 'lucide-react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Minus, Plus, Trash2, AlertTriangle, Download } from 'lucide-react'
 import {
   Card,
   Badge,
@@ -25,6 +25,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import AvatarCropper from '../components/AvatarCropper'
+import { exportMemberHours } from '../lib/exportHours'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -100,6 +101,8 @@ export default function ProfilePage() {
         <StatTile icon={CalendarDays} label="Events" value={data.events.length} />
         <StatTile icon={ListChecks} label="To-dos owned" value={data.todos.length} />
       </div>
+
+      <HoursBreakdown breakdown={data.breakdown} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <EventList title="Signed up — upcoming" events={upcoming} empty="Not signed up for anything upcoming." />
@@ -257,6 +260,61 @@ function StatTile({ icon: Icon, label, value }) {
         <span className="font-mono text-2xl font-bold tabular-nums text-ink-900">{value}</span>
       </div>
       <p className="mt-1 text-xs text-ink-500">{label}</p>
+    </Card>
+  )
+}
+
+const kindMeta = {
+  event: { label: 'Event', tone: 'green' },
+  meeting: { label: 'Meeting', tone: 'blue' },
+  role_monthly: { label: 'Role · monthly', tone: 'gold' },
+  role_event: { label: 'Role · per event', tone: 'gold' },
+  manual: { label: 'Manual', tone: 'ink' },
+  import: { label: 'Logged', tone: 'ink' },
+}
+
+// Itemized hours history (Feature 3) — every entry that makes up the total, with
+// an Excel export.
+function HoursBreakdown({ breakdown }) {
+  const entries = breakdown?.entries ?? []
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-ink-900">Hours breakdown</h3>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{breakdown?.total ?? 0}h total</span>
+          {entries.length > 0 && (
+            <Button variant="soft" icon={Download} onClick={() => exportMemberHours(breakdown)}>Export</Button>
+          )}
+        </div>
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-sm text-ink-400">No hours logged yet.</p>
+      ) : (
+        <ul className="divide-y divide-ink-100">
+          {entries.map((e, i) => {
+            const meta = kindMeta[e.kind] ?? { label: e.kind, tone: 'ink' }
+            return (
+              <li key={i} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  {e.event_id ? (
+                    <Link to={`/events/${e.event_id}`} className="block truncate text-sm font-medium text-ink-800 transition-colors hover:text-green-700">
+                      {e.description}
+                    </Link>
+                  ) : (
+                    <p className="truncate text-sm text-ink-800">{e.description}</p>
+                  )}
+                  <p className="text-xs text-ink-400">{e.date ? formatDate(e.date) : 'Multiple / undated'}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge tone={meta.tone}>{meta.label}</Badge>
+                  <span className="w-12 text-right font-mono text-sm font-semibold tabular-nums text-ink-700">{e.hours}h</span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </Card>
   )
 }

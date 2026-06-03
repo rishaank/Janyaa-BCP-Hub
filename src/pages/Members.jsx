@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Clock, Award, Shield, UserPlus, Crown } from 'lucide-react'
+import { Users, Clock, Award, Shield, UserPlus, Crown, Download, Loader2 } from 'lucide-react'
 import { PageHeader, Card, StatCard, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
-import { getMembersWithHours, adminCreateUser, adminInviteUser } from '../lib/api'
+import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUser } from '../lib/api'
+import { exportAllHours } from '../lib/exportHours'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 
@@ -13,6 +14,13 @@ export default function Members() {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  async function exportAll() {
+    setExporting(true)
+    await exportAllHours(await getHoursBreakdowns(null))
+    setExporting(false)
+  }
 
   const load = () =>
     getMembersWithHours().then((data) => {
@@ -33,7 +41,14 @@ export default function Members() {
       <PageHeader
         title="Members"
         subtitle="Everyone in the Hub — click anyone to see their full profile."
-        action={isAdmin ? <Button icon={UserPlus} onClick={() => setAddOpen(true)}>Add member</Button> : null}
+        action={
+          <div className="flex items-center gap-2">
+            <Button variant="soft" icon={exporting ? Loader2 : Download} loading={exporting} onClick={exportAll} disabled={exporting}>
+              {exporting ? 'Exporting…' : 'Export hours'}
+            </Button>
+            {isAdmin && <Button icon={UserPlus} onClick={() => setAddOpen(true)}>Add member</Button>}
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -2,7 +2,24 @@
 // Color/radii/shadow tokens come from src/styles/tailwind-theme.css; legacy
 // palette names are remapped to the brand in src/index.css.
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { X, Pin } from 'lucide-react'
+
+// Pin toggle for AI cards — pinned cards survive regeneration (Feature 1).
+export function PinButton({ pinned, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={pinned ? 'Unpin' : 'Pin — keeps this through refreshes'}
+      aria-label={pinned ? 'Unpin' : 'Pin'}
+      className={`rounded-md p-1 transition-colors ${
+        pinned ? 'text-gold-600 hover:bg-gold-100' : 'text-ink-300 hover:bg-ink-100 hover:text-ink-600'
+      }`}
+    >
+      <Pin size={14} className={pinned ? 'fill-current' : ''} />
+    </button>
+  )
+}
 
 // Brand mark: the real club badge + wordmark.
 export function Logo({ compact = false }) {

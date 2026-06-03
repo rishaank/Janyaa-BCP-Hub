@@ -7,30 +7,25 @@ const TODAY = () => new Date().toISOString().slice(0, 10)
 // All profiles plus hours earned. Hours = sum of `hours` for every PAST event
 // the member signed up for (signing up for events is how hours are tracked).
 export async function getMembersWithHours() {
-  const [{ data: profiles }, { data: signups }, { data: grants }] = await Promise.all([
+  // Totals come from the unified hours breakdown (ledger + cutoff-filtered event
+  // sign-ups + meeting attendance + admin adjustment) so every screen agrees.
+  const [{ data: profiles }, { data: breakdowns }] = await Promise.all([
     supabase.from('profiles').select('*').order('joined_date'),
-    supabase.from('event_signups').select('member_id, events(date, hours)'),
-    supabase.from('hours_grants').select('member_id, hours'),
+    supabase.rpc('get_hours_breakdowns', { p_member: null }),
   ])
-
-  const hoursByMember = {}
-  for (const s of signups ?? []) {
-    const ev = s.events
-    if (ev && ev.date && ev.date < TODAY()) {
-      hoursByMember[s.member_id] = (hoursByMember[s.member_id] ?? 0) + Number(ev.hours)
-    }
-  }
-  // Auto-hour grants (role-based) add to the same total.
-  for (const g of grants ?? []) {
-    hoursByMember[g.member_id] = (hoursByMember[g.member_id] ?? 0) + Number(g.hours)
-  }
-
+  const byId = {}
+  for (const b of breakdowns ?? []) byId[b.member_id] = b
   return (profiles ?? []).map((p) => ({
     ...p,
-    // Hours earned from events + auto-hour grants + any admin adjustment.
-    hours: (hoursByMember[p.id] ?? 0) + Number(p.hours_adjustment ?? 0),
+    hours: Number(byId[p.id]?.total ?? 0),
     avatar: initials(p.name),
   }))
+}
+
+// Per-member itemized hours history (Feature 3). Pass null for everyone (export).
+export async function getHoursBreakdowns(memberId = null) {
+  const { data } = await supabase.rpc('get_hours_breakdowns', { p_member: memberId })
+  return data ?? []
 }
 
 // Admin-only: update any member's profile (name, role, hours_adjustment, is_admin).
@@ -42,24 +37,20 @@ export function adminUpdateProfile(id, fields) {
 // Full detail for one member: profile + the events they signed up for + the
 // to-dos they took responsibility for + their total hours.
 export async function getProfileDetails(id) {
-  const [{ data: profile }, { data: signups }, { data: todos }, { data: grants }] = await Promise.all([
+  const [{ data: profile }, { data: signups }, { data: todos }, { data: bd }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).single(),
     supabase.from('event_signups').select('events ( id, name, date, location, raised, hours )').eq('member_id', id),
     supabase.from('event_todos').select('id, item, done, events ( id, name, date )').eq('assignee_id', id),
-    supabase.from('hours_grants').select('hours').eq('member_id', id),
+    supabase.rpc('get_hours_breakdowns', { p_member: id }),
   ])
-  const today = new Date().toISOString().slice(0, 10)
   const events = (signups ?? []).map((s) => s.events).filter(Boolean)
-  const grantHours = (grants ?? []).reduce((sum, g) => sum + Number(g.hours), 0)
-  const hours =
-    events.filter((e) => e.date && e.date < today).reduce((sum, e) => sum + Number(e.hours), 0) +
-    Number(profile?.hours_adjustment ?? 0) +
-    grantHours
+  const breakdown = (bd ?? [])[0] ?? null
   return {
     profile: profile ? { ...profile, avatar: initials(profile.name) } : null,
     events,
     todos: todos ?? [],
-    hours,
+    hours: Number(breakdown?.total ?? 0),
+    breakdown, // { total, term_total, entries: [{date,hours,description,kind,event_id,meeting_id}] }
   }
 }
 
@@ -165,7 +156,7 @@ export function setTodoDone(todoId, done) {
 export async function getMeetings() {
   const { data } = await supabase
     .from('meetings')
-    .select(`*, meeting_attendees ( member_id, profiles ( id, name, role ) )`)
+    .select(`*, meeting_attendees ( member_id, role, profiles ( id, name, role ) )`)
     .order('date', { ascending: true })
     .order('start_time', { ascending: true, nullsFirst: false })
   return data ?? []
@@ -206,16 +197,31 @@ export function deleteSeriesUpcomingMeetings(seriesId) {
   return supabase.from('meetings').delete().eq('series_id', seriesId).gte('date', isoLocal(new Date()))
 }
 
-// Attendance is own-row, just like event signups.
-export function markAttendance(meetingId, memberId) {
-  return supabase.from('meeting_attendees').insert({ meeting_id: meetingId, member_id: memberId })
-}
-export function unmarkAttendance(meetingId, memberId) {
+// Register for a meeting as an attendee or contributor (own-row). Upsert so you
+// can switch roles. Contributor earns meeting length + 1 hr; attendee earns length.
+export function registerMeeting(meetingId, memberId, role = 'attendee') {
   return supabase
     .from('meeting_attendees')
-    .delete()
-    .eq('meeting_id', meetingId)
-    .eq('member_id', memberId)
+    .upsert({ meeting_id: meetingId, member_id: memberId, role }, { onConflict: 'meeting_id,member_id' })
+}
+export function unmarkAttendance(meetingId, memberId) {
+  return supabase.from('meeting_attendees').delete().eq('meeting_id', meetingId).eq('member_id', memberId)
+}
+
+// ---- Pinned AI cards (Feature 1) -----------------------------------------
+// Any signed-in member can pin an AI insight / suggestion / social idea so it
+// survives regeneration. `surface` groups pins by where they were pinned.
+export async function getPins(surface) {
+  let q = supabase.from('pinned_items').select('*').order('created_at', { ascending: false })
+  if (surface) q = q.eq('surface', surface)
+  const { data } = await q
+  return data ?? []
+}
+export function addPin({ surface, kind, payload, by }) {
+  return supabase.from('pinned_items').insert({ surface, kind, payload, pinned_by: by })
+}
+export function removePin(id) {
+  return supabase.from('pinned_items').delete().eq('id', id)
 }
 
 // Materialize concrete meeting rows from every active recurring series for the
