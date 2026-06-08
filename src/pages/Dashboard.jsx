@@ -6,7 +6,7 @@ import {
 import {
   StatCard, Card, PageHeader, Avatar, ProgressBar, Button, Skeleton, roleTones,
 } from '../components/ui'
-import { getPublicDashboard, initials } from '../lib/api'
+import { getPublicDashboard, initials, getPins, addPin, removePin } from '../lib/api'
 import { CURRENT_TERM } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
 import InsightCard from '../components/InsightCard'
@@ -20,11 +20,12 @@ const fmtTime = (t) => {
 }
 
 export default function Dashboard() {
-  const { session } = useAuth()
+  const { session, user } = useAuth()
   const isGuest = !session
   const [d, setD] = useState(null)
   const [loading, setLoading] = useState(true)
   const [lbView, setLbView] = useState('term') // 'term' | 'all'
+  const [pins, setPins] = useState([])
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -33,6 +34,21 @@ export default function Dashboard() {
       setLoading(false)
     })
   }, [])
+
+  const loadPins = () => (session ? getPins('dashboard').then(setPins) : setPins([]))
+  useEffect(() => {
+    loadPins()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session])
+
+  async function pinIns(ins) {
+    await addPin({ surface: 'dashboard', kind: 'insight', payload: ins, by: user?.id })
+    loadPins()
+  }
+  async function unpinIns(pinId) {
+    await removePin(pinId)
+    loadPins()
+  }
 
   if (loading) {
     return (
@@ -55,6 +71,7 @@ export default function Dashboard() {
   const fundRaised = Number(d.fundraising?.raised ?? 0)
   const fundTarget = Number(d.fundraising?.target ?? 500)
   const insights = Array.isArray(d.insights) ? d.insights : []
+  const pinnedTitles = new Set(pins.map((p) => p.payload?.title))
   const goals = Array.isArray(d.goals) ? d.goals : []
   const events = d.upcoming_events_list ?? []
   const meetings = d.upcoming_meetings_list ?? []
@@ -244,7 +261,7 @@ export default function Dashboard() {
       )}
 
       {/* AI Insights */}
-      {insights.length > 0 && (
+      {(insights.length > 0 || pins.length > 0) && (
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 font-semibold text-ink-900">
@@ -255,8 +272,11 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {insights.slice(0, 3).map((ins, i) => (
-              <InsightCard key={i} ins={ins} />
+            {pins.map((p) => (
+              <InsightCard key={p.id} ins={p.payload} pin={{ pinned: true, onToggle: () => unpinIns(p.id) }} />
+            ))}
+            {insights.filter((i) => !pinnedTitles.has(i.title)).slice(0, 3).map((ins, i) => (
+              <InsightCard key={i} ins={ins} pin={isGuest ? undefined : { pinned: false, onToggle: () => pinIns(ins) }} />
             ))}
           </div>
         </div>

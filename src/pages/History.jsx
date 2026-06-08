@@ -125,14 +125,25 @@ function ActivityRow({ it }) {
         <Icon size={14} />
       </span>
       <p className="min-w-0 flex-1 text-sm text-ink-700">
-        {it.actor_id ? (
-          <Link to={`/members/${it.actor_id}`} className="font-semibold text-ink-900 hover:text-blue-700">
-            {it.actor_name}
-          </Link>
+        {it.action === 'joined' ? (
+          <>
+            New member added:{' '}
+            {it.actor_id ? (
+              <Link to={`/members/${it.actor_id}`} className="font-semibold text-ink-900 hover:text-blue-700">{it.actor_name}</Link>
+            ) : (
+              <span className="font-semibold text-ink-900">{it.actor_name}</span>
+            )}
+          </>
         ) : (
-          <span className="font-semibold text-ink-900">{it.actor_name}</span>
-        )}{' '}
-        {it.summary}
+          <>
+            {it.actor_id ? (
+              <Link to={`/members/${it.actor_id}`} className="font-semibold text-ink-900 hover:text-blue-700">{it.actor_name}</Link>
+            ) : (
+              <span className="font-semibold text-ink-900">{it.actor_name}</span>
+            )}{' '}
+            {it.summary}
+          </>
+        )}
       </p>
       <span className="shrink-0 font-mono text-xs text-ink-400">{fmtTime(it.when)}</span>
     </div>

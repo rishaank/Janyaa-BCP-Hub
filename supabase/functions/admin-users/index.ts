@@ -2,7 +2,7 @@
 // Admin-only account management that needs the service role (impossible from the
 // browser): create accounts (with a set password OR an invite email), set a new
 // password, send a reset email, and delete accounts.
-// verify_jwt = true → caller must be signed in; we then confirm they're an admin
+// verify_jwt = true -> caller must be signed in; we then confirm they're an admin
 // (profiles.is_admin) before doing anything. Never trust the client's word for it.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -33,13 +33,13 @@ Deno.serve(async (req) => {
   const { action, redirectTo } = body
 
   // Self-service account deletion (any signed-in member may delete THEIR OWN
-  // account + data — California SB 568 "eraser" right for minors). No admin
+  // account + data - California SB 568 "eraser" right for minors). No admin
   // needed. Deleting the auth user cascades the profile + sign-ups/attendance.
   if (action === 'deleteSelf') {
     try {
       await admin.storage.from('avatars').remove([`${user.id}/avatar`])
     } catch (_) {
-      /* no avatar or already gone — best effort */
+      /* no avatar or already gone - best effort */
     }
     const { error } = await admin.auth.admin.deleteUser(user.id)
     if (error) return json({ error: String((error as Error)?.message ?? error) }, 400)
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
         if (name) await admin.from('profiles').update({ name }).eq('id', data.user.id)
         return json({ ok: true, id: data.user.id })
       }
-      // No password → email them an invite with a set-password link.
+      // No password -> email them an invite with a set-password link.
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
         data: { name },
         redirectTo,
@@ -86,10 +86,21 @@ Deno.serve(async (req) => {
       return json({ ok: true })
     }
 
+    if (action === 'setEmail') {
+      const id = body.id
+      const email = (body.email ?? '').trim().toLowerCase()
+      if (!id || !email) return json({ error: 'id and email required' }, 400)
+      // Update the auth email (confirmed, no verification step) + the profile copy.
+      const { error } = await admin.auth.admin.updateUserById(id, { email, email_confirm: true })
+      if (error) throw error
+      await admin.from('profiles').update({ email }).eq('id', id)
+      return json({ ok: true })
+    }
+
     if (action === 'sendReset') {
       const email = (body.email ?? '').trim()
       if (!email) return json({ error: 'Email required' }, 400)
-      // Anon client → Supabase sends the recovery email via the configured SMTP.
+      // Anon client -> Supabase sends the recovery email via the configured SMTP.
       const anon = createClient(url, anonKey)
       const { error } = await anon.auth.resetPasswordForEmail(email, { redirectTo })
       if (error) throw error

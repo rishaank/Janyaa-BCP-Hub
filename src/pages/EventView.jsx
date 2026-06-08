@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useEffect, useState, memo } from 'react'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -25,11 +25,68 @@ const fmtTime = (t) => {
 const fmtDate = (iso) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
-// Instagram post/reel URL → its embeddable iframe URL.
-function igEmbed(url) {
-  const m = (url || '').match(/instagram\.com\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/)
-  return m ? `https://www.instagram.com/p/${m[1]}/embed` : null
+// Normalize an Instagram post/reel URL to its canonical permalink (drops query
+// params like ?img_index) so the official embed renders the full post.
+function cleanIg(url) {
+  const m = (url || '').match(/instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)/)
+  return m ? `https://www.instagram.com/${m[1]}/${m[2]}/` : null
 }
+
+// Renders Instagram posts via the official embed.js (shows the full carousel +
+// caption). Memoized so it isn't reprocessed on parent re-renders.
+const InstagramEmbeds = memo(function InstagramEmbeds({ urls }) {
+  useEffect(() => {
+    const process = () => window.instgrm?.Embeds?.process()
+    if (window.instgrm?.Embeds) {
+      process()
+      return
+    }
+    let s = document.getElementById('ig-embed-js')
+    if (!s) {
+      s = document.createElement('script')
+      s.id = 'ig-embed-js'
+      s.async = true
+      s.src = 'https://www.instagram.com/embed.js'
+      document.body.appendChild(s)
+    }
+    s.addEventListener('load', process)
+    const t = setTimeout(process, 1000) // in case the script was already cached
+    return () => {
+      s?.removeEventListener('load', process)
+      clearTimeout(t)
+    }
+  }, [urls])
+
+  return (
+    <div className="grid items-start gap-4 sm:grid-cols-2">
+      {urls.map((url, i) => {
+        const permalink = cleanIg(url)
+        return (
+          <div key={i} className="overflow-hidden rounded-xl border border-ink-200 bg-surface">
+            <blockquote
+              className="instagram-media"
+              data-instgrm-permalink={permalink}
+              data-instgrm-version="14"
+              style={{ background: '#FFF', border: 0, margin: 0, width: '100%', minWidth: 0 }}
+            >
+              <a href={permalink} target="_blank" rel="noreferrer" className="block p-4 text-sm font-medium text-blue-600">
+                View this post on Instagram
+              </a>
+            </blockquote>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-1.5 border-t border-ink-200 py-2.5 text-xs font-medium text-ink-600 transition-colors hover:text-blue-700"
+            >
+              <ExternalLink size={12} /> View / share on Instagram
+            </a>
+          </div>
+        )
+      })}
+    </div>
+  )
+})
 
 export default function EventView() {
   const { id } = useParams()
@@ -52,9 +109,9 @@ export default function EventView() {
       <header className="sticky top-0 z-[500] border-b border-ink-200 bg-surface/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4 sm:px-6">
           <Link to="/" aria-label="Janyaa BCP Hub"><Logo /></Link>
-          <Link to="/" className="inline-flex items-center gap-1 text-sm font-medium text-ink-500 transition-colors hover:text-ink-800">
-            <ArrowLeft size={16} /> Dashboard
-          </Link>
+          <button onClick={goBack} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800">
+            <ArrowLeft size={16} /> Back
+          </button>
         </div>
       </header>
 
@@ -80,7 +137,7 @@ export default function EventView() {
 
 function EventBody({ event, isDark, copied, onShare }) {
   const attendees = event.attendees ?? []
-  const igUrls = (event.instagram_urls ?? []).map(igEmbed).filter(Boolean)
+  const igUrls = (event.instagram_urls ?? []).filter((u) => cleanIg(u))
   const timeRange = event.start_time
     ? event.end_time
       ? `${fmtTime(event.start_time)}–${fmtTime(event.end_time)}`
@@ -185,21 +242,7 @@ function EventBody({ event, isDark, copied, onShare }) {
           <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink-900">
             <Instagram size={16} className="text-ink-400" /> On Instagram
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {igUrls.map((src, i) => (
-              <div key={i} className="overflow-hidden rounded-xl border border-ink-200 bg-surface">
-                <iframe
-                  src={src}
-                  title={`Instagram post ${i + 1}`}
-                  className="h-[560px] w-full"
-                  loading="lazy"
-                  scrolling="no"
-                  allowtransparency="true"
-                  frameBorder="0"
-                />
-              </div>
-            ))}
-          </div>
+          <InstagramEmbeds urls={igUrls} />
         </div>
       )}
 

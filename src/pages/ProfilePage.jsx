@@ -19,6 +19,7 @@ import {
   uploadAvatar,
   removeAvatar,
   adminSetPassword,
+  adminSetEmail,
   adminSendReset,
   adminDeleteUser,
   deleteOwnAccount,
@@ -63,7 +64,7 @@ export default function ProfilePage() {
     <>
       <button
         onClick={() => navigate(-1)}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-ink-500 transition-colors hover:text-ink-800"
+        className="mb-4 -ml-2.5 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800"
       >
         <ArrowLeft size={16} /> Back
       </button>
@@ -353,6 +354,7 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const [pw, setPw] = useState('')
+  const [email, setEmail] = useState(member.email ?? '')
   const [acctBusy, setAcctBusy] = useState('')
   const [acctMsg, setAcctMsg] = useState('')
   const [acctErr, setAcctErr] = useState('')
@@ -361,6 +363,7 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
     setName(member.name ?? '')
     setRole(member.role ?? 'member')
     setAdmin(!!member.is_admin)
+    setEmail(member.email ?? '')
     setHours(derivedHours + Number(member.hours_adjustment ?? 0))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member.id])
@@ -399,6 +402,19 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
     setAcctBusy('')
     if (!res.ok) return setAcctErr(res.error || 'Could not send the reset email.')
     setAcctMsg('Reset email sent.')
+  }
+  async function doSetEmail() {
+    setAcctErr('')
+    setAcctMsg('')
+    if (!email.includes('@') || email.trim() === (member.email ?? '')) {
+      return setAcctErr(email.trim() === (member.email ?? '') ? 'That is already the email.' : 'Enter a valid email address.')
+    }
+    setAcctBusy('email')
+    const res = await adminSetEmail(member.id, email.trim())
+    setAcctBusy('')
+    if (!res.ok) return setAcctErr(res.error || 'Could not change the email.')
+    setAcctMsg('Email updated.')
+    onSaved()
   }
   async function doDelete() {
     if (!window.confirm(`Permanently delete ${member.name || 'this member'}'s account? This can't be undone.`)) return
@@ -482,6 +498,18 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
         {/* Account */}
         <div className="border-t border-ink-200 pt-4">
           <p className="mb-2 text-sm font-semibold text-ink-800">Account</p>
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="member@bcp.org"
+              className={`${inputClass} sm:flex-1`}
+            />
+            <Button variant="soft" type="button" onClick={doSetEmail} disabled={acctBusy === 'email'}>
+              {acctBusy === 'email' ? 'Updating…' : 'Change email'}
+            </Button>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               type="text"

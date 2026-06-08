@@ -453,6 +453,10 @@ export const adminInviteUser = ({ email, name }) =>
 export const adminSetPassword = (id, password) =>
   callAdminUsers({ action: 'setPassword', id, password })
 
+// Change a member's email (admin) — updates the auth account + the profile.
+export const adminSetEmail = (id, email) =>
+  callAdminUsers({ action: 'setEmail', id, email })
+
 // Email a member a password-reset link.
 export const adminSendReset = (email) =>
   callAdminUsers({ action: 'sendReset', email, redirectTo: setPwRedirect() })

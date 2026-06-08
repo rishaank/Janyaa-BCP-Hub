@@ -68,6 +68,37 @@ export default function Members() {
         )}
       </div>
 
+      <Card className="mt-6 p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-ink-800">Who can do what</h3>
+          <Badge tone={isAdmin ? 'blue' : 'ink'}>{isAdmin ? 'Admin access' : 'Member access'}</Badge>
+        </div>
+        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-1.5 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">
+              <Users size={13} /> Every member
+            </p>
+            <ul className="space-y-1 text-sm text-ink-600">
+              <li>Sign up for events &amp; meetings to earn hours</li>
+              <li>Add &amp; edit events, meetings, goals, and locations</li>
+              <li>Claim to-dos, pin AI cards, use AI Studio</li>
+              <li>View &amp; export hours; manage their own account</li>
+            </ul>
+          </div>
+          <div>
+            <p className="mb-1.5 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-blue-600">
+              <Shield size={13} /> Admins only
+            </p>
+            <ul className="space-y-1 text-sm text-ink-600">
+              <li>Add &amp; remove member accounts</li>
+              <li>Edit anyone&rsquo;s role, hours, name &amp; email</li>
+              <li>Reset passwords; set the auto-hours rules</li>
+              <li>See the full History / audit log</li>
+            </ul>
+          </div>
+        </div>
+      </Card>
+
       <Card className="mt-6 overflow-hidden">
         {loading ? (
           <div className="space-y-3 p-5">
