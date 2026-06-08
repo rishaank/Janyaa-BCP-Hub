@@ -90,6 +90,8 @@ const InstagramEmbeds = memo(function InstagramEmbeds({ urls }) {
 
 export default function EventView() {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { isDark } = useTheme()
   const [event, setEvent] = useState(undefined) // undefined = loading, null = not found
   const [copied, setCopied] = useState(false)
@@ -103,6 +105,10 @@ export default function EventView() {
     setCopied(true)
     setTimeout(() => setCopied(false), 1600)
   }
+
+  // Back to wherever they came from (usually Events); fall back to the public
+  // dashboard for direct/shared links (location.key === 'default' on first load).
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/'))
 
   return (
     <div className="min-h-screen bg-paper">
