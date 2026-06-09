@@ -8,9 +8,8 @@ import {
 } from '../components/ui'
 import {
   getPublicDashboard, initials, getPins, addPin, removePin,
-  getMyHoursRequests, dismissHoursRequest,
+  getMyHoursRequests, dismissHoursRequest, currentTerm,
 } from '../lib/api'
-import { CURRENT_TERM } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import InsightCard from '../components/InsightCard'
@@ -70,7 +69,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Dashboard" subtitle={`${CURRENT_TERM} term at a glance`} />
+        <PageHeader title="Dashboard" subtitle={`${currentTerm()} term at a glance`} />
         <DashboardSkeleton />
       </>
     )
@@ -79,7 +78,7 @@ export default function Dashboard() {
   if (!d) {
     return (
       <>
-        <PageHeader title="Dashboard" subtitle={`${CURRENT_TERM} term at a glance`} />
+        <PageHeader title="Dashboard" subtitle={`${currentTerm()} term at a glance`} />
         <Card className="p-6 text-sm text-ink-500">Couldn’t load the dashboard. Try again in a moment.</Card>
       </>
     )
@@ -104,7 +103,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle={`${CURRENT_TERM} term at a glance`} />
+      <PageHeader title="Dashboard" subtitle={`${currentTerm()} term at a glance`} />
 
       {/* My hours-request status — pending + approved as small chips */}
       {(pendingReqs.length > 0 || approvedReqs.length > 0) && (

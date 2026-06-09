@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Search, MapPin, Trash2, Pencil, Plus, Loader2, LocateFixed } from 'lucide-react'
+import { Search, MapPin, Trash2, Pencil, Plus, Loader2, LocateFixed, Sparkles } from 'lucide-react'
 import {
   PageHeader,
   Card,
@@ -15,7 +15,7 @@ import {
   statusLabels,
   formatDate,
 } from '../components/ui'
-import { getLocations, getEvents, saveLocation, updateLocation, deleteLocation } from '../lib/api'
+import { getLocations, getEvents, saveLocation, updateLocation, deleteLocation, getSettings } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import { useTheme } from '../context/ThemeContext'
 import { locationPerformance } from '../lib/planning'
@@ -43,6 +43,16 @@ const pinIcon = (n, gold = false) =>
     html: `<div style="display:grid;place-items:center;width:${gold ? 28 : 26}px;height:${gold ? 28 : 26}px;border-radius:50% 50% 50% 0;transform:rotate(45deg);background:${gold ? '#fba631' : '#2a943b'};border:2px solid #fff;box-shadow:0 2px ${gold ? 8 : 6}px rgba(0,0,0,.35)"><span style="transform:rotate(-45deg);color:${gold ? '#3a2e10' : '#fff'};font:700 12px/1 system-ui,sans-serif">${n}</span></div>`,
     iconSize: gold ? [28, 28] : [26, 26],
     iconAnchor: gold ? [14, 28] : [13, 26],
+    popupAnchor: [0, -24],
+  })
+
+// Violet numbered pin for an AI new-location suggestion (distinct from saved pins).
+const suggestionIcon = (n) =>
+  L.divIcon({
+    className: '',
+    html: `<div style="display:grid;place-items:center;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(45deg);background:#8b5cf6;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"><span style="transform:rotate(-45deg);color:#fff;font:700 12px/1 system-ui,sans-serif">${n}</span></div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 26],
     popupAnchor: [0, -24],
   })
 
@@ -75,6 +85,7 @@ export default function Locations() {
   const [flyTo, setFlyTo] = useState(null)
   const [userLoc, setUserLoc] = useState(null)
   const [locating, setLocating] = useState(false)
+  const [suggestions, setSuggestions] = useState([]) // AI new-location ideas with coords
 
   const load = () =>
     getLocations().then((d) => {
@@ -107,6 +118,9 @@ export default function Locations() {
     load()
     locate()
     getEvents().then(setEvents)
+    getSettings().then((s) =>
+      setSuggestions((s?.ai_suggestions?.locations ?? []).filter((l) => l.isNew && l.lat != null && l.lng != null)),
+    )
   }, [])
   useRealtime('locations', load)
 
@@ -190,6 +204,24 @@ export default function Locations() {
                 ) : null,
               )}
 
+              {/* AI new-location suggestions — violet numbered pins */}
+              {suggestions.map((s, i) => (
+                <Marker key={`sug-${i}`} position={[Number(s.lat), Number(s.lng)]} icon={suggestionIcon(i + 1)}>
+                  <Popup>
+                    <p className="font-semibold">{s.name}</p>
+                    <p className="text-xs" style={{ color: '#8b5cf6' }}>AI suggestion · new location</p>
+                    {s.why && <p className="mt-1 text-xs">{s.why}</p>}
+                    <button
+                      onClick={() => setPending({ lat: Number(s.lat), lng: Number(s.lng), name: s.name, address: s.address || '' })}
+                      className="mt-1 rounded-md px-2 py-1 text-xs font-medium text-white"
+                      style={{ background: '#8b5cf6' }}
+                    >
+                      Save this spot
+                    </button>
+                  </Popup>
+                </Marker>
+              ))}
+
               {pending && <Marker position={[pending.lat, pending.lng]} icon={pendingIcon} />}
             </MapContainer>
           </div>
@@ -198,8 +230,46 @@ export default function Locations() {
           </p>
         </Card>
 
-        {/* Saved list — capped + scrollable so it never stretches the map */}
+        {/* Right column: AI new-location suggestions atop the saved list */}
         <div>
+          {suggestions.length > 0 && (
+            <div className="mb-5">
+              <h3 className="mb-3 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-[#8b5cf6]">
+                <Sparkles size={12} /> AI suggestions · {suggestions.length}
+              </h3>
+              <div className="space-y-3">
+                {suggestions.map((s, i) => (
+                  <Card key={`sug-${i}`} className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <button
+                        className="flex items-start gap-2 text-left font-semibold text-ink-900 transition-opacity hover:opacity-80"
+                        onClick={() => setFlyTo([Number(s.lat), Number(s.lng)])}
+                      >
+                        <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#8b5cf6] text-[11px] font-bold text-white">
+                          {i + 1}
+                        </span>
+                        {s.name}
+                      </button>
+                      <span className="shrink-0 rounded-full bg-[#8b5cf6]/15 px-2 py-0.5 text-2xs font-semibold text-[#8b5cf6]">New</span>
+                    </div>
+                    {s.address && (
+                      <p className="mt-1 flex items-start gap-1.5 text-xs text-ink-500">
+                        <MapPin size={13} className="mt-0.5 shrink-0 text-ink-400" /> {s.address}
+                      </p>
+                    )}
+                    {s.why && <p className="mt-2 text-sm text-ink-600">{s.why}</p>}
+                    <button
+                      onClick={() => setPending({ lat: Number(s.lat), lng: Number(s.lng), name: s.name, address: s.address || '' })}
+                      className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#8b5cf6] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#7c3aed]"
+                    >
+                      <Plus size={13} /> Save spot
+                    </button>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           <h3 className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
             Saved · {locations.length}
           </h3>

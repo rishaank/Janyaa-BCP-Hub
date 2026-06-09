@@ -49,8 +49,12 @@ Deno.serve(async (req) => {
     'fundraisers and STEM-education sessions in the San Jose / Bay Area. Using the REAL history below, propose: ' +
     '(1) 3-4 specific NEXT EVENTS worth running - each with a short title, a one-sentence reason grounded in the ' +
     'data (e.g. which past events or days raised the most), the best day of week, and a rough expected outcome; ' +
-    'and (2) 2-3 LOCATIONS or location TYPES worth trying or returning to, each with a one-sentence reason. ' +
-    'Favor what has actually worked. Be concrete and avoid generic advice. DATA: ' +
+    'and (2) EXACTLY 4 specific LOCATIONS worth trying, of which AT LEAST 2 must be BRAND-NEW real places that are ' +
+    'NOT already in our saved locations list. For every location give a real place name and a one-sentence reason. ' +
+    'Set isNew=true for places not in our saved list, isNew=false for ones we already have. For each isNew location ' +
+    'you MUST include real approximate coordinates in the San Jose / Bay Area (latitude ~37.2-37.45, longitude ' +
+    '~-122.05 to -121.8) and a short street address. Favor what has actually worked. Be concrete, use real Bay Area ' +
+    'venues, and avoid generic advice. DATA: ' +
     JSON.stringify(summary)
 
   const res = await fetch(
@@ -86,8 +90,12 @@ Deno.serve(async (req) => {
                   properties: {
                     name: { type: 'STRING' },
                     why: { type: 'STRING' },
+                    isNew: { type: 'BOOLEAN' },
+                    address: { type: 'STRING' },
+                    lat: { type: 'NUMBER' },
+                    lng: { type: 'NUMBER' },
                   },
-                  required: ['name', 'why'],
+                  required: ['name', 'why', 'isNew'],
                 },
               },
             },

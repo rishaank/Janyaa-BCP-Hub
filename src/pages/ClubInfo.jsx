@@ -192,11 +192,6 @@ export default function ClubInfo() {
       <PageHeader
         title="Club Information"
         subtitle="Key links, forms, and Janyaa impact facts — all in one place."
-        action={
-          <a href="https://linktr.ee/janyaabcp" target="_blank" rel="noreferrer">
-            <Button variant="soft" icon={Link2}>Linktree</Button>
-          </a>
-        }
       />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

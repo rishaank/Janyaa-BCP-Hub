@@ -343,7 +343,14 @@ function LocationIdea({ l, pin }) {
   return (
     <li className="border-b border-ink-100 pb-3 last:border-0 last:pb-0">
       <div className="flex items-start justify-between gap-2">
-        <p className="font-medium text-ink-900">{l.name}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium text-ink-900">{l.name}</p>
+          {l.isNew && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#8b5cf6]/15 px-2 py-0.5 text-2xs font-semibold text-[#8b5cf6]">
+              <Sparkles size={10} /> New location
+            </span>
+          )}
+        </div>
         <PinButton pinned={pin.pinned} onClick={pin.onToggle} />
       </div>
       <p className="mt-1 text-sm text-ink-600">{l.why}</p>

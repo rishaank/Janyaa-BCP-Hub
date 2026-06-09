@@ -36,7 +36,8 @@ export default function Members() {
   }, [])
   useRealtime(['profiles', 'event_signups'], load)
 
-  const totalHours = members.reduce((s, m) => s + m.hours, 0)
+  const totalHours = Math.round(members.reduce((s, m) => s + m.hours, 0) * 10) / 10
+  const totalTermHours = Math.round(members.reduce((s, m) => s + (m.term_hours ?? 0), 0) * 10) / 10
   // Ranked most → least hours, so the list order + trophies line up.
   const ranked = [...members].sort((a, b) => b.hours - a.hours)
 
@@ -61,6 +62,7 @@ export default function Members() {
         ) : (
           <>
             <StatPill icon={Users} value={members.length} label="members" />
+            <StatPill icon={Clock} value={`${totalTermHours}h`} label="term hours" tone="gold" />
             <StatPill icon={Clock} value={`${totalHours}h`} label="total hours" tone="blue" />
           </>
         )}
@@ -116,7 +118,8 @@ export default function Members() {
                   <th className="px-5 py-3 font-semibold">Member</th>
                   <th className="px-5 py-3 font-semibold">Role</th>
                   <th className="px-5 py-3 font-semibold">Joined</th>
-                  <th className="px-5 py-3 font-semibold">Hours</th>
+                  <th className="px-5 py-3 font-semibold">Term hours</th>
+                  <th className="px-5 py-3 font-semibold">Total hours</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
@@ -150,6 +153,7 @@ export default function Members() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-ink-600">{m.joined_date ? formatDate(m.joined_date) : '—'}</td>
+                    <td className="px-5 py-3 font-mono tabular-nums text-ink-600">{m.term_hours} hrs</td>
                     <td className="px-5 py-3 font-mono font-semibold tabular-nums text-ink-900">{m.hours} hrs</td>
                   </tr>
                 ))}

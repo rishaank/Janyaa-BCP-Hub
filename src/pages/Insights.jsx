@@ -74,7 +74,12 @@ export default function Insights({ embedded = false }) {
   return (
     <>
       {embedded ? (
-        actions && <div className="mb-6 flex justify-end">{actions}</div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 font-display text-h3 font-semibold text-ink-900">
+            <Sparkles size={18} className="text-blue-500" /> Insights
+          </h2>
+          {actions}
+        </div>
       ) : (
         <PageHeader
           title="AI Insights"

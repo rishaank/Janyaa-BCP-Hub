@@ -6,6 +6,18 @@ const TODAY = () => new Date().toISOString().slice(0, 10)
 
 // All profiles plus hours earned. Hours = sum of `hours` for every PAST event
 // the member signed up for (signing up for events is how hours are tracked).
+// The current club term label (season + year), computed from today so it rolls
+// over automatically. Mirrors the server-side current_term_start().
+export function currentTerm(date = new Date()) {
+  const m = date.getMonth() // 0 = Jan
+  const y = date.getFullYear()
+  if (m === 11) return `Winter ${y}` // Dec
+  if (m <= 1) return `Winter ${y - 1}` // Jan, Feb belong to the winter that began last Dec
+  if (m <= 4) return `Spring ${y}` // Mar–May
+  if (m <= 7) return `Summer ${y}` // Jun–Aug
+  return `Fall ${y}` // Sep–Nov
+}
+
 export async function getMembersWithHours() {
   // Totals come from the unified hours breakdown (ledger + cutoff-filtered event
   // sign-ups + meeting attendance + admin adjustment) so every screen agrees.
@@ -18,6 +30,7 @@ export async function getMembersWithHours() {
   return (profiles ?? []).map((p) => ({
     ...p,
     hours: Number(byId[p.id]?.total ?? 0),
+    term_hours: Number(byId[p.id]?.term_total ?? 0),
     avatar: initials(p.name),
   }))
 }
@@ -127,11 +140,12 @@ export function adminUpdateProfile(id, fields) {
 // Full detail for one member: profile + the events they signed up for + the
 // to-dos they took responsibility for + their total hours.
 export async function getProfileDetails(id) {
-  const [{ data: profile }, { data: signups }, { data: todos }, { data: bd }] = await Promise.all([
+  const [{ data: profile }, { data: signups }, { data: todos }, { data: bd }, { data: goals }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).single(),
     supabase.from('event_signups').select('events ( id, name, date, location, raised, hours )').eq('member_id', id),
     supabase.from('event_todos').select('id, item, done, events ( id, name, date )').eq('assignee_id', id),
     supabase.rpc('get_hours_breakdowns', { p_member: id }),
+    supabase.from('goals').select('id, title, detail, progress, status, target_date').eq('owner_id', id).order('created_at', { ascending: false }),
   ])
   const events = (signups ?? []).map((s) => s.events).filter(Boolean)
   const breakdown = (bd ?? [])[0] ?? null
@@ -139,6 +153,7 @@ export async function getProfileDetails(id) {
     profile: profile ? { ...profile, avatar: initials(profile.name) } : null,
     events,
     todos: todos ?? [],
+    goals: goals ?? [],
     hours: Number(breakdown?.total ?? 0),
     breakdown, // { total, term_total, entries: [{date,hours,description,kind,event_id,meeting_id}] }
   }

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check } from 'lucide-react'
+import { ArrowLeft, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check } from 'lucide-react'
 import {
   Card,
   Badge,
   Avatar,
   Button,
+  ProgressBar,
   FormField,
   Modal,
   inputClass,
@@ -103,13 +104,6 @@ export default function ProfilePage() {
         </div>
       </Card>
 
-      {/* Quick stats */}
-      <div className="mt-6 grid grid-cols-3 gap-4">
-        <StatTile icon={Clock} label="Hours" value={data.hours} />
-        <StatTile icon={CalendarDays} label="Events" value={data.events.length} />
-        <StatTile icon={ListChecks} label="To-dos owned" value={data.todos.length} />
-      </div>
-
       <HoursBreakdown
         breakdown={data.breakdown}
         canDirectEdit={isOpsLead}
@@ -120,27 +114,23 @@ export default function ProfilePage() {
         onChange={load}
       />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <EventList title="Signed up — upcoming" events={upcoming} empty="Not signed up for anything upcoming." />
-        <EventList title="Attended" events={past} empty="No past events yet." />
+      {/* Upcoming + attended events + claimed to-dos, side by side at equal height */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-3 lg:items-stretch">
+        <EventList title="Upcoming Events" events={upcoming} empty="Not signed up for anything upcoming." className="h-full" />
+        <EventList title="Attended Events" events={past} empty="No past events yet." className="h-full" />
+        <ToDosCard todos={data.todos} className="h-full" />
       </div>
 
-      {/* To-dos they own */}
-      <Card className="mt-6 p-5">
-        <h3 className="mb-3 font-semibold text-ink-900">Responsible for · {data.todos.length}</h3>
-        {data.todos.length === 0 ? (
-          <p className="text-sm text-ink-400">No to-do items claimed.</p>
-        ) : (
-          <ul className="divide-y divide-ink-100">
-            {data.todos.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
-                <span className="text-ink-800">{t.item}</span>
-                <span className="shrink-0 text-xs text-ink-400">{t.events?.name}</span>
-              </li>
+      {data.goals?.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-3 font-semibold text-ink-900">Goals · {data.goals.length}</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data.goals.map((g) => (
+              <ProfileGoalCard key={g.id} goal={g} />
             ))}
-          </ul>
-        )}
-      </Card>
+          </div>
+        </div>
+      )}
 
       {isAdmin && (
         <AdminControls
@@ -267,18 +257,6 @@ function ProfilePhoto({ profile, canEdit, onChange }) {
   )
 }
 
-function StatTile({ icon: Icon, label, value }) {
-  return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2">
-        <Icon size={16} className="text-ink-400" />
-        <span className="font-mono text-2xl font-bold tabular-nums text-ink-900">{value}</span>
-      </div>
-      <p className="mt-1 text-xs text-ink-500">{label}</p>
-    </Card>
-  )
-}
-
 const kindMeta = {
   event: { label: 'Event', tone: 'green' },
   meeting: { label: 'Meeting', tone: 'blue' },
@@ -320,7 +298,6 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
           {canDirectEdit && <EditAccessChip />}
         </h3>
         <div className="flex items-center gap-3">
-          <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{breakdown?.total ?? 0}h total</span>
           {entries.length > 0 && (
             <Button variant="soft" icon={Download} onClick={() => exportMemberHours(breakdown)}>Export</Button>
           )}
@@ -328,6 +305,13 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
           {canRequest && <Button icon={Plus} onClick={() => setRequestOpen(true)}>Request hours</Button>}
         </div>
       </div>
+      {canRequest && (
+        <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          {isOwn
+            ? 'Request hours for activities outside events & meetings — the operations lead approves them.'
+            : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead approves it.`}
+        </p>
+      )}
       {entries.length === 0 ? (
         <p className="text-sm text-ink-400">No hours logged yet.</p>
       ) : (
@@ -378,13 +362,6 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
         <p className="mt-3 text-xs text-ink-400">
           Logged, role, and imported entries can be edited here. Event sign-ups and meeting attendance
           are managed on the Events &amp; Meetings page.
-        </p>
-      )}
-      {canRequest && (
-        <p className="mt-3 text-xs text-ink-400">
-          {isOwn
-            ? 'Request hours for activities outside events & meetings — the operations lead approves them.'
-            : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead approves it.`}
         </p>
       )}
       <HoursEntryModal
@@ -580,28 +557,78 @@ function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
   )
 }
 
-function EventList({ title, events, empty }) {
+function EventList({ title, events, empty, className = '' }) {
   return (
-    <Card className="p-5">
+    <Card className={`flex flex-col p-5 ${className}`}>
       <h3 className="mb-3 font-semibold text-ink-900">{title} · {events.length}</h3>
       {events.length === 0 ? (
-        <p className="text-sm text-ink-400">{empty}</p>
+        <p className="grid flex-1 place-items-center py-6 text-center text-sm text-ink-400">{empty}</p>
       ) : (
         <ul className="divide-y divide-ink-100">
           {events.map((e) => (
-            <li key={e.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-ink-800">{e.name}</p>
-                <p className="truncate text-xs text-ink-400">
-                  {formatDate(e.date)}
-                  {e.location ? ` · ${e.location}` : ''}
-                </p>
-              </div>
-              <span className="shrink-0 font-mono text-xs text-ink-500">{e.hours} hrs</span>
+            <li key={e.id} className="first:pt-0 last:pb-0">
+              <Link to={`/events/${e.id}`} className="group flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink-800 transition-colors group-hover:text-green-700">{e.name}</p>
+                  <p className="truncate text-xs text-ink-400">
+                    {formatDate(e.date)}
+                    {e.location ? ` · ${e.location}` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-xs text-ink-500">{e.hours} hrs</span>
+              </Link>
             </li>
           ))}
         </ul>
       )}
+    </Card>
+  )
+}
+
+// Claimed to-dos, styled to match the event lists so the three sit side by side.
+function ToDosCard({ todos, className = '' }) {
+  return (
+    <Card className={`flex flex-col p-5 ${className}`}>
+      <h3 className="mb-3 font-semibold text-ink-900">To-dos claimed · {todos.length}</h3>
+      {todos.length === 0 ? (
+        <p className="grid flex-1 place-items-center py-6 text-center text-sm text-ink-400">No to-do items claimed.</p>
+      ) : (
+        <ul className="divide-y divide-ink-100">
+          {todos.map((t) => (
+            <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+              <span className="min-w-0 truncate text-ink-800">{t.item}</span>
+              {t.events?.id ? (
+                <Link to={`/events/${t.events.id}`} className="shrink-0 text-xs text-ink-400 transition-colors hover:text-green-700">
+                  {t.events.name}
+                </Link>
+              ) : (
+                <span className="shrink-0 text-xs text-ink-400">{t.events?.name}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+// A leadership goal owned by this member, shown on their profile.
+function ProfileGoalCard({ goal }) {
+  const done = goal.status === 'done'
+  return (
+    <Card className="flex flex-col p-5">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="font-display text-h4 font-semibold text-ink-900">{goal.title}</h4>
+        {done && <Badge tone="green">Done</Badge>}
+      </div>
+      {goal.detail && <p className="mt-1 line-clamp-2 text-sm text-ink-600">{goal.detail}</p>}
+      <div className="mt-auto pt-4">
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="text-xs text-ink-500">{goal.target_date ? formatDate(goal.target_date) : 'No target date'}</span>
+          <span className="font-mono text-xs font-semibold tabular-nums text-ink-700">{goal.progress}%</span>
+        </div>
+        <ProgressBar value={goal.progress} max={100} tone={done ? 'green' : 'gold'} />
+      </div>
     </Card>
   )
 }
