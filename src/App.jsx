@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -10,8 +10,7 @@ import Terms from './pages/Terms'
 import Dashboard from './pages/Dashboard'
 import Members from './pages/Members'
 import ProfilePage from './pages/ProfilePage'
-import Events from './pages/Events'
-import Meetings from './pages/Meetings'
+import EventsMeetings from './pages/EventsMeetings'
 import Fundraising from './pages/Fundraising'
 import Goals from './pages/Goals'
 import AutoHours from './pages/AutoHours'
@@ -20,6 +19,7 @@ import Restaurants from './pages/Restaurants'
 import Insights from './pages/Insights'
 import AIStudio from './pages/AIStudio'
 import History from './pages/History'
+import HoursRequests from './pages/HoursRequests'
 import ClubInfo from './pages/ClubInfo'
 import EventView from './pages/EventView'
 import NotFound from './pages/NotFound'
@@ -44,8 +44,9 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/members" element={<Members />} />
               <Route path="/members/:id" element={<ProfilePage />} />
-              <Route path="/events" element={<Events />} />
-              <Route path="/meetings" element={<Meetings />} />
+              <Route path="/events" element={<EventsMeetings />} />
+              {/* Meetings merged into the Events & Meetings tab; keep the old link working. */}
+              <Route path="/meetings" element={<Navigate to="/events?tab=meetings" replace />} />
               <Route path="/fundraising" element={<Fundraising />} />
               <Route path="/goals" element={<Goals />} />
               <Route path="/auto-hours" element={<AutoHours />} />
@@ -54,6 +55,7 @@ export default function App() {
               <Route path="/insights" element={<Insights />} />
               <Route path="/studio" element={<AIStudio />} />
               <Route path="/history" element={<History />} />
+              <Route path="/requests" element={<HoursRequests />} />
               <Route path="/club" element={<ClubInfo />} />
             </Route>
           </Route>

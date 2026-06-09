@@ -1,15 +1,15 @@
+// Meeting pieces shared by the merged Events & Meetings page (src/pages/EventsMeetings.jsx):
+// the meeting card, the create/edit form modal, and the recurring-series modal.
 import { useEffect, useState } from 'react'
-import { Plus, Repeat, Clock, MapPin, Users, Pencil, Trash2, Ban, RotateCcw, Check } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, Modal, FormField, inputClass } from '../components/ui'
-import { useAuth } from '../context/AuthContext'
+import { Plus, Clock, MapPin, Users, Pencil, Trash2, Ban, RotateCcw, Check } from 'lucide-react'
+import { Card, Button, Badge, Modal, FormField, inputClass } from '../components/ui'
 import {
-  getMeetings, getMeetingSeries, ensureUpcomingMeetings,
+  getMeetingSeries, ensureUpcomingMeetings,
   createMeeting, updateMeeting, deleteMeeting, setMeetingCanceled,
   createMeetingSeries, updateMeetingSeries, deleteMeetingSeries, deleteSeriesUpcomingMeetings,
   registerMeeting, unmarkAttendance,
 } from '../lib/api'
 import MemberChip from '../components/MemberChip'
-import { useRealtime } from '../lib/useRealtime'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -34,108 +34,7 @@ function meetingLength(m) {
   return 1
 }
 
-export default function Meetings() {
-  const { user } = useAuth()
-  const [meetings, setMeetings] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editMeeting, setEditMeeting] = useState(null)
-  const [seriesOpen, setSeriesOpen] = useState(false)
-
-  const load = () =>
-    getMeetings().then((data) => {
-      setMeetings(data)
-      setLoading(false)
-    })
-
-  // Materialize any missing recurring occurrences, then load.
-  useEffect(() => {
-    ensureUpcomingMeetings().then(load)
-  }, [])
-  useRealtime(['meetings', 'meeting_series', 'meeting_attendees'], load)
-
-  const upcoming = meetings.filter((m) => m.date >= TODAY)
-  const past = meetings.filter((m) => m.date < TODAY).reverse()
-
-  function openCreate() {
-    setEditMeeting(null)
-    setFormOpen(true)
-  }
-  function openEdit(m) {
-    setEditMeeting(m)
-    setFormOpen(true)
-  }
-
-  return (
-    <>
-      <PageHeader
-        title="Meetings"
-        subtitle="Club meetings — keep the schedule, track who's there, and jot the notes."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="soft" icon={Repeat} onClick={() => setSeriesOpen(true)}>Recurring</Button>
-            <Button icon={Plus} onClick={openCreate}>Add meeting</Button>
-          </div>
-        }
-      />
-
-      {loading ? (
-        <LoadingRows />
-      ) : (
-        <>
-          <Section title="Upcoming" count={upcoming.length}>
-            {upcoming.map((m) => (
-              <MeetingCard key={m.id} meeting={m} myId={user?.id} onChange={load} onEdit={openEdit} />
-            ))}
-          </Section>
-          <Section title="Past" count={past.length}>
-            {past.map((m) => (
-              <MeetingCard key={m.id} meeting={m} myId={user?.id} onChange={load} onEdit={openEdit} />
-            ))}
-          </Section>
-        </>
-      )}
-
-      <MeetingFormModal
-        open={formOpen}
-        meeting={editMeeting}
-        onClose={() => setFormOpen(false)}
-        onSaved={() => {
-          setFormOpen(false)
-          load()
-        }}
-      />
-      <SeriesModal open={seriesOpen} onClose={() => setSeriesOpen(false)} onChange={load} />
-    </>
-  )
-}
-
-function Section({ title, count, children }) {
-  return (
-    <section className="mb-8">
-      <h2 className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
-        {title} · {count}
-      </h2>
-      {count === 0 ? (
-        <p className="text-sm text-ink-400">Nothing here yet.</p>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">{children}</div>
-      )}
-    </section>
-  )
-}
-
-function LoadingRows() {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {[0, 1].map((i) => (
-        <Card key={i} className="h-36 animate-pulse bg-ink-50" />
-      ))}
-    </div>
-  )
-}
-
-function MeetingCard({ meeting, myId, onChange, onEdit }) {
+export function MeetingCard({ meeting, myId, onChange, onEdit }) {
   const isPast = meeting.date < TODAY
   const canceled = meeting.canceled
   const attendees = meeting.meeting_attendees ?? []
@@ -297,7 +196,7 @@ function MeetingCard({ meeting, myId, onChange, onEdit }) {
 
 const blankMeeting = { title: '', date: '', start_time: '', end_time: '', location: '', notes: '' }
 
-function MeetingFormModal({ open, meeting, onClose, onSaved }) {
+export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
   const [form, setForm] = useState(blankMeeting)
   const [busy, setBusy] = useState(false)
   const editing = Boolean(meeting)
@@ -369,7 +268,7 @@ function MeetingFormModal({ open, meeting, onClose, onSaved }) {
 
 const blankSeries = { title: '', weekday: 4, start_time: '', end_time: '', location: '', notes: '' }
 
-function SeriesModal({ open, onClose, onChange }) {
+export function SeriesModal({ open, onClose, onChange }) {
   const [series, setSeries] = useState([])
   const [form, setForm] = useState(blankSeries)
   const [busy, setBusy] = useState(false)

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Users, Clock, Award, Shield, UserPlus, Crown, Download, Loader2 } from 'lucide-react'
-import { PageHeader, Card, StatCard, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
+import { Users, Clock, Trophy, Shield, UserPlus, Crown, Download, Loader2 } from 'lucide-react'
+import { PageHeader, Card, StatPill, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
 import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUser } from '../lib/api'
 import { exportAllHours } from '../lib/exportHours'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
+
+// Gold / silver / bronze for the top-3 hours leaders.
+const TROPHY = ['#eab308', '#9ca3af', '#cd7f32']
 
 export default function Members() {
   const navigate = useNavigate()
@@ -34,7 +37,8 @@ export default function Members() {
   useRealtime(['profiles', 'event_signups'], load)
 
   const totalHours = members.reduce((s, m) => s + m.hours, 0)
-  const topMember = members.reduce((top, m) => (m.hours > (top?.hours ?? -1) ? m : top), null)
+  // Ranked most → least hours, so the list order + trophies line up.
+  const ranked = [...members].sort((a, b) => b.hours - a.hours)
 
   return (
     <>
@@ -51,53 +55,46 @@ export default function Members() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="flex flex-wrap items-center gap-3">
         {loading ? (
-          [0, 1, 2].map((i) => (
-            <Card key={i} className="p-5">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="mt-3 h-8 w-16" />
-            </Card>
-          ))
+          [0, 1].map((i) => <Skeleton key={i} className="h-11 w-40 rounded-full" />)
         ) : (
           <>
-            <StatCard icon={Users} label="Members" value={members.length} />
-            <StatCard icon={Clock} label="Total hours" value={totalHours} tone="blue" />
-            <StatCard icon={Award} label="Most hours" value={topMember ? `${topMember.hours}h` : '—'} tone="green" hint={topMember?.name} />
+            <StatPill icon={Users} value={members.length} label="members" />
+            <StatPill icon={Clock} value={`${totalHours}h`} label="total hours" tone="blue" />
           </>
         )}
       </div>
 
-      <Card className="mt-6 p-4">
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-ink-800">Who can do what</h3>
-          <Badge tone={isAdmin ? 'blue' : 'ink'}>{isAdmin ? 'Admin access' : 'Member access'}</Badge>
+      <div className="mt-6">
+        <h3 className="mb-3 text-sm font-semibold text-ink-800">Who can do what</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <AccessCard
+            icon={Users}
+            title="Every member"
+            tone="green"
+            active={!isAdmin}
+            items={[
+              'Sign up for events & meetings',
+              'Add & edit events, meetings, goals',
+              'Claim to-dos · pin AI cards',
+              'View, export & request hours',
+            ]}
+          />
+          <AccessCard
+            icon={Shield}
+            title="Admins only"
+            tone="blue"
+            active={isAdmin}
+            items={[
+              'Add & remove members',
+              'Edit roles, hours, names & emails',
+              'Reset passwords · auto-hours rules',
+              'See the full audit log',
+            ]}
+          />
         </div>
-        <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
-          <div>
-            <p className="mb-1.5 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">
-              <Users size={13} /> Every member
-            </p>
-            <ul className="space-y-1 text-sm text-ink-600">
-              <li>Sign up for events &amp; meetings to earn hours</li>
-              <li>Add &amp; edit events, meetings, goals, and locations</li>
-              <li>Claim to-dos, pin AI cards, use AI Studio</li>
-              <li>View &amp; export hours; manage their own account</li>
-            </ul>
-          </div>
-          <div>
-            <p className="mb-1.5 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-blue-600">
-              <Shield size={13} /> Admins only
-            </p>
-            <ul className="space-y-1 text-sm text-ink-600">
-              <li>Add &amp; remove member accounts</li>
-              <li>Edit anyone&rsquo;s role, hours, name &amp; email</li>
-              <li>Reset passwords; set the auto-hours rules</li>
-              <li>See the full History / audit log</li>
-            </ul>
-          </div>
-        </div>
-      </Card>
+      </div>
 
       <Card className="mt-6 overflow-hidden">
         {loading ? (
@@ -124,7 +121,7 @@ export default function Members() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
-                {members.map((m) => (
+                {ranked.map((m, i) => (
                   <tr
                     key={m.id}
                     onClick={() => navigate(`/members/${m.id}`)}
@@ -132,6 +129,13 @@ export default function Members() {
                   >
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
+                        <span className="flex w-5 shrink-0 justify-center">
+                          {i < 3 ? (
+                            <Trophy size={16} style={{ color: TROPHY[i] }} aria-label={`Rank ${i + 1}`} />
+                          ) : (
+                            <span className="font-mono text-xs font-semibold text-ink-400">{i + 1}</span>
+                          )}
+                        </span>
                         <Avatar initials={m.avatar} tone={roleTones[m.role]} src={m.avatar_url} />
                         <div>
                           <p className="font-medium text-ink-900">{m.name || '—'}</p>
@@ -158,6 +162,34 @@ export default function Members() {
 
       <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
     </>
+  )
+}
+
+// One access tier in "Who can do what". The tier that applies to the current
+// user is highlighted with a tinted ring + a "Your access" chip.
+function AccessCard({ icon: Icon, title, tone, active, items }) {
+  const tones = {
+    green: { ring: 'ring-green-300 bg-green-50/60', text: 'text-green-700', chip: 'green' },
+    blue: { ring: 'ring-blue-300 bg-blue-50/60', text: 'text-blue-600', chip: 'blue' },
+  }
+  const t = tones[tone] ?? tones.green
+  return (
+    <div className={`rounded-xl border border-ink-200 p-4 ${active ? `bg-surface ring-1 ${t.ring}` : 'bg-surface'}`}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className={`flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] ${t.text}`}>
+          <Icon size={13} /> {title}
+        </p>
+        {active && <Badge tone={t.chip}>Your access</Badge>}
+      </div>
+      <ul className="space-y-1.5 text-sm text-ink-600">
+        {items.map((it) => (
+          <li key={it} className="flex items-start gap-2">
+            <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-ink-300" />
+            <span>{it}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 

@@ -28,6 +28,97 @@ export async function getHoursBreakdowns(memberId = null) {
   return data ?? []
 }
 
+// ---- Editable hours ledger (admin) ---------------------------------------
+// Admins log / edit / remove individual ledger rows on a member's profile —
+// e.g. logging event hours, or fixing an imported entry. RLS gates writes to
+// admins (migration 0022). Each breakdown entry carries a `grant_id` for the
+// ledger rows these target; derived sign-up/meeting rows have none.
+export function addHoursEntry({ memberId, hours, note, entryDate, eventId }) {
+  return supabase.from('hours_grants').insert({
+    member_id: memberId,
+    hours: Number(hours),
+    source: 'manual',
+    note: note || null,
+    entry_date: entryDate || null,
+    event_id: eventId || null,
+  })
+}
+export function updateHoursEntry(id, fields) {
+  return supabase.from('hours_grants').update(fields).eq('id', id)
+}
+export function deleteHoursEntry(id) {
+  return supabase.from('hours_grants').delete().eq('id', id)
+}
+
+// A light event list (id, name, date) for linking a hours entry to an event.
+export async function getEventsBrief() {
+  const { data } = await supabase.from('events').select('id, name, date').order('date', { ascending: false })
+  return data ?? []
+}
+
+// ---- Hours requests (member → operations lead, migration 0023) ------------
+
+// A member submits a request for hours; the operations lead reviews it. Emails
+// the ops lead(s) best-effort after the row is created.
+export async function submitHoursRequest({ requesterId, activity, hours, contribution }) {
+  const { data, error } = await supabase
+    .from('hours_requests')
+    .insert({ requester_id: requesterId, activity, hours: Number(hours), contribution: contribution || null })
+    .select()
+    .single()
+  if (error) return { ok: false, error: error.message }
+  try {
+    await supabase.functions.invoke('hours-request-notify', { body: { requestId: data.id } })
+  } catch {
+    /* email is best-effort — never blocks the request */
+  }
+  return { ok: true, data }
+}
+
+// Ops-lead view: every request with requester + reviewer info, newest first.
+export async function getHoursRequests() {
+  const { data } = await supabase
+    .from('hours_requests')
+    .select(
+      `*,
+       requester:profiles!hours_requests_requester_id_fkey ( id, name, role, avatar_url, email ),
+       reviewer:profiles!hours_requests_reviewer_id_fkey ( id, name )`,
+    )
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
+// Count of still-pending requests — the sidebar notification badge (ops lead).
+export async function getPendingRequestCount() {
+  const { count } = await supabase
+    .from('hours_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending')
+  return count ?? 0
+}
+
+// Ops lead approves (auto-grants the hours) or denies (reason required) a request.
+export function decideHoursRequest(id, approve, reason = null) {
+  return supabase.rpc('decide_hours_request', { p_id: id, p_approve: approve, p_reason: reason })
+}
+
+// The signed-in member's denied, not-yet-dismissed requests (dashboard red card).
+export async function getMyDeniedRequests(memberId) {
+  const { data } = await supabase
+    .from('hours_requests')
+    .select(`*, reviewer:profiles!hours_requests_reviewer_id_fkey ( name )`)
+    .eq('requester_id', memberId)
+    .eq('status', 'denied')
+    .eq('dismissed', false)
+    .order('decided_at', { ascending: false })
+  return data ?? []
+}
+
+// Requester dismisses a denied-request card so it stops showing on their dashboard.
+export function dismissHoursRequest(id) {
+  return supabase.rpc('dismiss_hours_request', { p_id: id })
+}
+
 // Admin-only: update any member's profile (name, role, hours_adjustment, is_admin).
 // Allowed by RLS only when the caller is an admin.
 export function adminUpdateProfile(id, fields) {

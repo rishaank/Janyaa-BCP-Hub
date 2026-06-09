@@ -8,9 +8,10 @@ export const toneMeta = {
   neutral: { icon: Info, chip: 'blue', iconBg: 'bg-blue-50 text-blue-600' },
 }
 
-// One AI insight as a card. The small Sparkles marks it as AI-generated. Shared by
-// the AI Insights page and the Dashboard.
-export default function InsightCard({ ins, pin }) {
+// One AI insight as a card. The small Sparkles marks it as AI-generated (hidden
+// via `hideAiMark`, e.g. on the Dashboard). Shared by the AI Insights page and
+// the Dashboard.
+export default function InsightCard({ ins, pin, hideAiMark = false }) {
   const meta = toneMeta[ins.tone] ?? toneMeta.neutral
   const Icon = meta.icon
   return (
@@ -21,7 +22,7 @@ export default function InsightCard({ ins, pin }) {
         </span>
         <div className="flex items-center gap-1.5">
           {ins.metric && <Badge tone={meta.chip}>{ins.metric}</Badge>}
-          <Sparkles size={13} className="text-ink-300" aria-label="AI-generated" />
+          {!hideAiMark && <Sparkles size={13} className="text-ink-300" aria-label="AI-generated" />}
           {pin && <PinButton pinned={pin.pinned} onClick={pin.onToggle} />}
         </div>
       </div>

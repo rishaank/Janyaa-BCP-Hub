@@ -91,6 +91,30 @@ export function StatCard({ icon: Icon, label, value, hint, tone = 'green' }) {
   )
 }
 
+// Compact stat chip — a small pill with an icon, value, and label. A denser,
+// cleaner alternative to StatCard for at-a-glance summaries.
+export function StatPill({ icon: Icon, value, label, hint, tone = 'green' }) {
+  const tones = {
+    green: 'bg-green-50 text-green-600',
+    blue: 'bg-blue-50 text-blue-500',
+    gold: 'bg-gold-100 text-gold-700',
+  }
+  return (
+    <div className="inline-flex items-center gap-2.5 rounded-full border border-ink-200 bg-surface py-1.5 pl-1.5 pr-4 shadow-sm">
+      {Icon && (
+        <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${tones[tone] ?? tones.green}`}>
+          <Icon size={16} />
+        </span>
+      )}
+      <span className="flex items-baseline gap-1.5">
+        <span className="font-display text-lg font-bold leading-none tabular-nums text-ink-900">{value}</span>
+        <span className="text-sm text-ink-500">{label}</span>
+        {hint && <span className="text-xs text-ink-400">· {hint}</span>}
+      </span>
+    </div>
+  )
+}
+
 // Color-coded status pill. Brand keys preferred; legacy keys aliased.
 export function Badge({ tone = 'ink', children }) {
   const tones = {

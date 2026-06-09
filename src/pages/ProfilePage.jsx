@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Minus, Plus, Trash2, AlertTriangle, Download } from 'lucide-react'
+import { ArrowLeft, Clock, CalendarDays, ListChecks, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check } from 'lucide-react'
 import {
   Card,
   Badge,
   Avatar,
   Button,
   FormField,
+  Modal,
   inputClass,
   roleLabels,
   roleOptions,
@@ -23,6 +24,11 @@ import {
   adminSendReset,
   adminDeleteUser,
   deleteOwnAccount,
+  addHoursEntry,
+  updateHoursEntry,
+  deleteHoursEntry,
+  getEventsBrief,
+  submitHoursRequest,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import AvatarCropper from '../components/AvatarCropper'
@@ -58,7 +64,6 @@ export default function ProfilePage() {
   const p = data.profile
   const upcoming = data.events.filter((e) => e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date))
   const past = data.events.filter((e) => e.date < TODAY).sort((a, b) => b.date.localeCompare(a.date))
-  const derivedHours = data.hours - Number(p.hours_adjustment ?? 0)
 
   return (
     <>
@@ -103,7 +108,7 @@ export default function ProfilePage() {
         <StatTile icon={ListChecks} label="To-dos owned" value={data.todos.length} />
       </div>
 
-      <HoursBreakdown breakdown={data.breakdown} />
+      <HoursBreakdown breakdown={data.breakdown} isAdmin={isAdmin} canRequest={isOwn && !isAdmin} memberId={id} onChange={load} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <EventList title="Signed up — upcoming" events={upcoming} empty="Not signed up for anything upcoming." />
@@ -130,7 +135,6 @@ export default function ProfilePage() {
       {isAdmin && (
         <AdminControls
           member={p}
-          derivedHours={derivedHours}
           isSelf={user?.id === p.id}
           onSaved={load}
           onDeleted={() => navigate('/members')}
@@ -275,18 +279,50 @@ const kindMeta = {
 }
 
 // Itemized hours history (Feature 3) — every entry that makes up the total, with
-// an Excel export.
-function HoursBreakdown({ breakdown }) {
+// an Excel export. Admins can add, edit, or remove ledger entries (event hours,
+// imported rows, role/manual grants) inline; derived event sign-ups and meeting
+// attendance (no grant_id) are read-only here and managed on their own pages.
+function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) {
   const entries = breakdown?.entries ?? []
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editEntry, setEditEntry] = useState(null)
+  const [requestOpen, setRequestOpen] = useState(false)
+
+  function openAdd() {
+    setEditEntry(null)
+    setModalOpen(true)
+  }
+  function openEdit(entry) {
+    setEditEntry(entry)
+    setModalOpen(true)
+  }
+  async function remove(entry) {
+    if (!window.confirm(`Remove "${entry.description}" (${entry.hours}h)? This can't be undone.`)) return
+    await deleteHoursEntry(entry.grant_id)
+    onChange()
+  }
+
   return (
     <Card className="mt-6 p-5">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-ink-900">Hours breakdown</h3>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 font-semibold text-ink-900">
+          Hours breakdown
+          {isAdmin && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-2xs font-semibold text-blue-600"
+              title="Admin: you can add, edit, and remove entries here"
+            >
+              <Shield size={11} /> Admin edit
+            </span>
+          )}
+        </h3>
         <div className="flex items-center gap-3">
           <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{breakdown?.total ?? 0}h total</span>
           {entries.length > 0 && (
             <Button variant="soft" icon={Download} onClick={() => exportMemberHours(breakdown)}>Export</Button>
           )}
+          {isAdmin && <Button icon={Plus} onClick={openAdd}>Add hours</Button>}
+          {canRequest && <Button icon={Plus} onClick={() => setRequestOpen(true)}>Request hours</Button>}
         </div>
       </div>
       {entries.length === 0 ? (
@@ -295,8 +331,9 @@ function HoursBreakdown({ breakdown }) {
         <ul className="divide-y divide-ink-100">
           {entries.map((e, i) => {
             const meta = kindMeta[e.kind] ?? { label: e.kind, tone: 'ink' }
+            const editable = isAdmin && !!e.grant_id
             return (
-              <li key={i} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+              <li key={e.grant_id ?? i} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   {e.event_id ? (
                     <Link to={`/events/${e.event_id}`} className="block truncate text-sm font-medium text-ink-800 transition-colors hover:text-green-700">
@@ -310,13 +347,227 @@ function HoursBreakdown({ breakdown }) {
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge tone={meta.tone}>{meta.label}</Badge>
                   <span className="w-12 text-right font-mono text-sm font-semibold tabular-nums text-ink-700">{e.hours}h</span>
+                  {editable && (
+                    <span className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => openEdit(e)}
+                        className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+                        aria-label="Edit entry"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        onClick={() => remove(e)}
+                        className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-coral-50 hover:text-coral-600"
+                        aria-label="Delete entry"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </span>
+                  )}
                 </div>
               </li>
             )
           })}
         </ul>
       )}
+      {isAdmin && (
+        <p className="mt-3 text-xs text-ink-400">
+          Logged, role, and imported entries can be edited here. Event sign-ups and meeting attendance
+          are managed on the Events &amp; Meetings page.
+        </p>
+      )}
+      {canRequest && (
+        <p className="mt-3 text-xs text-ink-400">
+          Request hours for activities outside events &amp; meetings — they go to the operations lead to approve.
+        </p>
+      )}
+      <HoursEntryModal
+        open={modalOpen}
+        entry={editEntry}
+        memberId={memberId}
+        onClose={() => setModalOpen(false)}
+        onSaved={() => {
+          setModalOpen(false)
+          onChange()
+        }}
+      />
+      <HoursRequestModal
+        open={requestOpen}
+        requesterId={memberId}
+        onClose={() => setRequestOpen(false)}
+        onSaved={() => setRequestOpen(false)}
+      />
     </Card>
+  )
+}
+
+// Member request form — sends an hours request to the operations lead (who
+// approves or denies it). Used in place of "Add hours" for non-admins.
+function HoursRequestModal({ open, requesterId, onClose, onSaved }) {
+  const [activity, setActivity] = useState('')
+  const [hours, setHours] = useState('')
+  const [contribution, setContribution] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setActivity('')
+      setHours('')
+      setContribution('')
+      setErr('')
+      setDone(false)
+    }
+  }, [open])
+
+  async function submit(e) {
+    e.preventDefault()
+    setErr('')
+    setBusy(true)
+    const res = await submitHoursRequest({
+      requesterId,
+      activity: activity.trim(),
+      hours,
+      contribution: contribution.trim(),
+    })
+    setBusy(false)
+    if (!res.ok) return setErr(res.error || 'Could not send your request.')
+    setDone(true)
+    setTimeout(onSaved, 1600)
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Request hours">
+      {done ? (
+        <div className="py-4 text-center">
+          <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-green-50 text-green-600">
+            <Check size={20} />
+          </div>
+          <p className="font-semibold text-ink-900">Request sent</p>
+          <p className="mt-1 text-sm text-ink-600">
+            The operations lead will review it. The hours show up here once they&rsquo;re approved.
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-3">
+          <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Your request goes to the operations lead to approve. If it&rsquo;s denied, you&rsquo;ll see why on your dashboard.
+          </p>
+          <FormField label="Activity">
+            <input className={inputClass} value={activity} onChange={(e) => setActivity(e.target.value)} required placeholder="e.g. Sunday Friends outreach" />
+          </FormField>
+          <FormField label="Hours">
+            <input type="number" min="0" step="0.5" className={inputClass} value={hours} onChange={(e) => setHours(e.target.value)} required />
+          </FormField>
+          <FormField label="Clarify contribution · optional">
+            <textarea
+              className={inputClass}
+              rows={3}
+              value={contribution}
+              onChange={(e) => setContribution(e.target.value)}
+              placeholder="What did you do? Anything that helps the review."
+            />
+          </FormField>
+          {err && <p className="text-sm text-coral-700">{err}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Request'}</Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  )
+}
+
+// Admin add/edit form for a single hours ledger entry. Optionally links the entry
+// to an event (so it shows on the event page and in exports).
+function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
+  const editing = Boolean(entry)
+  const [hours, setHours] = useState('')
+  const [date, setDate] = useState('')
+  const [note, setNote] = useState('')
+  const [eventId, setEventId] = useState('')
+  const [events, setEvents] = useState([])
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (open) getEventsBrief().then(setEvents)
+  }, [open])
+
+  useEffect(() => {
+    if (entry) {
+      setHours(String(entry.hours ?? ''))
+      setDate(entry.date ?? '')
+      setNote(entry.description === 'Hours' ? '' : entry.description ?? '')
+      setEventId(entry.event_id ?? '')
+    } else {
+      setHours('')
+      setDate('')
+      setNote('')
+      setEventId('')
+    }
+  }, [entry, open])
+
+  // Picking an event pre-fills a blank description/date from it.
+  function pickEvent(id) {
+    setEventId(id)
+    const ev = events.find((e) => e.id === id)
+    if (ev) {
+      if (!note.trim()) setNote(ev.name)
+      if (!date && ev.date) setDate(ev.date)
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    if (editing) {
+      await updateHoursEntry(entry.grant_id, {
+        hours: Number(hours),
+        entry_date: date || null,
+        note: note || null,
+        event_id: eventId || null,
+      })
+    } else {
+      await addHoursEntry({ memberId, hours, note, entryDate: date, eventId })
+    }
+    setBusy(false)
+    onSaved()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit hours entry' : 'Add hours'}>
+      <form onSubmit={submit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Hours">
+            <input type="number" min="0" step="0.5" className={inputClass} value={hours} onChange={(e) => setHours(e.target.value)} required />
+          </FormField>
+          <FormField label="Date · optional">
+            <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
+          </FormField>
+        </div>
+        <FormField label="Description">
+          <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Sunday Friends outreach" required />
+        </FormField>
+        <FormField label="Link to an event · optional">
+          <select className={inputClass} value={eventId} onChange={(e) => pickEvent(e.target.value)}>
+            <option value="">No linked event</option>
+            {events.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name}{ev.date ? ` · ${formatDate(ev.date)}` : ''}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-ink-500">Links the entry to an event so it shows on the event view and in exports.</span>
+        </FormField>
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add hours'}</Button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -346,11 +597,10 @@ function EventList({ title, events, empty }) {
   )
 }
 
-function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
+function AdminControls({ member, isSelf, onSaved, onDeleted }) {
   const [name, setName] = useState(member.name ?? '')
   const [role, setRole] = useState(member.role ?? 'member')
   const [admin, setAdmin] = useState(!!member.is_admin)
-  const [hours, setHours] = useState(derivedHours + Number(member.hours_adjustment ?? 0))
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const [pw, setPw] = useState('')
@@ -364,7 +614,6 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
     setRole(member.role ?? 'member')
     setAdmin(!!member.is_admin)
     setEmail(member.email ?? '')
-    setHours(derivedHours + Number(member.hours_adjustment ?? 0))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member.id])
 
@@ -374,8 +623,6 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
       name,
       role,
       is_admin: admin,
-      // Store the delta needed to reach the chosen total (signup hours stay live).
-      hours_adjustment: Number(hours) - derivedHours,
     })
     setBusy(false)
     setSaved(true)
@@ -447,38 +694,6 @@ function AdminControls({ member, derivedHours, isSelf, onSaved, onDeleted }) {
               ))}
             </select>
           </FormField>
-        </div>
-
-        {/* Hours */}
-        <div>
-          <p className="mb-1.5 text-sm font-semibold text-ink-800">Volunteer hours</p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setHours((h) => Math.max(0, Number(h) - 1))}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-ink-300 text-ink-700 transition-colors hover:bg-ink-50"
-              aria-label="Decrease hours"
-            >
-              <Minus size={15} />
-            </button>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              className={`${inputClass} w-24 text-center`}
-            />
-            <button
-              type="button"
-              onClick={() => setHours((h) => Number(h) + 1)}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-ink-300 text-ink-700 transition-colors hover:bg-ink-50"
-              aria-label="Increase hours"
-            >
-              <Plus size={15} />
-            </button>
-            <span className="ml-1 text-xs text-ink-400">total, incl. event sign-ups</span>
-          </div>
         </div>
 
         {/* Permission */}

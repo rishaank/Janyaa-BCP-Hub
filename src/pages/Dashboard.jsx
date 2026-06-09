@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Users, Clock, CalendarDays, CalendarClock, ArrowRight, Sparkles, Target, LogIn,
+  Users, Clock, ArrowRight, Sparkles, Target, LogIn, AlertTriangle, X,
 } from 'lucide-react'
 import {
-  StatCard, Card, PageHeader, Avatar, ProgressBar, Button, Skeleton, roleTones,
+  StatPill, Card, PageHeader, Avatar, ProgressBar, Button, Skeleton, roleTones,
 } from '../components/ui'
-import { getPublicDashboard, initials, getPins, addPin, removePin } from '../lib/api'
+import {
+  getPublicDashboard, initials, getPins, addPin, removePin,
+  getMyDeniedRequests, dismissHoursRequest,
+} from '../lib/api'
 import { CURRENT_TERM } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
+import { useRealtime } from '../lib/useRealtime'
 import InsightCard from '../components/InsightCard'
 
 const monthOf = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
@@ -26,6 +30,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [lbView, setLbView] = useState('term') // 'term' | 'all'
   const [pins, setPins] = useState([])
+  const [denied, setDenied] = useState([]) // my denied hours requests (red cards)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -48,6 +53,18 @@ export default function Dashboard() {
   async function unpinIns(pinId) {
     await removePin(pinId)
     loadPins()
+  }
+
+  // Denied hours-request cards — persist until the requester dismisses them.
+  const loadDenied = () => (user?.id ? getMyDeniedRequests(user.id).then(setDenied) : setDenied([]))
+  useEffect(() => {
+    loadDenied()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+  useRealtime(['hours_requests'], loadDenied)
+  async function dismissDenial(id) {
+    await dismissHoursRequest(id)
+    loadDenied()
   }
 
   if (loading) {
@@ -85,6 +102,32 @@ export default function Dashboard() {
     <>
       <PageHeader title="Dashboard" subtitle={`${CURRENT_TERM} term at a glance`} />
 
+      {/* Denied hours-request cards — stay until dismissed */}
+      {denied.map((r) => (
+        <Card key={r.id} className="mb-4 flex items-start gap-3 border-coral-200 bg-coral-50/60 p-4">
+          <span className="mt-0.5 shrink-0 text-coral-600"><AlertTriangle size={18} /></span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-ink-900">Hours request denied</p>
+            <p className="mt-0.5 text-sm text-ink-700">
+              Your request for <span className="font-medium">{Number(r.hours)}h</span> ({r.activity}) was denied
+              {r.reviewer?.name ? ` by ${r.reviewer.name}` : ''}.
+            </p>
+            {r.denial_reason && (
+              <p className="mt-1 text-sm text-ink-600">
+                <span className="font-medium text-ink-700">Reason:</span> {r.denial_reason}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => dismissDenial(r.id)}
+            className="shrink-0 rounded-lg p-1.5 text-ink-400 transition-colors hover:bg-coral-100 hover:text-coral-700"
+            aria-label="Dismiss"
+          >
+            <X size={16} />
+          </button>
+        </Card>
+      ))}
+
       {isGuest && (
         <Card className="mb-6 flex flex-col items-start justify-between gap-3 border-blue-200 bg-blue-50/60 p-4 sm:flex-row sm:items-center">
           <p className="text-sm text-ink-700">
@@ -97,24 +140,16 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Stat chips — upcoming events + meetings sit side by side */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={Users} label="Members" value={d.members_count} />
-        <StatCard
+      {/* Compact stat chips */}
+      <div className="flex flex-wrap items-center gap-3">
+        <StatPill icon={Users} value={d.members_count} label="members" />
+        <StatPill
           icon={Clock}
-          label="Hours this term"
-          value={Number(d.term_hours)}
-          tone="blue"
+          value={`${Number(d.term_hours)}h`}
+          label="this term"
           hint={`${Number(d.total_hours)}h all-time`}
+          tone="blue"
         />
-        <StatCard
-          icon={CalendarDays}
-          label="Upcoming events"
-          value={d.upcoming_events}
-          tone="gold"
-          hint={d.tentative_events ? `${d.tentative_events} tentative` : 'confirmed'}
-        />
-        <StatCard icon={CalendarClock} label="Upcoming meetings" value={d.upcoming_meetings} tone="blue" />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -124,27 +159,27 @@ export default function Dashboard() {
             <ListCard title="Upcoming events" to="/events" empty="No upcoming events scheduled.">
               {events.map((e) => (
                 <li key={e.id} className="first:pt-0 last:pb-0">
-                  <Link to={`/events/${e.id}`} className="group flex items-center gap-3 py-3">
+                  <Link to={`/events/${e.id}`} className="group flex items-center gap-3 py-2.5">
                     <DateTile iso={e.date} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-ink-900 group-hover:text-green-700">{e.name}</p>
-                      <p className="truncate text-sm text-ink-500">{e.location || '—'}</p>
+                      <p className="truncate text-sm text-ink-500">{e.location || 'Location TBD'}</p>
                     </div>
-                    <span className="shrink-0 text-xs text-ink-500">{e.signups} in</span>
+                    <span className="shrink-0 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{e.signups} in</span>
                   </Link>
                 </li>
               ))}
             </ListCard>
 
-            <ListCard title="Upcoming meetings" to="/meetings" empty="No meetings on the schedule.">
+            <ListCard title="Upcoming meetings" to="/events?tab=meetings" empty="No meetings on the schedule.">
               {meetings.map((m) => (
-                <li key={m.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                  <DateTile iso={m.date} tone="blue" />
+                <li key={m.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <DateTile iso={m.date} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink-900">{m.title}</p>
                     <p className="truncate text-sm text-ink-500">{m.start_time ? fmtTime(m.start_time) : 'Time TBD'}</p>
                   </div>
-                  <span className="shrink-0 text-xs text-ink-500">{m.attendees} in</span>
+                  <span className="shrink-0 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{m.attendees} in</span>
                 </li>
               ))}
             </ListCard>
@@ -273,10 +308,10 @@ export default function Dashboard() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pins.map((p) => (
-              <InsightCard key={p.id} ins={p.payload} pin={{ pinned: true, onToggle: () => unpinIns(p.id) }} />
+              <InsightCard key={p.id} ins={p.payload} hideAiMark pin={{ pinned: true, onToggle: () => unpinIns(p.id) }} />
             ))}
             {insights.filter((i) => !pinnedTitles.has(i.title)).slice(0, 3).map((ins, i) => (
-              <InsightCard key={i} ins={ins} pin={isGuest ? undefined : { pinned: false, onToggle: () => pinIns(ins) }} />
+              <InsightCard key={i} ins={ins} hideAiMark pin={isGuest ? undefined : { pinned: false, onToggle: () => pinIns(ins) }} />
             ))}
           </div>
         </div>
@@ -285,15 +320,14 @@ export default function Dashboard() {
   )
 }
 
-// Compact month/day tile used in the upcoming lists.
-function DateTile({ iso, tone = 'green' }) {
-  const bg = tone === 'blue' ? 'bg-blue-50' : 'bg-green-50'
-  const fg = tone === 'blue' ? 'text-blue-600' : 'text-green-600'
-  const fgStrong = tone === 'blue' ? 'text-blue-700' : 'text-green-700'
+// Compact month/day tile — matches the neutral date tiles on the Events page.
+function DateTile({ iso }) {
   return (
-    <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${bg} text-center`}>
-      <span className={`text-2xs font-bold leading-none ${fg}`}>{iso ? monthOf(iso) : 'TBD'}</span>
-      {iso && <span className={`text-sm font-bold leading-tight ${fgStrong}`}>{dayOf(iso)}</span>}
+    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-ink-50 text-center">
+      <span className="font-mono text-[10px] font-semibold uppercase leading-none text-ink-500">
+        {iso ? monthOf(iso) : 'TBD'}
+      </span>
+      {iso && <span className="font-display text-base font-bold leading-tight text-ink-900">{dayOf(iso)}</span>}
     </div>
   )
 }
@@ -321,12 +355,9 @@ function ListCard({ title, to, empty, children }) {
 function DashboardSkeleton() {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} className="p-5">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="mt-3 h-8 w-16" />
-          </Card>
+      <div className="flex flex-wrap gap-3">
+        {[0, 1].map((i) => (
+          <Skeleton key={i} className="h-11 w-40 rounded-full" />
         ))}
       </div>
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">

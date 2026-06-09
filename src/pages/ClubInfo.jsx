@@ -10,12 +10,13 @@ import {
   Image as ImageIcon,
   Copy,
   Check,
+  QrCode,
+  Download,
 } from 'lucide-react'
 import { PageHeader, Card, Button } from '../components/ui'
 
 const docs = [
   { icon: Presentation, title: 'Club Charter', desc: 'Our founding charter', url: 'https://docs.google.com/presentation/d/1ZctOVnMEnfyzPMYBPjRTirzRFLAFUrHfAOLsB0deDRU/edit?usp=sharing' },
-  { icon: FileText, title: 'Original Club Plan', desc: 'The original Janyaa BCP plan', url: 'https://docs.google.com/document/d/1ZNb7gf1WxntVrO6xr_J3RlPQxoyuRRNEERzRWMzrd9M/edit?usp=sharing' },
   { icon: FileText, title: 'Original Application Script', desc: 'The first club application script', url: 'https://docs.google.com/document/d/1ML922SiP7Sd5didK0K_O6f3VZ9XyUMJ9pYhdrNdjsZA/edit?usp=sharing' },
   { icon: FileText, title: '2026 Application Outline', desc: 'This year’s application outline', url: 'https://docs.google.com/document/d/1YCzkeIc6Z4d57VgzxtN_h9y7ADbYG1l58kUl-qeSBZE/edit?usp=sharing' },
 ]
@@ -130,6 +131,61 @@ function FactCard({ fact }) {
   )
 }
 
+// Linktree actions — open / copy the link, and open / copy / download the QR code.
+function LinktreeCard() {
+  const LINK = 'https://linktr.ee/janyaabcp'
+  const QR = '/linktree-qr.png'
+  const [copied, setCopied] = useState('')
+  const flash = (k) => {
+    setCopied(k)
+    setTimeout(() => setCopied(''), 1500)
+  }
+
+  function copyLink() {
+    navigator.clipboard?.writeText(LINK)
+    flash('link')
+  }
+  async function copyQr() {
+    try {
+      const blob = await (await fetch(QR)).blob()
+      await navigator.clipboard.write([new window.ClipboardItem({ [blob.type]: blob })])
+      flash('qr')
+    } catch {
+      // Fall back to copying the image URL if image-to-clipboard isn't supported.
+      navigator.clipboard?.writeText(`${window.location.origin}${QR}`)
+      flash('qr')
+    }
+  }
+  function downloadQr() {
+    const a = document.createElement('a')
+    a.href = QR
+    a.download = 'janyaa-linktree-qr.png'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap gap-2">
+        <a href={LINK} target="_blank" rel="noreferrer">
+          <Button icon={ExternalLink}>Open Linktree</Button>
+        </a>
+        <Button variant="soft" icon={copied === 'link' ? Check : Copy} onClick={copyLink}>
+          {copied === 'link' ? 'Copied' : 'Copy link'}
+        </Button>
+        <a href={QR} target="_blank" rel="noreferrer">
+          <Button variant="soft" icon={QrCode}>Open QR code</Button>
+        </a>
+        <Button variant="soft" icon={copied === 'qr' ? Check : Copy} onClick={copyQr}>
+          {copied === 'qr' ? 'Copied' : 'Copy QR code'}
+        </Button>
+        <Button variant="soft" icon={Download} onClick={downloadQr}>Download QR code</Button>
+      </div>
+    </Card>
+  )
+}
+
 export default function ClubInfo() {
   return (
     <>
@@ -151,6 +207,10 @@ export default function ClubInfo() {
           </Card>
         ))}
       </div>
+
+      <Section title="Linktree" hint="All our public links in one place">
+        <LinktreeCard />
+      </Section>
 
       <Section title="Club documents" hint="The charter, plans, and applications.">
         <div className="grid gap-3 sm:grid-cols-2">

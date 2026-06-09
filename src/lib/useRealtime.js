@@ -8,7 +8,9 @@ import { supabase } from './supabase'
 export function useRealtime(tables, onChange) {
   useEffect(() => {
     const list = Array.isArray(tables) ? tables : [tables]
-    const channel = supabase.channel(`rt-${list.join('-')}`)
+    // Unique per hook instance: two mounted components can watch the same table
+    // without colliding on the channel topic (which throws ".on after subscribe").
+    const channel = supabase.channel(`rt-${list.join('-')}-${Math.random().toString(36).slice(2)}`)
     list.forEach((table) =>
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, onChange),
     )

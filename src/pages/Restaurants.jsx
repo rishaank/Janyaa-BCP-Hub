@@ -1,13 +1,13 @@
 import { UtensilsCrossed } from 'lucide-react'
 import { PageHeader, EmptyState } from '../components/ui'
 
-// Intentionally blank — the restaurant spirit-night program is future work.
+// Intentionally blank — the restaurant affiliate (spirit-night) program is future work.
 export default function Restaurants() {
   return (
     <>
-      <PageHeader title="Restaurants" subtitle="Spirit-night restaurant fundraisers." />
+      <PageHeader title="Restaurant Affiliates" subtitle="Spirit-night fundraisers and dining partnerships that give back to the club." />
       <EmptyState icon={UtensilsCrossed} title="Coming soon">
-        The restaurant fundraiser program will live here. Nothing to show yet.
+        The restaurant affiliate program will live here. Nothing to show yet.
       </EmptyState>
     </>
   )

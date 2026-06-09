@@ -1,10 +1,10 @@
+// Event pieces shared by the merged Events & Meetings page (src/pages/EventsMeetings.jsx):
+// the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Mail, Instagram, List, CalendarDays, Maximize2 } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
-import { useAuth } from '../context/AuthContext'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Maximize2 } from 'lucide-react'
+import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import {
-  getEvents,
   getLocations,
   signUpForEvent,
   leaveEvent,
@@ -14,13 +14,9 @@ import {
   addTodo,
   setTodoAssignee,
   deleteTodo,
-  autoGenerateInsights,
-  sendRemindersNow,
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
-import EventsCalendar from '../components/EventsCalendar'
-import { useRealtime } from '../lib/useRealtime'
 import { bestDays, topDay } from '../lib/planning'
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -39,125 +35,7 @@ function timeRangeOf(start, end) {
   return end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)
 }
 
-const segBtn = (active) =>
-  `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-    active ? 'bg-green-600 text-white shadow-xs' : 'text-ink-600 hover:text-ink-900'
-  }`
-
-export default function Events() {
-  const { user, profile } = useAuth()
-  const isAdmin = !!profile?.is_admin
-  const [events, setEvents] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editEvent, setEditEvent] = useState(null)
-  const [showCal, setShowCal] = useState(false)
-  const [reminding, setReminding] = useState('')
-  const [view, setView] = useState('list')
-
-  async function remindNow() {
-    setReminding('Sending…')
-    const { data, error } = await sendRemindersNow()
-    if (error || !data?.ok) setReminding('Failed')
-    else setReminding(data.sent > 0 ? `Sent ${data.sent}` : 'Nothing due')
-    setTimeout(() => setReminding(''), 2500)
-  }
-
-  const load = () =>
-    getEvents().then((data) => {
-      setEvents(data)
-      setLoading(false)
-    })
-
-  useEffect(() => {
-    load()
-  }, [])
-  useRealtime(['events', 'event_signups', 'event_todos'], load)
-
-  const tentative = events.filter((e) => e.is_tentative)
-  const upcoming = events.filter((e) => !e.is_tentative && e.date && e.date >= TODAY)
-  const past = events.filter((e) => !e.is_tentative && e.date && e.date < TODAY).reverse()
-
-  function openCreate() {
-    setEditEvent(null)
-    setFormOpen(true)
-  }
-  function openEdit(ev) {
-    setEditEvent(ev)
-    setFormOpen(true)
-  }
-
-  return (
-    <>
-      <PageHeader
-        title="Events"
-        subtitle="Sign up for events to earn hours, and divide up who brings what."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
-              <button onClick={() => setView('list')} className={segBtn(view === 'list')}>
-                <List size={15} /> List
-              </button>
-              <button onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
-                <CalendarDays size={15} /> Calendar
-              </button>
-            </div>
-            {isAdmin && (
-              <Button variant="soft" icon={Mail} onClick={remindNow} disabled={reminding === 'Sending…'}>
-                {reminding || 'Email reminders'}
-              </Button>
-            )}
-            <Button variant="soft" icon={CalendarPlus} onClick={() => setShowCal(true)}>Subscribe</Button>
-            <Button icon={Plus} onClick={openCreate}>Add event</Button>
-          </div>
-        }
-      />
-
-      {loading ? (
-        <LoadingRows />
-      ) : view === 'calendar' ? (
-        <EventsCalendar events={events} onSelect={openEdit} />
-      ) : (
-        <>
-          <Section title="Upcoming" count={upcoming.length}>
-            {upcoming.map((e) => (
-              <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
-            ))}
-          </Section>
-
-          {tentative.length > 0 && (
-            <Section title="Tentative" count={tentative.length}>
-              {tentative.map((e) => (
-                <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
-              ))}
-            </Section>
-          )}
-
-          <Section title="Past" count={past.length}>
-            {past.map((e) => (
-              <EventCard key={e.id} event={e} myId={user?.id} onChange={load} onEdit={openEdit} />
-            ))}
-          </Section>
-        </>
-      )}
-
-      <EventFormModal
-        open={formOpen}
-        event={editEvent}
-        events={events}
-        onClose={() => setFormOpen(false)}
-        onSaved={() => {
-          setFormOpen(false)
-          load()
-          autoGenerateInsights() // new/edited event → refresh AI insights (throttled)
-        }}
-      />
-      <CalendarSubscribeModal open={showCal} onClose={() => setShowCal(false)} />
-    </>
-  )
-}
-
-function CalendarSubscribeModal({ open, onClose }) {
+export function CalendarSubscribeModal({ open, onClose }) {
   const httpsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar`
   const webcalUrl = httpsUrl.replace(/^https?:\/\//, 'webcal://')
   const [copied, setCopied] = useState(false)
@@ -204,32 +82,7 @@ function CalendarSubscribeModal({ open, onClose }) {
   )
 }
 
-function LoadingRows() {
-  return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      {[0, 1, 2, 3].map((i) => (
-        <Card key={i} className="h-40 animate-pulse bg-ink-50" />
-      ))}
-    </div>
-  )
-}
-
-function Section({ title, count, children }) {
-  return (
-    <section className="mb-8">
-      <h2 className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
-        {title} · {count}
-      </h2>
-      {count === 0 ? (
-        <p className="text-sm text-ink-400">Nothing here yet.</p>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">{children}</div>
-      )}
-    </section>
-  )
-}
-
-function EventCard({ event, myId, onChange, onEdit }) {
+export function EventCard({ event, myId, onChange, onEdit }) {
   const isPast = event.date < TODAY
   const signups = event.event_signups ?? []
   const todos = event.event_todos ?? []
@@ -520,7 +373,7 @@ function TodoRow({ todo, myId, onChange }) {
 
 const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', latitude: null, longitude: null, hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [], is_tentative: false }
 
-function EventFormModal({ open, event, events = [], onClose, onSaved }) {
+export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const [form, setForm] = useState(blank)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })

@@ -196,7 +196,7 @@ function GoalCard({ goal, onChange, onEdit }) {
             onTouchEnd={commitProgress}
             onKeyUp={commitProgress}
             disabled={busy}
-            className="mt-2 w-full accent-green-600"
+            className="ja-range mt-2"
             aria-label="Update progress"
           />
         )}
@@ -307,7 +307,7 @@ function GoalFormModal({ open, goal, myId, onClose, onSaved }) {
           </FormField>
         </div>
         <FormField label={`Progress · ${form.progress}%`}>
-          <input type="range" min="0" max="100" step="5" value={form.progress} onChange={set('progress')} className="w-full accent-green-600" />
+          <input type="range" min="0" max="100" step="5" value={form.progress} onChange={set('progress')} className="ja-range" />
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>

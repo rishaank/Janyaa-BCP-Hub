@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { NavLink, Link } from 'react-router-dom'
+import { NavLink, Link, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
   CalendarDays,
-  CalendarClock,
   PiggyBank,
   Target,
   Hourglass,
@@ -23,35 +22,129 @@ import {
   Monitor,
   Palette,
   ChevronsUpDown,
+  ChevronDown,
+  ClipboardCheck,
+  Shield,
   User,
 } from 'lucide-react'
 import { Logo, Avatar, roleLabels, roleTones } from './ui'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
-import { initials } from '../lib/api'
+import { initials, getPendingRequestCount } from '../lib/api'
+import { useRealtime } from '../lib/useRealtime'
 import WhatsNew from './WhatsNew'
 import CustomThemeModal from './CustomThemeModal'
 
-const navItems = [
+// The affiliate-facing focus of the Hub — pinned at the top of the sidebar.
+const affiliateNav = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, public: true },
+  { to: '/restaurants', label: 'Restaurant Affiliates', icon: UtensilsCrossed },
+]
+
+// Internal club operations — tucked under a collapsible "Members only" group.
+const memberNav = [
   { to: '/members', label: 'Members', icon: Users },
-  { to: '/events', label: 'Events', icon: CalendarDays },
-  { to: '/meetings', label: 'Meetings', icon: CalendarClock },
+  { to: '/events', label: 'Events & Meetings', icon: CalendarDays },
   { to: '/fundraising', label: 'Fundraising', icon: PiggyBank },
   { to: '/goals', label: 'Goals', icon: Target },
   { to: '/auto-hours', label: 'Auto Hours', icon: Hourglass },
   { to: '/locations', label: 'Locations', icon: MapPin },
-  { to: '/restaurants', label: 'Restaurants', icon: UtensilsCrossed },
   { to: '/insights', label: 'AI Insights', icon: Sparkles },
   { to: '/studio', label: 'AI Studio', icon: Wand2 },
   { to: '/club', label: 'Club Info', icon: Info },
-  { to: '/history', label: 'History', icon: History, adminOnly: true },
 ]
+
+// Admin-only pages — a nested collapsible group within "Members only".
+const adminNav = [{ to: '/history', label: 'History', icon: History }]
+
+// Red notification count (e.g. unanswered hours requests).
+function CountDot({ n }) {
+  return (
+    <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-coral-500 px-1.5 text-[11px] font-bold text-white">
+      {n > 9 ? '9+' : n}
+    </span>
+  )
+}
+
+// One nav row. Guests see a locked row that routes to sign-in; members see the
+// real link with an active-state highlight and an optional count badge.
+function NavRow({ item, isGuest, onClose }) {
+  const Icon = item.icon
+  if (isGuest && !item.public) {
+    return (
+      <Link
+        to="/login"
+        onClick={onClose}
+        title="Sign in to access"
+        className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium text-ink-400 transition-colors hover:bg-ink-50 hover:text-ink-700"
+      >
+        <span className="flex items-center gap-3">
+          <Icon size={18} />
+          {item.label}
+        </span>
+        <Lock size={13} className="opacity-70" />
+      </Link>
+    )
+  }
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      onClick={onClose}
+      className={({ isActive }) =>
+        `flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+          isActive ? 'bg-blue-50 text-blue-700' : 'text-ink-600 hover:bg-ink-50 hover:text-ink-900'
+        }`
+      }
+    >
+      <span className="flex items-center gap-3">
+        <Icon size={18} />
+        {item.label}
+      </span>
+      {item.badge > 0 && <CountDot n={item.badge} />}
+    </NavLink>
+  )
+}
 
 export default function Sidebar({ open, onClose }) {
   const { session, profile } = useAuth()
   const isGuest = !session
   const isAdmin = !!profile?.is_admin
+  const isOpsLead = profile?.role === 'operations_lead'
+  const location = useLocation()
+
+  // Unanswered hours-request count → red badge for the operations lead.
+  const [pending, setPending] = useState(0)
+  const loadPending = () => (isOpsLead ? getPendingRequestCount().then(setPending) : setPending(0))
+  useEffect(() => {
+    loadPending()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpsLead])
+  useRealtime(['hours_requests'], loadPending)
+
+  const adminItems = isAdmin ? adminNav : []
+  const memberItems = [
+    ...memberNav,
+    ...(isOpsLead ? [{ to: '/requests', label: 'Hours Requests', icon: ClipboardCheck, badge: pending }] : []),
+  ]
+  const matches = (i) => location.pathname === i.to || location.pathname.startsWith(i.to + '/')
+  const onMemberPage = [...memberItems, ...adminItems].some(matches)
+  const onAdminPage = adminItems.some(matches)
+
+  // Hidden by default; auto-open when you're on a members-only (or admin) page so
+  // the active item stays visible across refreshes and deep links.
+  const [memberOpen, setMemberOpen] = useState(onMemberPage)
+  const [adminOpen, setAdminOpen] = useState(onAdminPage)
+  useEffect(() => {
+    if (onMemberPage) setMemberOpen(true)
+  }, [onMemberPage])
+  useEffect(() => {
+    if (onAdminPage) {
+      setAdminOpen(true)
+      setMemberOpen(true)
+    }
+  }, [onAdminPage])
+
   return (
     <>
       {open && <div className="fixed inset-0 z-30 bg-ink-950/40 lg:hidden" onClick={onClose} />}
@@ -73,45 +166,60 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
-          {navItems.filter((item) => !item.adminOnly || isAdmin).map((item) => {
-            const Icon = item.icon
-            // Guests can only open the dashboard; the rest prompt sign-in.
-            if (isGuest && !item.public) {
-              return (
-                <Link
-                  key={item.to}
-                  to="/login"
-                  onClick={onClose}
-                  title="Sign in to access"
-                  className="flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium text-ink-400 transition-colors hover:bg-ink-50 hover:text-ink-700"
-                >
-                  <span className="flex items-center gap-3">
-                    <Icon size={18} />
-                    {item.label}
-                  </span>
-                  <Lock size={13} className="opacity-70" />
-                </Link>
-              )
-            }
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={onClose}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-ink-600 hover:bg-ink-50 hover:text-ink-900'
-                  }`
-                }
-              >
-                <Icon size={18} />
-                {item.label}
-              </NavLink>
-            )
-          })}
+          {affiliateNav.map((item) => (
+            <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
+          ))}
+
+          {/* Members-only operations — collapsed by default. */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setMemberOpen((v) => !v)}
+              aria-expanded={memberOpen}
+              className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 transition-colors hover:bg-ink-50 hover:text-ink-700"
+            >
+              <span className="flex items-center gap-2">
+                <Lock size={13} className="opacity-70" />
+                Members only
+              </span>
+              <span className="flex items-center gap-1.5">
+                {!memberOpen && pending > 0 && <CountDot n={pending} />}
+                <ChevronDown size={14} className={`transition-transform ${memberOpen ? '' : '-rotate-90'}`} />
+              </span>
+            </button>
+            {memberOpen && (
+              <div className="mt-0.5 space-y-0.5">
+                {memberItems.map((item) => (
+                  <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
+                ))}
+
+                {/* Admin pages — nested collapsible group (admins only). */}
+                {isAdmin && (
+                  <div className="mt-1 border-t border-ink-100 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setAdminOpen((v) => !v)}
+                      aria-expanded={adminOpen}
+                      className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 transition-colors hover:bg-ink-50 hover:text-ink-700"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Shield size={13} className="opacity-70" />
+                        Admin pages
+                      </span>
+                      <ChevronDown size={14} className={`transition-transform ${adminOpen ? '' : '-rotate-90'}`} />
+                    </button>
+                    {adminOpen && (
+                      <div className="mt-0.5 space-y-0.5">
+                        {adminNav.map((item) => (
+                          <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </nav>
 
         <WhatsNew />
