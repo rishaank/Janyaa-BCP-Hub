@@ -16,8 +16,7 @@ import Goals from './pages/Goals'
 import AutoHours from './pages/AutoHours'
 import Locations from './pages/Locations'
 import Restaurants from './pages/Restaurants'
-import Insights from './pages/Insights'
-import AIStudio from './pages/AIStudio'
+import AIPlanning from './pages/AIPlanning'
 import History from './pages/History'
 import HoursRequests from './pages/HoursRequests'
 import ClubInfo from './pages/ClubInfo'
@@ -52,8 +51,10 @@ export default function App() {
               <Route path="/auto-hours" element={<AutoHours />} />
               <Route path="/locations" element={<Locations />} />
               <Route path="/restaurants" element={<Restaurants />} />
-              <Route path="/insights" element={<Insights />} />
-              <Route path="/studio" element={<AIStudio />} />
+              <Route path="/ai-planning" element={<AIPlanning />} />
+              {/* AI Insights + Studio merged into AI Planning; keep old links working. */}
+              <Route path="/insights" element={<Navigate to="/ai-planning" replace />} />
+              <Route path="/studio" element={<Navigate to="/ai-planning?tab=studio" replace />} />
               <Route path="/history" element={<History />} />
               <Route path="/requests" element={<HoursRequests />} />
               <Route path="/club" element={<ClubInfo />} />

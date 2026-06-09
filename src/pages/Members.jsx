@@ -67,7 +67,6 @@ export default function Members() {
       </div>
 
       <div className="mt-6">
-        <h3 className="mb-3 text-sm font-semibold text-ink-800">Who can do what</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <AccessCard
             icon={Users}

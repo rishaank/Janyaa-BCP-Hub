@@ -21,7 +21,7 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-export default function AIStudio() {
+export default function AIStudio({ embedded = false }) {
   const { user } = useAuth()
   const [settings, setSettings] = useState(null)
   const [pins, setPins] = useState([])
@@ -44,20 +44,24 @@ export default function AIStudio() {
 
   return (
     <>
-      <PageHeader
-        title="AI Studio"
-        subtitle="Let AI plan events, suggest what to run next, and draft your social posts — from your real club data."
-      />
-      <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">
-        <div className="flex items-center gap-2">
-          <Sparkles size={18} />
-          <p className="text-sm font-semibold">Powered by Gemini</p>
-        </div>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
-          Everything here is generated from your actual events, locations, and fundraising. Review before you act —
-          AI can be wrong.
-        </p>
-      </Card>
+      {!embedded && (
+        <PageHeader
+          title="AI Studio"
+          subtitle="Let AI plan events, suggest what to run next, and draft your social posts — from your real club data."
+        />
+      )}
+      {!embedded && (
+        <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} />
+            <p className="text-sm font-semibold">Powered by Gemini</p>
+          </div>
+          <p className="mt-2 max-w-2xl text-sm text-white/80">
+            Everything here is generated from your actual events, locations, and fundraising. Review before you act —
+            AI can be wrong.
+          </p>
+        </Card>
+      )}
 
       <Planner />
       <Suggestions settings={settings} onChange={load} {...pinProps('suggestions')} />

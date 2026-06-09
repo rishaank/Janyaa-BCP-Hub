@@ -2,7 +2,20 @@
 // Color/radii/shadow tokens come from src/styles/tailwind-theme.css; legacy
 // palette names are remapped to the brand in src/index.css.
 import { createPortal } from 'react-dom'
-import { X, Pin } from 'lucide-react'
+import { X, Pin, Shield } from 'lucide-react'
+
+// Small blue "Admin edit" pill marking a section as edit-restricted to the
+// people who can change it. Shown to those users on the hours breakdown + Auto Hours.
+export function EditAccessChip({ label = 'Admin edit' }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-2xs font-semibold text-blue-600"
+      title={`${label} access`}
+    >
+      <Shield size={11} /> {label}
+    </span>
+  )
+}
 
 // Pin toggle for AI cards — pinned cards survive regeneration (Feature 1).
 export function PinButton({ pinned, onClick }) {

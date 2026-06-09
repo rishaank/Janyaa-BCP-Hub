@@ -17,7 +17,7 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-export default function Insights() {
+export default function Insights({ embedded = false }) {
   const { profile, user } = useAuth()
   const isAdmin = !!profile?.is_admin
   const [settings, setSettings] = useState(null)
@@ -56,28 +56,32 @@ export default function Insights() {
     await load()
   }
 
+  const actions = isAdmin ? (
+    <div className="flex flex-col items-end gap-1">
+      <Button icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
+        {busy ? (insights.length ? 'Regenerating…' : 'Generating…') : insights.length ? 'Regenerate' : 'Generate'}
+      </Button>
+      {busy ? (
+        <span className="text-xs text-ink-400">Analyzing club data — this takes ~20 seconds.</span>
+      ) : settings?.ai_insights_at ? (
+        <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)}</span>
+      ) : null}
+    </div>
+  ) : settings?.ai_insights_at ? (
+    <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)} · auto-refreshes on changes</span>
+  ) : null
+
   return (
     <>
-      <PageHeader
-        title="AI Insights"
-        subtitle="Specific, actionable patterns pulled from your real events, hours, and fundraising."
-        action={
-          isAdmin ? (
-            <div className="flex flex-col items-end gap-1">
-              <Button icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
-                {busy ? (insights.length ? 'Regenerating…' : 'Generating…') : insights.length ? 'Regenerate' : 'Generate'}
-              </Button>
-              {busy ? (
-                <span className="text-xs text-ink-400">Analyzing club data — this takes ~20 seconds.</span>
-              ) : settings?.ai_insights_at ? (
-                <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)}</span>
-              ) : null}
-            </div>
-          ) : settings?.ai_insights_at ? (
-            <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)} · auto-refreshes on changes</span>
-          ) : null
-        }
-      />
+      {embedded ? (
+        actions && <div className="mb-6 flex justify-end">{actions}</div>
+      ) : (
+        <PageHeader
+          title="AI Insights"
+          subtitle="Specific, actionable patterns pulled from your real events, hours, and fundraising."
+          action={actions}
+        />
+      )}
 
       {error === 'not_configured' ? (
         <Card className="mb-6 border-gold-200 bg-gold-50/70 p-4 text-sm text-gold-800">
@@ -87,17 +91,19 @@ export default function Insights() {
         <Card className="mb-6 border-coral-200 bg-coral-50 p-4 text-sm text-coral-700">{error}</Card>
       ) : null}
 
-      <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">
-        <div className="flex items-center gap-2">
-          <Sparkles size={18} />
-          <p className="text-sm font-semibold">Powered by Gemini</p>
-        </div>
-        <p className="mt-2 max-w-2xl text-sm text-white/80">
-          The Hub feeds your real attendance, hours, fundraising, and locations into Gemini to surface what's
-          working and what needs attention.
-          {settings?.ai_insights_at && ` Last generated ${timeAgo(settings.ai_insights_at)}.`}
-        </p>
-      </Card>
+      {!embedded && (
+        <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">
+          <div className="flex items-center gap-2">
+            <Sparkles size={18} />
+            <p className="text-sm font-semibold">Powered by Gemini</p>
+          </div>
+          <p className="mt-2 max-w-2xl text-sm text-white/80">
+            The Hub feeds your real attendance, hours, fundraising, and locations into Gemini to surface what's
+            working and what needs attention.
+            {settings?.ai_insights_at && ` Last generated ${timeAgo(settings.ai_insights_at)}.`}
+          </p>
+        </Card>
+      )}
 
       {pins.length > 0 && (
         <div className="mb-6">

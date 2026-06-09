@@ -10,7 +10,6 @@ import {
   MapPin,
   UtensilsCrossed,
   Sparkles,
-  Wand2,
   History,
   Info,
   X,
@@ -46,11 +45,10 @@ const memberNav = [
   { to: '/members', label: 'Members', icon: Users },
   { to: '/events', label: 'Events & Meetings', icon: CalendarDays },
   { to: '/fundraising', label: 'Fundraising', icon: PiggyBank },
+  { to: '/locations', label: 'Locations', icon: MapPin },
   { to: '/goals', label: 'Goals', icon: Target },
   { to: '/auto-hours', label: 'Auto Hours', icon: Hourglass },
-  { to: '/locations', label: 'Locations', icon: MapPin },
-  { to: '/insights', label: 'AI Insights', icon: Sparkles },
-  { to: '/studio', label: 'AI Studio', icon: Wand2 },
+  { to: '/ai-planning', label: 'AI Planning', icon: Sparkles },
   { to: '/club', label: 'Club Info', icon: Info },
 ]
 

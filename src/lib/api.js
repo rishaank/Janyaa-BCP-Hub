@@ -58,31 +58,29 @@ export async function getEventsBrief() {
 
 // ---- Hours requests (member → operations lead, migration 0023) ------------
 
-// A member submits a request for hours; the operations lead reviews it. Emails
-// the ops lead(s) best-effort after the row is created.
+// Submit a request for hours to the operations lead. A member requests for
+// themselves; an admin may request on behalf of another member (the RPC records
+// who submitted it and enforces the rule).
 export async function submitHoursRequest({ requesterId, activity, hours, contribution }) {
-  const { data, error } = await supabase
-    .from('hours_requests')
-    .insert({ requester_id: requesterId, activity, hours: Number(hours), contribution: contribution || null })
-    .select()
-    .single()
+  const { data, error } = await supabase.rpc('submit_hours_request', {
+    p_requester: requesterId,
+    p_activity: activity,
+    p_hours: Number(hours),
+    p_contribution: contribution || null,
+  })
   if (error) return { ok: false, error: error.message }
-  try {
-    await supabase.functions.invoke('hours-request-notify', { body: { requestId: data.id } })
-  } catch {
-    /* email is best-effort — never blocks the request */
-  }
   return { ok: true, data }
 }
 
-// Ops-lead view: every request with requester + reviewer info, newest first.
+// Ops-lead view: every request with requester + reviewer + submitter info, newest first.
 export async function getHoursRequests() {
   const { data } = await supabase
     .from('hours_requests')
     .select(
       `*,
        requester:profiles!hours_requests_requester_id_fkey ( id, name, role, avatar_url, email ),
-       reviewer:profiles!hours_requests_reviewer_id_fkey ( id, name )`,
+       reviewer:profiles!hours_requests_reviewer_id_fkey ( id, name ),
+       submitter:profiles!hours_requests_submitted_by_fkey ( id, name )`,
     )
     .order('created_at', { ascending: false })
   return data ?? []
@@ -102,15 +100,16 @@ export function decideHoursRequest(id, approve, reason = null) {
   return supabase.rpc('decide_hours_request', { p_id: id, p_approve: approve, p_reason: reason })
 }
 
-// The signed-in member's denied, not-yet-dismissed requests (dashboard red card).
-export async function getMyDeniedRequests(memberId) {
+// The signed-in member's request cards for the dashboard: still-pending (always
+// shown) plus approved/denied that haven't been dismissed yet. Pending rows are
+// never dismissable, so filtering on dismissed=false yields exactly the cards.
+export async function getMyHoursRequests(memberId) {
   const { data } = await supabase
     .from('hours_requests')
     .select(`*, reviewer:profiles!hours_requests_reviewer_id_fkey ( name )`)
     .eq('requester_id', memberId)
-    .eq('status', 'denied')
     .eq('dismissed', false)
-    .order('decided_at', { ascending: false })
+    .order('created_at', { ascending: false })
   return data ?? []
 }
 

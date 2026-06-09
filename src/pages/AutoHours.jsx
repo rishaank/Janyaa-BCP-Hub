@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Clock, Info, RefreshCw, Check } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, roleLabels } from '../components/ui'
+import { PageHeader, Card, Button, Badge, EditAccessChip, roleLabels } from '../components/ui'
 import { getRoleHoursRules, updateRoleHoursRule, ensureMonthlyRoleHours } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -43,21 +43,24 @@ export default function AutoHours() {
         subtitle="Volunteer hours that accrue automatically based on a member's role."
         action={
           isAdmin && (
-            <Button
-              variant="soft"
-              icon={RefreshCw}
-              loading={running === 'running'}
-              onClick={runMonthly}
-              disabled={running === 'running'}
-            >
-              {running === 'running'
-                ? 'Granting…'
-                : running === 'done'
-                  ? 'Granted'
-                  : running === 'error'
-                    ? 'Failed'
-                    : 'Grant this month'}
-            </Button>
+            <div className="flex items-center gap-3">
+              <EditAccessChip />
+              <Button
+                variant="soft"
+                icon={RefreshCw}
+                loading={running === 'running'}
+                onClick={runMonthly}
+                disabled={running === 'running'}
+              >
+                {running === 'running'
+                  ? 'Granting…'
+                  : running === 'done'
+                    ? 'Granted'
+                    : running === 'error'
+                      ? 'Failed'
+                      : 'Grant this month'}
+              </Button>
+            </div>
           )
         }
       />

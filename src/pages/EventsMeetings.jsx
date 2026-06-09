@@ -84,7 +84,7 @@ export default function EventsMeetings() {
     <>
       <PageHeader
         title="Events & Meetings"
-        subtitle="Sign up for events to earn hours, track meeting attendance, and see it all on one calendar."
+        subtitle="Manage and view events, meetings, and attendance."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
@@ -95,6 +95,16 @@ export default function EventsMeetings() {
                 <CalendarDays size={15} /> Calendar
               </button>
             </div>
+            {view === 'list' && (
+              <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
+                <button onClick={() => setTab('events')} className={segBtn(tab === 'events')}>
+                  <CalendarDays size={15} /> Events
+                </button>
+                <button onClick={() => setTab('meetings')} className={segBtn(tab === 'meetings')}>
+                  <CalendarClock size={15} /> Meetings
+                </button>
+              </div>
+            )}
             {view === 'calendar' ? (
               <>
                 <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
@@ -120,18 +130,6 @@ export default function EventsMeetings() {
           </div>
         }
       />
-
-      {/* Events / Meetings list toggle — hidden in calendar view, which shows both. */}
-      {view === 'list' && (
-        <div className="mb-6 inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
-          <button onClick={() => setTab('events')} className={segBtn(tab === 'events')}>
-            <CalendarDays size={15} /> Events
-          </button>
-          <button onClick={() => setTab('meetings')} className={segBtn(tab === 'meetings')}>
-            <CalendarClock size={15} /> Meetings
-          </button>
-        </div>
-      )}
 
       {loading ? (
         <LoadingRows />

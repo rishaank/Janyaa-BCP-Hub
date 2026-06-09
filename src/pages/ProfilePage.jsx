@@ -13,6 +13,7 @@ import {
   roleOptions,
   roleTones,
   formatDate,
+  EditAccessChip,
 } from '../components/ui'
 import {
   getProfileDetails,
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const navigate = useNavigate()
   const { user, profile: me, signOut } = useAuth()
   const isAdmin = !!me?.is_admin
+  const isOpsLead = me?.role === 'operations_lead'
   const isOwn = user?.id === id
 
   const [data, setData] = useState(null)
@@ -108,7 +110,15 @@ export default function ProfilePage() {
         <StatTile icon={ListChecks} label="To-dos owned" value={data.todos.length} />
       </div>
 
-      <HoursBreakdown breakdown={data.breakdown} isAdmin={isAdmin} canRequest={isOwn && !isAdmin} memberId={id} onChange={load} />
+      <HoursBreakdown
+        breakdown={data.breakdown}
+        canDirectEdit={isOpsLead}
+        canRequest={!isOpsLead && (isOwn || isAdmin)}
+        isOwn={isOwn}
+        memberId={id}
+        memberName={p.name}
+        onChange={load}
+      />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <EventList title="Signed up — upcoming" events={upcoming} empty="Not signed up for anything upcoming." />
@@ -282,7 +292,7 @@ const kindMeta = {
 // an Excel export. Admins can add, edit, or remove ledger entries (event hours,
 // imported rows, role/manual grants) inline; derived event sign-ups and meeting
 // attendance (no grant_id) are read-only here and managed on their own pages.
-function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) {
+function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId, memberName, onChange }) {
   const entries = breakdown?.entries ?? []
   const [modalOpen, setModalOpen] = useState(false)
   const [editEntry, setEditEntry] = useState(null)
@@ -307,21 +317,14 @@ function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-semibold text-ink-900">
           Hours breakdown
-          {isAdmin && (
-            <span
-              className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-2xs font-semibold text-blue-600"
-              title="Admin: you can add, edit, and remove entries here"
-            >
-              <Shield size={11} /> Admin edit
-            </span>
-          )}
+          {canDirectEdit && <EditAccessChip />}
         </h3>
         <div className="flex items-center gap-3">
           <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{breakdown?.total ?? 0}h total</span>
           {entries.length > 0 && (
             <Button variant="soft" icon={Download} onClick={() => exportMemberHours(breakdown)}>Export</Button>
           )}
-          {isAdmin && <Button icon={Plus} onClick={openAdd}>Add hours</Button>}
+          {canDirectEdit && <Button icon={Plus} onClick={openAdd}>Add hours</Button>}
           {canRequest && <Button icon={Plus} onClick={() => setRequestOpen(true)}>Request hours</Button>}
         </div>
       </div>
@@ -331,7 +334,7 @@ function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) 
         <ul className="divide-y divide-ink-100">
           {entries.map((e, i) => {
             const meta = kindMeta[e.kind] ?? { label: e.kind, tone: 'ink' }
-            const editable = isAdmin && !!e.grant_id
+            const editable = canDirectEdit && !!e.grant_id
             return (
               <li key={e.grant_id ?? i} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
@@ -371,7 +374,7 @@ function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) 
           })}
         </ul>
       )}
-      {isAdmin && (
+      {canDirectEdit && (
         <p className="mt-3 text-xs text-ink-400">
           Logged, role, and imported entries can be edited here. Event sign-ups and meeting attendance
           are managed on the Events &amp; Meetings page.
@@ -379,7 +382,9 @@ function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) 
       )}
       {canRequest && (
         <p className="mt-3 text-xs text-ink-400">
-          Request hours for activities outside events &amp; meetings — they go to the operations lead to approve.
+          {isOwn
+            ? 'Request hours for activities outside events & meetings — the operations lead approves them.'
+            : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead approves it.`}
         </p>
       )}
       <HoursEntryModal
@@ -395,6 +400,8 @@ function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) 
       <HoursRequestModal
         open={requestOpen}
         requesterId={memberId}
+        targetName={memberName}
+        onBehalf={!isOwn}
         onClose={() => setRequestOpen(false)}
         onSaved={() => setRequestOpen(false)}
       />
@@ -404,7 +411,7 @@ function HoursBreakdown({ breakdown, isAdmin, canRequest, memberId, onChange }) 
 
 // Member request form — sends an hours request to the operations lead (who
 // approves or denies it). Used in place of "Add hours" for non-admins.
-function HoursRequestModal({ open, requesterId, onClose, onSaved }) {
+function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, onClose, onSaved }) {
   const [activity, setActivity] = useState('')
   const [hours, setHours] = useState('')
   const [contribution, setContribution] = useState('')
@@ -439,7 +446,7 @@ function HoursRequestModal({ open, requesterId, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Request hours">
+    <Modal open={open} onClose={onClose} title={onBehalf ? `Request hours for ${targetName || 'member'}` : 'Request hours'}>
       {done ? (
         <div className="py-4 text-center">
           <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-green-50 text-green-600">
@@ -453,7 +460,9 @@ function HoursRequestModal({ open, requesterId, onClose, onSaved }) {
       ) : (
         <form onSubmit={submit} className="space-y-3">
           <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            Your request goes to the operations lead to approve. If it&rsquo;s denied, you&rsquo;ll see why on your dashboard.
+            {onBehalf
+              ? `You’re submitting this on ${targetName || 'this member'}’s behalf. It goes to the operations lead to approve.`
+              : 'Your request goes to the operations lead to approve. If it’s denied, you’ll see why on your dashboard.'}
           </p>
           <FormField label="Activity">
             <input className={inputClass} value={activity} onChange={(e) => setActivity(e.target.value)} required placeholder="e.g. Sunday Friends outreach" />

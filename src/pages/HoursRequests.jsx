@@ -125,6 +125,11 @@ function RequestCard({ req, onChange, reviewed }) {
             <span className="flex items-center gap-1">
               <Clock size={13} className="text-ink-400" /> {fmtDateTime(req.created_at)}
             </span>
+            {req.submitter && req.submitted_by !== req.requester_id && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600">
+                Submitted by {req.submitter.name}
+              </span>
+            )}
           </div>
         </div>
         <span className="shrink-0 rounded-xl bg-ink-50 px-3 py-1.5 text-center">

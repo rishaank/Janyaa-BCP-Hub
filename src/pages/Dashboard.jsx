@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Users, Clock, ArrowRight, Sparkles, Target, LogIn, AlertTriangle, X,
+  Users, Clock, ArrowRight, Sparkles, Target, LogIn, AlertTriangle, X, Check, PiggyBank,
 } from 'lucide-react'
 import {
   StatPill, Card, PageHeader, Avatar, ProgressBar, Button, Skeleton, roleTones,
 } from '../components/ui'
 import {
   getPublicDashboard, initials, getPins, addPin, removePin,
-  getMyDeniedRequests, dismissHoursRequest,
+  getMyHoursRequests, dismissHoursRequest,
 } from '../lib/api'
 import { CURRENT_TERM } from '../data/mockData'
 import { useAuth } from '../context/AuthContext'
@@ -30,7 +30,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [lbView, setLbView] = useState('term') // 'term' | 'all'
   const [pins, setPins] = useState([])
-  const [denied, setDenied] = useState([]) // my denied hours requests (red cards)
+  const [requests, setRequests] = useState([]) // my hours-request status cards
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -55,16 +55,16 @@ export default function Dashboard() {
     loadPins()
   }
 
-  // Denied hours-request cards — persist until the requester dismisses them.
-  const loadDenied = () => (user?.id ? getMyDeniedRequests(user.id).then(setDenied) : setDenied([]))
+  // My hours-request status — pending (always) + undismissed approved/denied.
+  const loadRequests = () => (user?.id ? getMyHoursRequests(user.id).then(setRequests) : setRequests([]))
   useEffect(() => {
-    loadDenied()
+    loadRequests()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
-  useRealtime(['hours_requests'], loadDenied)
-  async function dismissDenial(id) {
+  useRealtime(['hours_requests'], loadRequests)
+  async function dismissRequest(id) {
     await dismissHoursRequest(id)
-    loadDenied()
+    loadRequests()
   }
 
   if (loading) {
@@ -93,6 +93,10 @@ export default function Dashboard() {
   const events = d.upcoming_events_list ?? []
   const meetings = d.upcoming_meetings_list ?? []
 
+  const pendingReqs = requests.filter((r) => r.status === 'pending')
+  const approvedReqs = requests.filter((r) => r.status === 'approved')
+  const deniedReqs = requests.filter((r) => r.status === 'denied')
+
   const leaderboard = [...(d.leaderboard ?? [])]
     .sort((a, b) => (lbView === 'term' ? b.term_hours - a.term_hours : b.hours - a.hours))
     .slice(0, 5)
@@ -102,8 +106,39 @@ export default function Dashboard() {
     <>
       <PageHeader title="Dashboard" subtitle={`${CURRENT_TERM} term at a glance`} />
 
+      {/* My hours-request status — pending + approved as small chips */}
+      {(pendingReqs.length > 0 || approvedReqs.length > 0) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {pendingReqs.map((r) => (
+            <span
+              key={r.id}
+              className="inline-flex items-center gap-2 rounded-full border border-gold-200 bg-gold-50 px-3 py-1.5 text-sm text-gold-700"
+            >
+              <Clock size={14} className="shrink-0" />
+              <span>Hours request pending — <b className="tabular-nums">{Number(r.hours)}h</b> for {r.activity}</span>
+            </span>
+          ))}
+          {approvedReqs.map((r) => (
+            <span
+              key={r.id}
+              className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-sm text-green-700"
+            >
+              <Check size={14} className="shrink-0" />
+              <span>Hours request approved — <b className="tabular-nums">{Number(r.hours)}h</b> for {r.activity}</span>
+              <button
+                onClick={() => dismissRequest(r.id)}
+                className="-mr-1 shrink-0 rounded-full p-0.5 text-green-700/70 transition-colors hover:bg-green-100 hover:text-green-700"
+                aria-label="Dismiss"
+              >
+                <X size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Denied hours-request cards — stay until dismissed */}
-      {denied.map((r) => (
+      {deniedReqs.map((r) => (
         <Card key={r.id} className="mb-4 flex items-start gap-3 border-coral-200 bg-coral-50/60 p-4">
           <span className="mt-0.5 shrink-0 text-coral-600"><AlertTriangle size={18} /></span>
           <div className="min-w-0 flex-1">
@@ -119,7 +154,7 @@ export default function Dashboard() {
             )}
           </div>
           <button
-            onClick={() => dismissDenial(r.id)}
+            onClick={() => dismissRequest(r.id)}
             className="shrink-0 rounded-lg p-1.5 text-ink-400 transition-colors hover:bg-coral-100 hover:text-coral-700"
             aria-label="Dismiss"
           >
@@ -150,13 +185,13 @@ export default function Dashboard() {
           hint={`${Number(d.total_hours)}h all-time`}
           tone="blue"
         />
+        <FundraisingPill raised={fundRaised} target={fundTarget} />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Upcoming events + meetings + fundraising */}
-        <div className="space-y-6 lg:col-span-2">
-          <div className="grid gap-6 sm:grid-cols-2">
-            <ListCard title="Upcoming events" to="/events" empty="No upcoming events scheduled.">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
+        {/* Upcoming events + meetings */}
+        <div className="grid gap-6 sm:grid-cols-2 lg:col-span-2">
+          <ListCard title="Upcoming events" to="/events" empty="No upcoming events scheduled." className="h-full">
               {events.map((e) => (
                 <li key={e.id} className="first:pt-0 last:pb-0">
                   <Link to={`/events/${e.id}`} className="group flex items-center gap-3 py-2.5">
@@ -171,7 +206,7 @@ export default function Dashboard() {
               ))}
             </ListCard>
 
-            <ListCard title="Upcoming meetings" to="/events?tab=meetings" empty="No meetings on the schedule.">
+          <ListCard title="Upcoming meetings" to="/events?tab=meetings" empty="No meetings on the schedule." className="h-full">
               {meetings.map((m) => (
                 <li key={m.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                   <DateTile iso={m.date} />
@@ -182,23 +217,7 @@ export default function Dashboard() {
                   <span className="shrink-0 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{m.attendees} in</span>
                 </li>
               ))}
-            </ListCard>
-          </div>
-
-          <Card className="p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold text-ink-900">Fundraising goal</h3>
-              <span className="text-sm text-ink-500 tabular-nums">
-                ${fundRaised.toLocaleString()} / ${fundTarget.toLocaleString()}
-              </span>
-            </div>
-            <ProgressBar value={fundRaised} max={fundTarget} tone="gold" />
-            <p className="mt-2 text-sm text-ink-500">
-              {fundRaised >= fundTarget
-                ? '🎉 Goal reached!'
-                : `$${(fundTarget - fundRaised).toLocaleString()} to go to hit the goal.`}
-            </p>
-          </Card>
+          </ListCard>
         </div>
 
         {/* Hours leaderboard with term / all-time toggle */}
@@ -302,7 +321,7 @@ export default function Dashboard() {
             <h3 className="flex items-center gap-1.5 font-semibold text-ink-900">
               <Sparkles size={16} className="text-blue-500" /> AI Insights
             </h3>
-            <Link to="/insights" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+            <Link to="/ai-planning" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
               View all <ArrowRight size={14} />
             </Link>
           </div>
@@ -333,10 +352,10 @@ function DateTile({ iso }) {
 }
 
 // A small card wrapping a titled list with a "View all" link and empty state.
-function ListCard({ title, to, empty, children }) {
+function ListCard({ title, to, empty, className = '', children }) {
   const hasItems = Array.isArray(children) ? children.length > 0 : Boolean(children)
   return (
-    <Card className="p-5">
+    <Card className={`flex flex-col p-5 ${className}`}>
       <div className="mb-2 flex items-center justify-between">
         <h3 className="font-semibold text-ink-900">{title}</h3>
         <Link to={to} className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
@@ -346,9 +365,34 @@ function ListCard({ title, to, empty, children }) {
       {hasItems ? (
         <ul className="divide-y divide-ink-100">{children}</ul>
       ) : (
-        <p className="py-6 text-center text-sm text-ink-400">{empty}</p>
+        <p className="grid flex-1 place-items-center py-6 text-center text-sm text-ink-400">{empty}</p>
       )}
     </Card>
+  )
+}
+
+// Stat pill with a circular progress ring around the icon — fundraising % to goal.
+function FundraisingPill({ raised, target }) {
+  const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0
+  const C = 2 * Math.PI * 14 // r = 14
+  return (
+    <div className="inline-flex items-center gap-2.5 rounded-full border border-ink-200 bg-surface py-1.5 pl-1.5 pr-4 shadow-sm">
+      <span className="relative grid h-8 w-8 shrink-0 place-items-center">
+        <svg className="absolute inset-0 h-8 w-8 -rotate-90" viewBox="0 0 32 32">
+          <circle cx="16" cy="16" r="14" fill="none" stroke="var(--color-ink-150)" strokeWidth="3" />
+          <circle
+            cx="16" cy="16" r="14" fill="none" stroke="var(--color-gold-500)" strokeWidth="3"
+            strokeLinecap="round" strokeDasharray={`${(pct / 100) * C} ${C}`}
+          />
+        </svg>
+        <PiggyBank size={15} className="text-gold-700" />
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <span className="font-display text-lg font-bold leading-none tabular-nums text-ink-900">{pct}%</span>
+        <span className="text-sm text-ink-500">to goal</span>
+        <span className="text-xs text-ink-400">· ${raised.toLocaleString()} / ${target.toLocaleString()}</span>
+      </span>
+    </div>
   )
 }
 
