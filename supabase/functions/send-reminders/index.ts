@@ -44,6 +44,39 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
+  // Who's calling? An admin pressing "Email reminders" runs immediately. Anything
+  // else (the daily cron — or a stranger, since the endpoint is public) is
+  // throttled to one run per 20h via club_settings.reminders_sent_at, so nobody
+  // can spam members with duplicate reminder emails.
+  let isAdmin = false
+  const authHeader = req.headers.get('Authorization') ?? ''
+  if (authHeader.startsWith('Bearer ')) {
+    const caller = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user } } = await caller.auth.getUser()
+    if (user) {
+      const { data: me } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
+      isAdmin = !!me?.is_admin
+    }
+  }
+  if (!isAdmin) {
+    const { data: s } = await supabase
+      .from('club_settings')
+      .select('reminders_sent_at')
+      .eq('id', true)
+      .single()
+    const ageH = s?.reminders_sent_at
+      ? (Date.now() - new Date(s.reminders_sent_at).getTime()) / 3600000
+      : Infinity
+    if (ageH < 20) return json({ ok: true, sent: 0, note: 'already ran in the last 20h' })
+    // Stamp before sending so concurrent calls can't double-send.
+    await supabase
+      .from('club_settings')
+      .update({ reminders_sent_at: new Date().toISOString() })
+      .eq('id', true)
+  }
+
   // Events happening tomorrow + their to-dos.
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
   const { data: events } = await supabase

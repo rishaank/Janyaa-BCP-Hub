@@ -48,7 +48,10 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
 - **Live sync:** `src/lib/useRealtime.js` — `useRealtime(table(s), reloadFn)` subscribes to Postgres
   changes so the UI updates across clients. All core tables are in the `supabase_realtime` publication.
 - **Auth:** `src/context/AuthContext.jsx` exposes `session`, `user`, `profile`, `signIn/Up/Out`,
-  `updateProfile`. **The Dashboard (`/`) is public** — viewable logged-out via the
+  `updateProfile`. The provider shows a sub-second brand **splash** until the session resolves from
+  localStorage (so signed-in users never flash the guest UI) and **caches the profile row** in
+  `localStorage('janyaa-profile')`, hydrating it instantly on the next visit (role/admin nav doesn't
+  pop in late). **The Dashboard (`/`) is public** — viewable logged-out via the
   `get_public_dashboard()` RPC (returns only the dashboard's own data: counts, hours, fundraising,
   leaderboard, insights, goals, upcoming events/meetings — no emails, no raw tables). `ProtectedRoute`
   gates **every other** page; the sidebar shows those locked (→ `/login`) and the account card becomes a
@@ -59,9 +62,12 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   own account + data** from their profile (`deleteOwnAccount` → admin-users `deleteSelf`, the California
   SB 568 "eraser" right). Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI; admin-only pages (e.g. `/history`) are gated
   in the sidebar nav **and** by RLS.
-- **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > AuthProvider > BrowserRouter`. The
-  `<Layout>` shell wraps **both** the public `/` and the `<ProtectedRoute>`-gated children. Pages live in
-  `src/pages/`, shared primitives in `src/components/ui.jsx`.
+- **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > ErrorBoundary > AuthProvider >
+  BrowserRouter`. The `<Layout>` shell wraps **both** the public `/` and the `<ProtectedRoute>`-gated
+  children. Pages live in `src/pages/`, shared primitives in `src/components/ui.jsx`. **Routes are
+  code-split** (`React.lazy` + one `<Suspense>`): only Dashboard, Login, and NotFound are eager, so
+  Leaflet/Recharts/cropper load per page, not on first paint. `src/components/ErrorBoundary.jsx`
+  catches render crashes **and** stale-chunk loads after a redeploy (offers a Reload).
 - **`src/data/mockData.js`** only holds constants now (`CURRENT_TERM` = "Summer 2026", `eventTypes`,
   `plannedInsights`) — not live data.
 - **Notable pages** (`src/pages/`): `Dashboard` (**public**, all data via `getPublicDashboard`; stat chips
@@ -73,7 +79,10 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   (`EventView.jsx` — Leaflet map, full Instagram-post embeds, profits/hours/attendees; viewable
   logged-out via the `get_public_event` RPC), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
   **recurring schedules** in `meeting_series` auto-materialize occurrences you can cancel or edit
-  individually), `Fundraising`, `Goals` (`/goals` — leadership goals with owner/progress/target date, any
+  individually), `Fundraising`, `ClubTerms` (`/club-terms`, sidebar label **Terms** — every club term
+  with an expandable breakdown: events, meetings, participants, profits, and a cached per-term **AI
+  summary**; admins edit/add terms + toggle **auto terming**; routed at `/club-terms` because `/terms`
+  is the legal page), `Goals` (`/goals` — leadership goals with owner/progress/target date, any
   signed-in member can edit, surfaced on the dashboard), `AutoHours` (`/auto-hours` — role-based automatic
   volunteer hours; rules are admin-editable, members view read-only), `Locations` (Leaflet, dark-aware tiles),
   `Insights` (Gemini), `AIStudio` (`/studio` — AI event **planner** wizard that auto-creates an event +
@@ -127,8 +136,16 @@ adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0019*.sql`
-(all already applied to the live project). Tables: `profiles`, `events`, `event_signups`,
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0027*.sql`
+(all already applied to the live project). Migration 0026 is the **security-hardening** pass: pinned
+`search_path` on `current_term_start()`, avatars-bucket listing scoped to the caller's own folder
+(public avatar URLs unaffected), and `club_settings.reminders_sent_at` for the send-reminders throttle.
+Migration 0027 adds **club terms + member AI insights**: a `terms` table (label/start/end, RLS:
+member-read, **admin-write**; in the realtime publication) auto-materialized seasonally by
+`ensure_terms()` (SECURITY DEFINER, no-op when `club_settings.auto_terming` is off; never overwrites a
+window covered by an existing/edited term), `current_term_start()` now **prefers the terms table** (so
+admin edits move "this term" hours everywhere) with the seasonal rule as fallback, plus
+`profiles.ai_insight(_at)` and `terms.ai_summary(_at)` caches for the AI functions below. Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
 `locations`, `club_settings` (single shared row, `id = true`),
@@ -221,12 +238,15 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 
 - **`sync-gofundme`** (`verify_jwt: false`) — scrapes the GoFundMe campaign in `club_settings.gofundme_url`
   (parses the `__NEXT_DATA__` Apollo cache) and writes the totals back. Runs on a **pg_cron schedule
-  (every 3h)** + on the Fundraising page load + a manual "Sync now" button.
+  (every 3h)** + on the Fundraising page load + a manual "Sync now" button. **Self-throttled**: a sync
+  newer than 60s is returned as `cached: true` instead of re-scraping (the endpoint is public).
 - **`calendar`** (`verify_jwt: false`) — serves all events as an `.ics` feed for calendar subscriptions
   (the Events page "Subscribe" button). Tentative events are marked `STATUS:TENTATIVE` + `[Tentative]`
   prefix; undated ones are skipped.
 - **`ai-insights`** (`verify_jwt: true`) — pulls real club data, asks Gemini for actionable insights,
-  caches them in `club_settings.ai_insights`. Now also feeds **club meetings** (with attendance) and
+  caches them in `club_settings.ai_insights`. Member hours come from the canonical
+  `get_hours_breakdowns` RPC (same totals every screen shows — no double-counting of the imported
+  history), the term start from `current_term_start()`. Also feeds **club meetings** (with attendance) and
   **leadership goals** (with % progress), and flags **tentative** events as unconfirmed (so Gemini treats
   them as plans, never as earned hours/money). **Requires the `GEMINI_API_KEY` secret** (set in Supabase
   → Edge Functions → Secrets; free Gemini API tier). Admin can force-regenerate; auto-regenerates
@@ -241,7 +261,16 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   grounding** (trend/audio hints are directional — no free API for exact trending audio). Cached in
   `club_settings.social_posts`, throttled (>25 days), run by the **`monthly-social` pg_cron** (1st of
   month, migration 0016) + an admin "Refresh". `verify_jwt:false` so the cron can call it (like
-  `send-reminders`).
+  `send-reminders`) — but `force: true` (the Refresh button) **requires a signed-in member's JWT**, so
+  strangers can't burn the Gemini quota.
+- **`ai-member-insight`** (`verify_jwt: true`) — ONE personal Gemini insight per member (progress +
+  areas to improve), cached on `profiles.ai_insight`. Auto-regenerates when a profile is viewed with a
+  cache >30 days old; `force` (the profile Refresh button) is allowed only for the member themself or
+  an admin. Uses `get_hours_breakdowns` + club averages; sends first name + last initial only.
+- **`ai-terms`** (`verify_jwt: true`) — per-term AI breakdowns cached on `terms.ai_summary`, all terms
+  in ONE Gemini call. Self-throttled: past terms regenerate only when missing, the current term when
+  >7 days old; `force` (admin Refresh on `/club-terms`) regenerates everything. Calls `ensure_terms()`
+  first so seasonal rows exist.
 - **`admin-users`** (`verify_jwt: true`) — admin-only account management needing the service role:
   create (with a set password OR an emailed invite), set password, send reset email, delete. Confirms
   the caller is an admin (`profiles.is_admin`) before acting. Called via `src/lib/api.js`
@@ -252,14 +281,18 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   (15:00 UTC ≈ 8 AM PT, migration 0010)** + a manual admin "Email reminders" button on the Events page.
   **Requires the `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `FROM_EMAIL` secrets** (the
   club Gmail + an app password — the same custom-SMTP creds Supabase uses for invite/reset emails).
-  Returns a "SMTP not set" message until configured.
+  Returns a "SMTP not set" message until configured. **Abuse-guarded**: a signed-in **admin** JWT runs
+  immediately (the manual button); any other caller (the cron, or a stranger — the endpoint is public)
+  is throttled to one run per 20h via `club_settings.reminders_sent_at`, stamped *before* sending.
 
 ## Deployment (Vercel)
 
 - Push to `main` → Vercel auto-builds & deploys. Production URL: `janyaa-bcp-hub.vercel.app`.
 - Vercel **Environment Variables** must hold `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (not in repo).
 - `vercel.json` has the **SPA fallback rewrite** (`/(.*) → /index.html`) so deep links like `/events`
-  work on hard refresh. Don't remove it.
+  work on hard refresh. Don't remove it. It also sets **security headers** (nosniff, SAMEORIGIN
+  frame-options, referrer policy, a minimal Permissions-Policy that keeps `geolocation=(self)` for the
+  Locations map) and immutable caching for `/assets/*` (hashed build files).
 - After deploying, the Supabase **Auth → URL Configuration** Site/Redirect URLs should include the
   Vercel domain **and `…/set-password`** (so invite/reset email links land in the app). For those
   emails to actually send, **custom SMTP** must be set (Project Settings → Auth → SMTP — the club

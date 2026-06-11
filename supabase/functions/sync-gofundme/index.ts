@@ -60,10 +60,29 @@ Deno.serve(async (req) => {
 
     const { data: settings, error: readErr } = await supabase
       .from('club_settings')
-      .select('gofundme_url')
+      .select('gofundme_url, gofundme_raised, gofundme_goal, gofundme_donations, gofundme_synced_at')
       .eq('id', true)
       .single()
     if (readErr) throw readErr
+
+    // The endpoint is public (cron calls it), so throttle: a sync from the last
+    // minute is fresh enough — return it instead of re-scraping GoFundMe. Caps
+    // how hard an abuser can make this function hammer their site.
+    const ageMs = settings?.gofundme_synced_at
+      ? Date.now() - new Date(settings.gofundme_synced_at).getTime()
+      : Infinity
+    if (ageMs < 60_000) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          cached: true,
+          raised: settings.gofundme_raised,
+          goal: settings.gofundme_goal,
+          donations: settings.gofundme_donations,
+        }),
+        { headers: CORS },
+      )
+    }
 
     const url = settings?.gofundme_url
     if (!url) {

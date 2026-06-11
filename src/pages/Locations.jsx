@@ -197,7 +197,7 @@ export default function Locations() {
                   <Marker key={loc.id} position={[Number(loc.latitude), Number(loc.longitude)]} icon={pinIcon(i + 1, loc.id === topId)}>
                     <Popup>
                       <p className="font-semibold">{loc.name}</p>
-                      <p className="text-xs text-slate-500">{statusLabels[loc.status]}</p>
+                      <p className="text-xs text-ink-500">{statusLabels[loc.status]}</p>
                       {loc.description && <p className="mt-1 text-xs">{loc.description}</p>}
                     </Popup>
                   </Marker>

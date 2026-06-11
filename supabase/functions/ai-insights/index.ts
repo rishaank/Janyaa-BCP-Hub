@@ -33,28 +33,19 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   )
 
-  const [{ data: events }, { data: profiles }, { data: settings }, { data: locations }, { data: meetings }, { data: goals }, { data: grants }] = await Promise.all([
+  const [{ data: events }, { data: breakdowns }, { data: settings }, { data: locations }, { data: meetings }, { data: goals }, { data: termStart }] = await Promise.all([
     supabase.from('events').select('id,name,date,location,raised,hours,min_people,max_people,notes,start_time,end_time,is_tentative,event_signups(member_id)'),
-    supabase.from('profiles').select('id,name,role,hours_adjustment'),
-    supabase.from('club_settings').select('raise_target,gofundme_raised,gofundme_goal,gofundme_donations,term_start_date').eq('id', true).single(),
+    // The canonical per-member totals (ledger + cutoff-filtered sign-ups +
+    // meeting attendance + adjustments) — the same numbers every screen shows.
+    supabase.rpc('get_hours_breakdowns', { p_member: null }),
+    supabase.from('club_settings').select('raise_target,gofundme_raised,gofundme_goal,gofundme_donations').eq('id', true).single(),
     supabase.from('locations').select('name,status'),
     supabase.from('meetings').select('title,date,start_time,canceled,meeting_attendees(member_id)'),
     supabase.from('goals').select('title,detail,progress,status,target_date'),
-    supabase.from('hours_grants').select('member_id,hours'),
+    supabase.rpc('current_term_start'),
   ])
 
   const today = new Date().toISOString().slice(0, 10)
-  const hoursByMember: Record<string, number> = {}
-  for (const e of events ?? []) {
-    // Only confirmed, past events earn hours — tentative/undated ones don't count.
-    if (e.date && e.date < today && !e.is_tentative) for (const s of e.event_signups ?? []) {
-      hoursByMember[s.member_id] = (hoursByMember[s.member_id] ?? 0) + Number(e.hours)
-    }
-  }
-  // Role-based auto-hour grants add to the same totals.
-  for (const g of grants ?? []) {
-    hoursByMember[g.member_id] = (hoursByMember[g.member_id] ?? 0) + Number(g.hours)
-  }
 
   const summary = {
     today,
@@ -64,7 +55,7 @@ Deno.serve(async (req) => {
       gofundmeGoal: settings?.gofundme_goal,
       donations: settings?.gofundme_donations,
     },
-    termStart: settings?.term_start_date ?? null,
+    termStart: termStart ?? null,
     events: (events ?? []).map((e) => ({
       name: e.name,
       date: e.date,
@@ -79,10 +70,11 @@ Deno.serve(async (req) => {
       max: e.max_people,
       notes: e.notes ?? '',
     })),
-    members: (profiles ?? []).map((p) => ({
-      name: shortName(p.name),
-      role: p.role,
-      hours: (hoursByMember[p.id] ?? 0) + Number(p.hours_adjustment ?? 0),
+    members: ((breakdowns ?? []) as { name?: string; role?: string; total?: number; term_total?: number }[]).map((b) => ({
+      name: shortName(b.name),
+      role: b.role,
+      hours: Number(b.total ?? 0),
+      termHours: Number(b.term_total ?? 0),
     })),
     meetings: (meetings ?? []).map((m) => ({
       title: m.title,

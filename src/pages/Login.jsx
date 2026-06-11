@@ -61,13 +61,13 @@ export default function Login() {
       </div>
 
       {/* Auth form */}
-      <div className="flex items-center justify-center bg-slate-50 p-6">
+      <div className="flex items-center justify-center bg-ink-50 p-6">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Sign in</h2>
-          <p className="mt-1 text-sm text-slate-500">Welcome back to the Janyaa Hub.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-ink-900">Sign in</h2>
+          <p className="mt-1 text-sm text-ink-500">Welcome back to the Janyaa Hub.</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
             <Field
@@ -88,32 +88,32 @@ export default function Login() {
             />
 
             {error && (
-              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+              <p className="rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{error}</p>
             )}
 
             <button
               type="submit"
               disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-500 disabled:opacity-60"
             >
               {busy && <Loader2 size={16} className="animate-spin" />}
               Sign in
             </button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-slate-500">
+          <p className="mt-4 text-center text-sm text-ink-500">
             Need an account? Ask a club lead to invite you.
           </p>
 
-          <p className="mt-6 text-center text-xs text-slate-400">
+          <p className="mt-6 text-center text-xs text-ink-400">
             By signing in you agree to our{' '}
-            <Link to="/terms" className="font-medium text-slate-500 hover:text-slate-700">Terms</Link>{' '}
+            <Link to="/terms" className="font-medium text-ink-500 hover:text-ink-700">Terms</Link>{' '}
             and{' '}
-            <Link to="/privacy" className="font-medium text-slate-500 hover:text-slate-700">Privacy Policy</Link>.
+            <Link to="/privacy" className="font-medium text-ink-500 hover:text-ink-700">Privacy Policy</Link>.
           </p>
 
           <p className="mt-4 text-center text-sm">
-            <Link to="/" className="text-slate-400 transition-colors hover:text-slate-600">
+            <Link to="/" className="text-ink-400 transition-colors hover:text-ink-600">
               ← Back to the dashboard
             </Link>
           </p>
@@ -126,14 +126,14 @@ export default function Login() {
 function Field({ label, type, value, onChange, placeholder, required }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-700">{label}</span>
+      <span className="mb-1 block text-sm font-medium text-ink-700">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="w-full rounded-xl border border-slate-200 bg-surface px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+        className="w-full rounded-xl border border-ink-200 bg-surface px-3.5 py-2.5 text-sm text-ink-900 placeholder-ink-400 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100"
       />
     </label>
   )

@@ -21,8 +21,11 @@ import {
   Pencil,
   Check,
 } from 'lucide-react'
-import { PageHeader, Card, StatCard, Button, Skeleton, formatDate } from '../components/ui'
-import { getFundraisingEvents, getSettings, updateRaiseTarget, syncGoFundme, autoGenerateInsights } from '../lib/api'
+import { PageHeader, Card, StatCard, Button, Skeleton, formatDate, timeAgo } from '../components/ui'
+import {
+  getFundraisingEvents, getSettings, updateRaiseTarget, syncGoFundme, autoGenerateInsights,
+  currentTermStart, getCurrentTermStart,
+} from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import BestDaysChart from '../components/BestDaysChart'
 import { bestDays, topDay } from '../lib/planning'
@@ -31,17 +34,6 @@ const DAY = 86400000
 const ts = (iso) => new Date(iso + 'T00:00:00').getTime()
 const shortLabel = (iso) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-
-function timeAgo(iso) {
-  if (!iso) return 'never'
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 // Least-squares slope/intercept for points (x days, y dollars).
 function linearFit(xs, ys) {
@@ -74,10 +66,13 @@ export default function Fundraising() {
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  // Seasonal mirror as the instant value; the terms-table-aware RPC corrects it.
+  const [termStart, setTermStart] = useState(currentTermStart())
 
   const loadSettings = () => getSettings().then(setSettings)
 
   useEffect(() => {
+    getCurrentTermStart().then(setTermStart)
     getFundraisingEvents().then((data) => {
       setEvents(data)
       setLoading(false)
@@ -119,8 +114,9 @@ export default function Fundraising() {
     return { date: e.date, label: shortLabel(e.date), value: cum }
   })
   const total = cum
-  const thisTerm = events.filter((e) => e.date >= '2026-01-01').reduce((s, e) => s + Number(e.raised), 0)
+  const thisTerm = events.filter((e) => e.date >= termStart).reduce((s, e) => s + Number(e.raised), 0)
   const avg = events.length ? Math.round(total / events.length) : 0
+  const thisYear = new Date().getFullYear()
 
   // ---- Projection: fit a trend line and extend it. ----
   let chartData = history.map((h) => ({ label: h.label, actual: h.value, projected: null }))
@@ -142,7 +138,7 @@ export default function Fundraising() {
       const iso = new Date(lastTs + d * DAY).toISOString().slice(0, 10)
       chartData.push({ label: shortLabel(iso), actual: null, projected: Math.round(last.value + slope * d) })
     }
-    projectedYearEnd = Math.round(last.value + slope * ((ts('2026-12-31') - lastTs) / DAY))
+    projectedYearEnd = Math.round(last.value + slope * ((ts(`${thisYear}-12-31`) - lastTs) / DAY))
   }
 
   return (
@@ -152,10 +148,10 @@ export default function Fundraising() {
       {/* GoFundMe live hero + editable shared goal */}
       <Card className="mb-6 overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-gold-100 bg-gradient-to-r from-gold-50 to-green-50 px-6 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+          <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
             </span>
             GoFundMe campaign · live
             {settings?.gofundme_url && (
@@ -163,7 +159,7 @@ export default function Fundraising() {
                 href={settings.gofundme_url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-emerald-600/70 hover:text-emerald-700"
+                className="inline-flex items-center gap-1 font-medium text-green-600/70 hover:text-green-700"
               >
                 view <ExternalLink size={12} />
               </a>
@@ -177,28 +173,28 @@ export default function Fundraising() {
         <div className="p-6">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <div>
-              <p className="text-sm font-medium text-slate-500">Raised so far</p>
+              <p className="text-sm font-medium text-ink-500">Raised so far</p>
               <p className="mt-0.5 font-display text-5xl font-bold tracking-tight tabular-nums text-green-700">
                 {gfmRaised != null ? `$${gfmRaised.toLocaleString()}` : '—'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium text-slate-500">Shared goal</p>
-              <div className="mt-0.5 text-2xl font-bold text-slate-900">
+              <p className="text-sm font-medium text-ink-500">Shared goal</p>
+              <div className="mt-0.5 text-2xl font-bold text-ink-900">
                 <EditableGoal target={target} editable={!!settings} onSaved={loadSettings} />
               </div>
             </div>
           </div>
 
           <div className="mt-5">
-            <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-slate-500">
+            <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-ink-500">
               <span>{pctFunded}% funded</span>
               <span>
                 {settings?.gofundme_donations != null ? `${settings.gofundme_donations} donations · ` : ''}
-                synced {timeAgo(settings?.gofundme_synced_at)}
+                synced {timeAgo(settings?.gofundme_synced_at) || 'never'}
               </span>
             </div>
-            <div className="h-3 w-full overflow-hidden rounded-full bg-slate-100">
+            <div className="h-3 w-full overflow-hidden rounded-full bg-ink-100">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600 transition-all"
                 style={{ width: `${Math.min(100, pctFunded)}%` }}
@@ -219,10 +215,10 @@ export default function Fundraising() {
           ))
         ) : (
           <>
-            <StatCard icon={DollarSign} label="Events · this term" value={`$${thisTerm}`} tone="emerald" />
+            <StatCard icon={DollarSign} label="Events · this term" value={`$${thisTerm}`} tone="green" />
             <StatCard icon={TrendingUp} label="Events · all time" value={`$${total}`} />
-            <StatCard icon={Calendar} label="Fundraisers" value={events.length} tone="sky" />
-            <StatCard icon={Target} label="Avg / event" value={`$${avg}`} tone="amber" />
+            <StatCard icon={Calendar} label="Fundraisers" value={events.length} tone="blue" />
+            <StatCard icon={Target} label="Avg / event" value={`$${avg}`} tone="gold" />
           </>
         )}
       </div>
@@ -230,17 +226,17 @@ export default function Fundraising() {
       {/* Cumulative graph + projection */}
       <Card className="mt-6 p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-semibold text-slate-900">In-person fundraising over time</h3>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
+          <h3 className="font-semibold text-ink-900">In-person fundraising over time</h3>
+          <div className="flex items-center gap-4 text-xs text-ink-500">
             <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-green-600" /> Actual</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full border border-dashed border-gold-500" /> Projected</span>
           </div>
         </div>
 
         {loading ? (
-          <p className="py-16 text-center text-sm text-slate-400">Loading…</p>
+          <p className="py-16 text-center text-sm text-ink-400">Loading…</p>
         ) : history.length === 0 ? (
-          <p className="py-16 text-center text-sm text-slate-400">No in-person fundraising recorded yet.</p>
+          <p className="py-16 text-center text-sm text-ink-400">No in-person fundraising recorded yet.</p>
         ) : (
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -275,7 +271,7 @@ export default function Fundraising() {
             <Sparkles size={16} className="mt-0.5 shrink-0 text-blue-500" />
             <p>
               At the current pace (~<span className="font-semibold text-ink-900">${perMonth}/month</span>), in-person events are on track for about{' '}
-              <span className="font-semibold text-ink-900">${projectedYearEnd.toLocaleString()}</span> by the end of 2026.
+              <span className="font-semibold text-ink-900">${projectedYearEnd.toLocaleString()}</span> by the end of {thisYear}.
             </p>
           </div>
         )}
@@ -293,18 +289,18 @@ export default function Fundraising() {
 
       {/* Per-event breakdown */}
       <Card className="mt-6 p-5">
-        <h3 className="mb-4 font-semibold text-slate-900">By event</h3>
+        <h3 className="mb-4 font-semibold text-ink-900">By event</h3>
         {events.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">No fundraising events yet.</p>
+          <p className="py-4 text-center text-sm text-ink-400">No fundraising events yet.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-ink-100">
             {[...events].reverse().map((e) => (
               <li key={e.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{e.name}</p>
-                  <p className="text-xs text-slate-400">{formatDate(e.date)} · {e.location}</p>
+                  <p className="text-sm font-medium text-ink-800">{e.name}</p>
+                  <p className="text-xs text-ink-400">{formatDate(e.date)} · {e.location}</p>
                 </div>
-                <span className="font-semibold text-slate-900">${e.raised}</span>
+                <span className="font-semibold text-ink-900">${e.raised}</span>
               </li>
             ))}
           </ul>
@@ -331,25 +327,25 @@ function EditableGoal({ target, editable, onSaved }) {
   }
 
   if (!editable) {
-    return <span className="text-slate-900">${Number(target).toLocaleString()}</span>
+    return <span className="text-ink-900">${Number(target).toLocaleString()}</span>
   }
 
   if (!editing) {
     return (
       <button
         onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1 align-baseline text-slate-900 hover:text-emerald-600"
+        className="inline-flex items-center gap-1 align-baseline text-ink-900 hover:text-green-600"
         title="Edit the shared goal"
       >
         ${Number(target).toLocaleString()}
-        <Pencil size={14} className="text-slate-400" />
+        <Pencil size={14} className="text-ink-400" />
       </button>
     )
   }
 
   return (
     <span className="inline-flex items-center gap-1 align-baseline text-2xl">
-      <span className="text-slate-400">$</span>
+      <span className="text-ink-400">$</span>
       <input
         type="number"
         min="0"
@@ -357,12 +353,12 @@ function EditableGoal({ target, editable, onSaved }) {
         autoFocus
         onChange={(e) => setVal(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && save()}
-        className="w-28 rounded-lg border border-slate-200 px-2 py-0.5 text-2xl font-bold text-slate-900 outline-none focus:border-emerald-400"
+        className="w-28 rounded-lg border border-ink-200 px-2 py-0.5 text-2xl font-bold text-ink-900 outline-none focus:border-green-400"
       />
       <button
         onClick={save}
         disabled={busy}
-        className="rounded-lg bg-emerald-500 p-1.5 text-white hover:bg-emerald-600 disabled:opacity-50"
+        className="rounded-lg bg-green-500 p-1.5 text-white hover:bg-green-600 disabled:opacity-50"
         aria-label="Save goal"
       >
         <Check size={16} />

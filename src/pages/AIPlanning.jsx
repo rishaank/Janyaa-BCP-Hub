@@ -12,7 +12,10 @@ export default function AIPlanning() {
         title="AI Planning"
         subtitle="Gemini-powered insights, event planning, and content ideas from your real club data."
       />
-      <Insights embedded />
+      {/* Match the mb-8 rhythm of the AI Studio sections below. */}
+      <section className="mb-8">
+        <Insights embedded />
+      </section>
       <AIStudio embedded />
     </>
   )

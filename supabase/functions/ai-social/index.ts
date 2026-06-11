@@ -42,7 +42,17 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}))
   const force = !!body?.force
-  const scheduled = !!body?.scheduled
+
+  // The endpoint is public so the monthly cron can call it — but a *forced*
+  // regeneration (the admin "Refresh" button) must come from a signed-in member,
+  // or anyone on the internet could burn the Gemini quota at will.
+  if (force) {
+    const caller = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+    })
+    const { data: { user } } = await caller.auth.getUser()
+    if (!user) return json({ ok: false, error: 'Sign in to refresh' }, 401)
+  }
 
   const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
@@ -52,11 +62,13 @@ Deno.serve(async (req) => {
     .eq('id', true)
     .single()
 
-  // Throttle: only regenerate when forced, on the monthly schedule, or stale (>25 days).
+  // Throttle: regenerate only when forced (by a member) or stale (>25 days) —
+  // the monthly cron always lands on the stale side, and anonymous callers can
+  // never trigger more than the schedule already would.
   const ageDays = settings?.social_posts_at
     ? (Date.now() - new Date(settings.social_posts_at).getTime()) / 86400000
     : Infinity
-  if (!force && !scheduled && ageDays < 25 && Array.isArray(settings?.social_posts)) {
+  if (!force && ageDays < 25 && Array.isArray(settings?.social_posts)) {
     return json({ ok: true, posts: settings.social_posts, cached: true })
   }
 

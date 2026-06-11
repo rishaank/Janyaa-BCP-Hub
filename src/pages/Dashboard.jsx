@@ -286,7 +286,7 @@ export default function Dashboard() {
               View all <ArrowRight size={14} />
             </Link>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="ja-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {goals.slice(0, 3).map((g) => (
               <Card key={g.id} className="flex flex-col p-5">
                 <h4 className="font-display text-h4 font-semibold text-ink-900">{g.title}</h4>
@@ -324,7 +324,7 @@ export default function Dashboard() {
               View all <ArrowRight size={14} />
             </Link>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="ja-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pins.map((p) => (
               <InsightCard key={p.id} ins={p.payload} hideAiMark pin={{ pinned: true, onToggle: () => unpinIns(p.id) }} />
             ))}

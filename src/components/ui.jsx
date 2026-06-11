@@ -226,7 +226,7 @@ export function Button({ children, variant = 'primary', icon: Icon, loading = fa
   }
   return (
     <button
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-200 disabled:cursor-not-allowed disabled:opacity-60 ${variants[variant] ?? variants.primary}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-200 disabled:cursor-not-allowed disabled:opacity-60 motion-safe:active:scale-[0.98] ${variants[variant] ?? variants.primary}`}
       {...props}
     >
       {Icon && <Icon size={16} className={loading ? 'animate-spin' : undefined} />}
@@ -315,12 +315,24 @@ export const formatDate = (iso) =>
     year: 'numeric',
   })
 
+// "5m ago" — freshness stamps on AI cards and sync indicators.
+export function timeAgo(iso) {
+  if (!iso) return ''
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (s < 60) return 'just now'
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
 // Centered modal dialog. Renders nothing when `open` is false.
 export function Modal({ open, onClose, title, children }) {
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ink-950/50" onClick={onClose} />
+      <div className="ja-veil-in absolute inset-0 bg-ink-950/50" onClick={onClose} />
       <div className="ja-pop relative z-10 w-full max-w-md rounded-2xl bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-ink-200 px-5 py-4">
           <h2 className="font-display text-h4 font-semibold text-ink-900">{title}</h2>

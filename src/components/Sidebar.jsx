@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Users,
   CalendarDays,
+  CalendarRange,
   PiggyBank,
   Target,
   Hourglass,
@@ -46,6 +47,7 @@ const memberNav = [
   { to: '/events', label: 'Events & Meetings', icon: CalendarDays },
   { to: '/fundraising', label: 'Fundraising', icon: PiggyBank },
   { to: '/locations', label: 'Locations', icon: MapPin },
+  { to: '/club-terms', label: 'Terms', icon: CalendarRange },
   { to: '/goals', label: 'Goals', icon: Target },
   { to: '/auto-hours', label: 'Auto Hours', icon: Hourglass },
   { to: '/ai-planning', label: 'AI Planning', icon: Sparkles },
@@ -145,10 +147,10 @@ export default function Sidebar({ open, onClose }) {
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-30 bg-ink-950/40 lg:hidden" onClick={onClose} />}
+      {open && <div className="ja-veil-in fixed inset-0 z-30 bg-ink-950/40 lg:hidden" onClick={onClose} />}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-surface transition-transform lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-ink-200 bg-surface transition-transform lg:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -185,38 +187,42 @@ export default function Sidebar({ open, onClose }) {
                 <ChevronDown size={14} className={`transition-transform ${memberOpen ? '' : '-rotate-90'}`} />
               </span>
             </button>
-            {memberOpen && (
-              <div className="mt-0.5 space-y-0.5">
-                {memberItems.map((item) => (
-                  <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
-                ))}
+            <div className={`ja-collapse grid ${memberOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`} inert={!memberOpen}>
+              <div className="min-h-0 overflow-hidden">
+                <div className="mt-0.5 space-y-0.5">
+                  {memberItems.map((item) => (
+                    <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
+                  ))}
 
-                {/* Admin pages — nested collapsible group (admins only). */}
-                {isAdmin && (
-                  <div className="mt-1 border-t border-ink-100 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setAdminOpen((v) => !v)}
-                      aria-expanded={adminOpen}
-                      className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 transition-colors hover:bg-ink-50 hover:text-ink-700"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Shield size={13} className="opacity-70" />
-                        Admin pages
-                      </span>
-                      <ChevronDown size={14} className={`transition-transform ${adminOpen ? '' : '-rotate-90'}`} />
-                    </button>
-                    {adminOpen && (
-                      <div className="mt-0.5 space-y-0.5">
-                        {adminNav.map((item) => (
-                          <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
-                        ))}
+                  {/* Admin pages — nested collapsible group (admins only). */}
+                  {isAdmin && (
+                    <div className="mt-1 border-t border-ink-100 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setAdminOpen((v) => !v)}
+                        aria-expanded={adminOpen}
+                        className="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 transition-colors hover:bg-ink-50 hover:text-ink-700"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Shield size={13} className="opacity-70" />
+                          Admin pages
+                        </span>
+                        <ChevronDown size={14} className={`transition-transform ${adminOpen ? '' : '-rotate-90'}`} />
+                      </button>
+                      <div className={`ja-collapse grid ${adminOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`} inert={!adminOpen}>
+                        <div className="min-h-0 overflow-hidden">
+                          <div className="mt-0.5 space-y-0.5">
+                            {adminNav.map((item) => (
+                              <NavRow key={item.to} item={item} isGuest={isGuest} onClose={onClose} />
+                            ))}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </nav>
 

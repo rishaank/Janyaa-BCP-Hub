@@ -18,6 +18,18 @@ export function currentTerm(date = new Date()) {
   return `Fall ${y}` // Sep–Nov
 }
 
+// First day of the current term as a local YYYY-MM-DD — mirrors the server-side
+// current_term_start() (Winter=Dec 1, Spring=Mar 1, Summer=Jun 1, Fall=Sep 1).
+export function currentTermStart(date = new Date()) {
+  const m = date.getMonth() // 0 = Jan
+  const y = date.getFullYear()
+  if (m === 11) return `${y}-12-01`
+  if (m <= 1) return `${y - 1}-12-01`
+  if (m <= 4) return `${y}-03-01`
+  if (m <= 7) return `${y}-06-01`
+  return `${y}-09-01`
+}
+
 export async function getMembersWithHours() {
   // Totals come from the unified hours breakdown (ledger + cutoff-filtered event
   // sign-ups + meeting attendance + admin adjustment) so every screen agrees.
@@ -366,6 +378,70 @@ export async function ensureUpcomingMeetings(weeks = 8) {
   if (!rows.length) return false
   const { error } = await supabase.from('meetings').insert(rows)
   return !error // a lost race (unique-index conflict) just means someone else generated them
+}
+
+// ---- Club terms (migration 0027) -------------------------------------------
+
+// Materialize any missing seasonal terms (no-op when auto-terming is off),
+// then return every term, newest first.
+export async function getTerms() {
+  await supabase.rpc('ensure_terms')
+  const { data } = await supabase.from('terms').select('*').order('start_date', { ascending: false })
+  return data ?? []
+}
+
+// Light event/meeting/member lists for bucketing activity into terms client-side.
+export async function getTermActivity() {
+  const [{ data: events }, { data: meetings }, { data: members }] = await Promise.all([
+    supabase.from('events').select('id, name, date, raised, hours, is_tentative, event_signups ( member_id )'),
+    supabase.from('meetings').select('id, title, date, canceled, meeting_attendees ( member_id )'),
+    supabase.from('profiles').select('id, name, role, avatar_url'),
+  ])
+  return { events: events ?? [], meetings: meetings ?? [], members: members ?? [] }
+}
+
+// Admin-only by RLS. Hand-made or hand-edited terms are marked 'manual' so
+// ensure_terms() never recreates the seasonal row over them.
+export function createTerm(fields) {
+  return supabase.from('terms').insert({ ...fields, source: 'manual' }).select().single()
+}
+export function updateTerm(id, fields) {
+  return supabase.from('terms').update({ ...fields, source: 'manual' }).eq('id', id)
+}
+export function deleteTerm(id) {
+  return supabase.from('terms').delete().eq('id', id)
+}
+export function setAutoTerming(on) {
+  return supabase.from('club_settings').update({ auto_terming: on }).eq('id', true)
+}
+
+// The live term start (terms-table aware — admin edits count). Falls back to
+// the client-side seasonal mirror if the RPC is unreachable.
+export async function getCurrentTermStart() {
+  const { data, error } = await supabase.rpc('current_term_start')
+  return !error && data ? data : currentTermStart()
+}
+
+// Regenerate the per-term AI breakdowns (self-throttled server-side; `force`
+// regenerates every term).
+export async function generateTermInsights(force = false) {
+  try {
+    return await supabase.functions.invoke('ai-terms', { body: { force } })
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+// ---- Member AI insight -----------------------------------------------------
+
+// One personal Gemini insight cached on the profile. Without `force` the
+// function returns the cache unless it's over a month old (the auto-refresh).
+export async function generateMemberInsight(memberId, force = false) {
+  try {
+    return await supabase.functions.invoke('ai-member-insight', { body: { memberId, force } })
+  } catch (error) {
+    return { data: null, error }
+  }
 }
 
 // ---- Leadership goals ----------------------------------------------------

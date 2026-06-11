@@ -3,23 +3,12 @@ import { Link } from 'react-router-dom'
 import {
   Sparkles, Wand2, Lightbulb, MapPin, RefreshCw, Loader2, Instagram, Check, Copy, ArrowRight, CalendarPlus, Clock, TrendingUp,
 } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, FormField, inputClass, PinButton } from '../components/ui'
+import { PageHeader, Card, Button, Badge, FormField, inputClass, PinButton, timeAgo } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
   getSettings, generateSuggestions, generateSocial, planEvent, createEvent, addTodo,
   getPins, addPin, removePin,
 } from '../lib/api'
-
-function timeAgo(iso) {
-  if (!iso) return ''
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 export default function AIStudio({ embedded = false }) {
   const { user } = useAuth()

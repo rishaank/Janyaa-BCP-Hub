@@ -193,9 +193,30 @@ body::before {
 .ja-fade { animation: ja-fade-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .ja-pop { animation: ja-pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+/* Backdrop fade — modals + the mobile nav scrim. */
+@keyframes ja-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ja-veil-in { animation: ja-veil-in 0.2s ease-out both; }
+
+/* Staggered entrance for card grids: the first few children cascade in. */
+.ja-stagger > * { animation: ja-fade-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ja-stagger > *:nth-child(1) { animation-delay: 0.03s; }
+.ja-stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.ja-stagger > *:nth-child(3) { animation-delay: 0.09s; }
+.ja-stagger > *:nth-child(4) { animation-delay: 0.12s; }
+.ja-stagger > *:nth-child(5) { animation-delay: 0.15s; }
+.ja-stagger > *:nth-child(6) { animation-delay: 0.18s; }
+.ja-stagger > *:nth-child(n + 7) { animation-delay: 0.21s; }
+
+/* Smooth expand/collapse for disclosure sections (pair with grid-rows-[0fr/1fr]). */
+.ja-collapse { transition: grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+
 @media (prefers-reduced-motion: reduce) {
-  .ja-fade, .ja-pop { animation: none; }
+  .ja-fade, .ja-pop, .ja-veil-in, .ja-stagger > * { animation: none; }
   .ja-userdot::after { animation: none; }
+  .ja-collapse { transition: none; }
 }
 
 /* Range slider themed to brand tokens so the track + thumb read in light AND

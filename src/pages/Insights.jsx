@@ -1,21 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Sparkles, RefreshCw, Loader2, Pin } from 'lucide-react'
-import { PageHeader, Card, Button } from '../components/ui'
+import { PageHeader, Card, Button, timeAgo } from '../components/ui'
 import { getSettings, generateInsights, getPins, addPin, removePin } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { plannedInsights } from '../data/mockData'
 import InsightCard from '../components/InsightCard'
-
-function timeAgo(iso) {
-  if (!iso) return ''
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
 
 export default function Insights({ embedded = false }) {
   const { profile, user } = useAuth()
@@ -74,7 +63,7 @@ export default function Insights({ embedded = false }) {
   return (
     <>
       {embedded ? (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 font-display text-h3 font-semibold text-ink-900">
             <Sparkles size={18} className="text-blue-500" /> Insights
           </h2>
@@ -144,7 +133,7 @@ export default function Insights({ embedded = false }) {
           </ul>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="ja-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {insights.filter((i) => !pinnedTitles.has(i.title)).map((ins, i) => (
             <InsightCard key={i} ins={ins} pin={{ pinned: false, onToggle: () => pinIns(ins) }} />
           ))}
