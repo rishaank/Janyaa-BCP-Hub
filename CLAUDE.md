@@ -85,8 +85,9 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   is the legal page), `Goals` (`/goals` — leadership goals with owner/progress/target date, any
   signed-in member can edit, surfaced on the dashboard), `AutoHours` (`/auto-hours` — role-based automatic
   volunteer hours; rules are admin-editable, members view read-only), `Locations` (Leaflet, dark-aware tiles),
-  `Insights` (Gemini), `AIStudio` (`/studio` — AI event **planner** wizard that auto-creates an event +
-  to-dos + timeline, next-event + location **suggestions**, and monthly **social-media** ideas),
+  `Insights` (Gemini), `AIStudio` (`/studio` — **Plan events** wizard (auto-creates an event +
+  to-dos + timeline) beside **Event suggestions** (next-event + location ideas), then the **Ask the Janyaa
+  assistant** chatbot and monthly **social-media** ideas; every AI block here auto-refreshes monthly),
   `History` (admin audit + GitHub commits), `ClubInfo` (`/club-info`,
   member-accessible — Janyaa reference links + impact facts), `Restaurants` (placeholder). AI insight
   cards are the shared `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
@@ -145,7 +146,10 @@ member-read, **admin-write**; in the realtime publication) auto-materialized sea
 `ensure_terms()` (SECURITY DEFINER, no-op when `club_settings.auto_terming` is off; never overwrites a
 window covered by an existing/edited term), `current_term_start()` now **prefers the terms table** (so
 admin edits move "this term" hours everywhere) with the seasonal rule as fallback, plus
-`profiles.ai_insight(_at)` and `terms.ai_summary(_at)` caches for the AI functions below. Tables: `profiles`, `events`, `event_signups`,
+`profiles.ai_insight(_at)` and `terms.ai_summary(_at)` caches for the AI functions below.
+Migration 0028 adds the **AI chatbot rate limiter**: `ai_chat_log` (one row per answered message, own-row
+read) + `check_ai_chat_rate(member)` (SECURITY DEFINER, service-role only) enforcing 4/min · 20/hr ·
+60/day per member and stamping usage in the same call. Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
 `locations`, `club_settings` (single shared row, `id = true`),
@@ -240,9 +244,19 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   (parses the `__NEXT_DATA__` Apollo cache) and writes the totals back. Runs on a **pg_cron schedule
   (every 3h)** + on the Fundraising page load + a manual "Sync now" button. **Self-throttled**: a sync
   newer than 60s is returned as `cached: true` instead of re-scraping (the endpoint is public).
-- **`calendar`** (`verify_jwt: false`) — serves all events as an `.ics` feed for calendar subscriptions
-  (the Events page "Subscribe" button). Tentative events are marked `STATUS:TENTATIVE` + `[Tentative]`
-  prefix; undated ones are skipped.
+- **`calendar`** (`verify_jwt: false`) — serves all events **and uncancelled club meetings** as one `.ics`
+  feed for calendar subscriptions (the Events page "Subscribe" button). Tentative events are marked
+  `STATUS:TENTATIVE` + `[Tentative]` prefix; undated ones are skipped. Hardened: a DB error returns a
+  valid (empty) calendar instead of a 500 that would drop subscribers; lines fold on UTF-8 byte
+  boundaries; every entry has a stable UID + `LAST-MODIFIED` + `CATEGORIES:Event|Meeting`.
+- **`ai-chat`** (`verify_jwt: true`) — the members-only assistant on `/ai-planning` (component
+  `src/components/AIChat.jsx`). Builds a LIVE club snapshot (events, members + hours, fundraising, goals,
+  locations, terms, meetings) + baked-in cited Janyaa facts, asks Gemini for an answer **plus structured
+  `references`** the client renders as clickable cards (event/member/goal/location/term/fundraising →
+  in-app links; `source` → external URL). Reference ids are validated against the real snapshot so cards
+  never point at hallucinated records. **Per-member rate-limited** via `check_ai_chat_rate()` (migration
+  0028: 4/min, 20/hr, 60/day) because Gemini is on the free tier; a 429 returns a friendly message + a
+  client-side cooldown. Requires `GEMINI_API_KEY`.
 - **`ai-insights`** (`verify_jwt: true`) — pulls real club data, asks Gemini for actionable insights,
   caches them in `club_settings.ai_insights`. Member hours come from the canonical
   `get_hours_breakdowns` RPC (same totals every screen shows — no double-counting of the imported
@@ -277,8 +291,9 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   (`adminCreateUser` / `adminInviteUser` / `adminSetPassword` / `adminSendReset` / `adminDeleteUser`),
   surfaced in the Members "Add member" modal + the profile page's admin Account section.
 - **`send-reminders`** (`verify_jwt: false`) — emails each member the to-do items they claimed for
-  events happening **tomorrow**, via the club Gmail over SMTP. Runs daily on a **pg_cron schedule
-  (15:00 UTC ≈ 8 AM PT, migration 0010)** + a manual admin "Email reminders" button on the Events page.
+  events happening **tomorrow**, via the club Gmail over SMTP. Runs **automatically** on a daily
+  **pg_cron schedule (15:00 UTC ≈ 8 AM PT, migration 0010)**. (The manual "Email reminders" button was
+  removed from the Events tab; the cron still runs, and `send-reminders` remains deployed.)
   **Requires the `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `FROM_EMAIL` secrets** (the
   club Gmail + an app password — the same custom-SMTP creds Supabase uses for invite/reset emails).
   Returns a "SMTP not set" message until configured. **Abuse-guarded**: a signed-in **admin** JWT runs

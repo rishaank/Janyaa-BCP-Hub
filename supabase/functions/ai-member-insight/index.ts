@@ -118,14 +118,18 @@ Deno.serve(async (req) => {
   }
 
   const prompt =
-    'You are a supportive mentor for a member of Janyaa BCP, a high-school STEM-education nonprofit club. ' +
-    'Write ONE personal insight about this member from their REAL data below: how their volunteering is going ' +
-    '(progress, momentum, standout contributions — cite concrete numbers and compare to the club averages) and ' +
-    '1-2 specific, encouraging areas to improve (e.g. sign up for an upcoming event, claim a to-do, push a stalled ' +
-    'goal). Address the member as "you". Keep it warm, specific, and useful — never generic. ' +
-    'Return: title (short, friendly), detail (2-3 sentences on their progress with numbers), improve (1-2 ' +
-    'sentences of specific next steps), metric (a tiny stat string like "12h this term"), and tone — "positive" if ' +
-    'they are ahead/on track, "neutral" if steady, "warning" only if engagement clearly dropped. DATA: ' +
+    'You are an honest, fair mentor for a member of Janyaa BCP, a high-school STEM-education nonprofit club. ' +
+    'Write ONE candid, balanced insight about this member from their REAL data below. Be truthful, not ' +
+    'flattering: give credit where the numbers earn it, but if they are below the club average, have logged ' +
+    'little this term, have no upcoming sign-ups, or have stalled goals or unfinished to-dos, say so plainly ' +
+    '(kindly, but do not sugar-coat or inflate). Compare to the club averages and cite concrete numbers. Then ' +
+    'give 1-2 specific, actionable areas to improve (e.g. sign up for an upcoming event, claim a to-do, push a ' +
+    'stalled goal). Address the member as "you". Avoid empty praise and generic encouragement. ' +
+    'Return: title (short, plain — reflect reality, not hype), detail (2-3 sentences assessing their progress ' +
+    'with real numbers and an honest comparison to peers), improve (1-2 sentences of specific next steps), ' +
+    'metric (a tiny stat string like "12h this term · below avg"), and tone — choose honestly: "positive" only ' +
+    'if they are genuinely ahead/on track, "neutral" if steady or average, "warning" if engagement is low or ' +
+    'clearly dropped. Do not default to positive. DATA: ' +
     JSON.stringify(summary)
 
   const res = await fetch(

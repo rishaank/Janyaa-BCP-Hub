@@ -9,6 +9,7 @@ import {
   getSettings, generateSuggestions, generateSocial, planEvent, createEvent, addTodo,
   getPins, addPin, removePin,
 } from '../lib/api'
+import AIChat from '../components/AIChat'
 
 export default function AIStudio({ embedded = false }) {
   const { user } = useAuth()
@@ -52,8 +53,12 @@ export default function AIStudio({ embedded = false }) {
         </Card>
       )}
 
-      <Planner />
-      <Suggestions settings={settings} onChange={load} {...pinProps('suggestions')} />
+      {/* Planning + suggestions side by side; the assistant sits below them. */}
+      <div className="mb-8 grid items-start gap-6 lg:grid-cols-2">
+        <Planner />
+        <Suggestions settings={settings} onChange={load} {...pinProps('suggestions')} />
+      </div>
+      <AIChat />
       <Social settings={settings} onChange={load} {...pinProps('social')} />
     </>
   )
@@ -95,11 +100,11 @@ function Planner() {
   }
 
   return (
-    <section className="mb-8">
+    <section className="flex h-full flex-col">
       <h2 className="mb-3 flex items-center gap-2 font-display text-h3 font-semibold text-ink-900">
-        <Wand2 size={18} className="text-green-600" /> Plan an event with AI
+        <Wand2 size={18} className="text-green-600" /> Plan events
       </h2>
-      <Card className="p-5">
+      <Card className="flex flex-1 flex-col p-5">
         <p className="mb-4 text-sm text-ink-600">
           Answer what you know and leave the rest blank — AI fills in the gaps, then drafts a full plan with a
           timeline and to-dos you can create in one click.
@@ -264,26 +269,28 @@ function Suggestions({ settings, onChange, pins, pin, unpin }) {
   }
 
   return (
-    <section className="mb-8">
+    <section className="flex h-full flex-col">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 font-display text-h3 font-semibold text-ink-900">
-          <Lightbulb size={18} className="text-gold-500" /> What to run next
+          <Lightbulb size={18} className="text-gold-500" /> Event suggestions
         </h2>
         <div className="flex flex-col items-end gap-1">
           <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
             {busy ? 'Thinking…' : events.length ? 'Refresh' : 'Generate'}
           </Button>
-          {settings?.ai_suggestions_at && !busy && <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_suggestions_at)}</span>}
+          {settings?.ai_suggestions_at && !busy && (
+            <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_suggestions_at)}</span>
+          )}
         </div>
       </div>
       {error && <Card className="mb-3 border-coral-200 bg-coral-50 p-3 text-sm text-coral-700">{error}</Card>}
 
       {events.length === 0 && locations.length === 0 && pins.length === 0 ? (
-        <Card className="p-6 text-center text-sm text-ink-500">
+        <Card className="flex-1 p-6 text-center text-sm text-ink-500">
           Hit Generate to get event + location ideas pulled from what’s worked before.
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4">
           <Card className="p-5">
             <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink-800"><CalendarPlus size={15} className="text-green-600" /> Event ideas</h3>
             <ul className="space-y-3">

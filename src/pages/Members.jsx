@@ -69,7 +69,7 @@ export default function Members() {
       </div>
 
       <div className="mt-6">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="ja-stagger grid gap-4 sm:grid-cols-2">
           <AccessCard
             icon={Users}
             title="Every member"
@@ -122,7 +122,7 @@ export default function Members() {
                   <th className="px-5 py-3 font-semibold">Total hours</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ink-100">
+              <tbody className="ja-stagger divide-y divide-ink-100">
                 {ranked.map((m, i) => (
                   <tr
                     key={m.id}

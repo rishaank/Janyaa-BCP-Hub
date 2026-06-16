@@ -53,11 +53,11 @@ export default function Insights({ embedded = false }) {
       {busy ? (
         <span className="text-xs text-ink-400">Analyzing club data — this takes ~20 seconds.</span>
       ) : settings?.ai_insights_at ? (
-        <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)}</span>
+        <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_insights_at)}</span>
       ) : null}
     </div>
   ) : settings?.ai_insights_at ? (
-    <span className="text-xs text-ink-400">Updated {timeAgo(settings.ai_insights_at)} · auto-refreshes on changes</span>
+    <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_insights_at)}</span>
   ) : null
 
   return (

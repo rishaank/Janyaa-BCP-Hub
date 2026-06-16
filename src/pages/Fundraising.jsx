@@ -205,7 +205,7 @@ export default function Fundraising() {
       </Card>
 
       {/* In-person event stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="ja-stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
         {loading ? (
           [0, 1, 2, 3].map((i) => (
             <Card key={i} className="p-5">

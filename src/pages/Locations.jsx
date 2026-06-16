@@ -273,7 +273,7 @@ export default function Locations() {
           <h3 className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
             Saved · {locations.length}
           </h3>
-          <div className="space-y-3 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
+          <div className="ja-stagger space-y-3 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
             {locations.length === 0 && <p className="text-sm text-ink-400">No saved locations yet.</p>}
             {locations.map((loc, i) => (
               <Card key={loc.id} className="p-4">

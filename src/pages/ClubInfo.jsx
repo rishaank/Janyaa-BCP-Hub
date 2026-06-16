@@ -194,7 +194,7 @@ export default function ClubInfo() {
         subtitle="Key links, forms, and Janyaa impact facts — all in one place."
       />
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="ja-stagger grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label} className="p-5 text-center">
             <p className="font-display text-3xl font-bold tabular-nums text-green-600">{s.value}</p>
@@ -208,7 +208,7 @@ export default function ClubInfo() {
       </Section>
 
       <Section title="Club documents" hint="The charter, plans, and applications.">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="ja-stagger grid gap-3 sm:grid-cols-2">
           {docs.map((d) => (
             <LinkCard key={d.title} {...d} />
           ))}
@@ -238,7 +238,7 @@ export default function ClubInfo() {
       </Section>
 
       <Section title="Forms & agreements" hint="New members start with the interest form, then complete all three agreements.">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="ja-stagger grid gap-3 sm:grid-cols-2">
           {forms.map((f) => (
             <LinkCard key={f.title} {...f} tone={f.primary ? 'green' : 'blue'} />
           ))}
@@ -246,7 +246,7 @@ export default function ClubInfo() {
       </Section>
 
       <Section title="Brand & links">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="ja-stagger grid gap-3 sm:grid-cols-3">
           {brand.map((b) => (
             <LinkCard key={b.title} {...b} tone="gold" />
           ))}
@@ -254,7 +254,7 @@ export default function ClubInfo() {
       </Section>
 
       <Section title="Janyaa impact facts" hint="Cited, copy-ready facts about Janyaa's mission and results.">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="ja-stagger grid gap-3 sm:grid-cols-2">
           {facts.map((f, i) => (
             <FactCard key={i} fact={f} />
           ))}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Mail, CalendarPlus, Repeat, List, CalendarDays, CalendarClock } from 'lucide-react'
+import { Plus, CalendarPlus, Repeat, List, CalendarDays, CalendarClock } from 'lucide-react'
 import { PageHeader, Card, Button } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -8,7 +8,6 @@ import {
   getMeetings,
   ensureUpcomingMeetings,
   autoGenerateInsights,
-  sendRemindersNow,
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import EventsCalendar from '../components/EventsCalendar'
@@ -25,8 +24,7 @@ const segBtn = (active) =>
 // Events and Meetings merged into one tab. A toggle picks which list you see; the
 // calendar view shows both at once. `?tab=meetings` deep-links the meetings list.
 export default function EventsMeetings() {
-  const { user, profile } = useAuth()
-  const isAdmin = !!profile?.is_admin
+  const { user } = useAuth()
 
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'meetings' ? 'meetings' : 'events'
@@ -44,7 +42,6 @@ export default function EventsMeetings() {
   const [meetingForm, setMeetingForm] = useState(false)
   const [editMeeting, setEditMeeting] = useState(null)
   const [seriesOpen, setSeriesOpen] = useState(false)
-  const [reminding, setReminding] = useState('')
 
   const loadEvents = () => getEvents().then(setEvents)
   const loadMeetings = () => getMeetings().then(setMeetings)
@@ -58,14 +55,6 @@ export default function EventsMeetings() {
   }, [])
   useRealtime(['events', 'event_signups', 'event_todos'], loadEvents)
   useRealtime(['meetings', 'meeting_series', 'meeting_attendees'], loadMeetings)
-
-  async function remindNow() {
-    setReminding('Sending…')
-    const { data, error } = await sendRemindersNow()
-    if (error || !data?.ok) setReminding('Failed')
-    else setReminding(data.sent > 0 ? `Sent ${data.sent}` : 'Nothing due')
-    setTimeout(() => setReminding(''), 2500)
-  }
 
   // Event buckets
   const tentative = events.filter((e) => e.is_tentative)
@@ -113,11 +102,6 @@ export default function EventsMeetings() {
               </>
             ) : tab === 'events' ? (
               <>
-                {isAdmin && (
-                  <Button variant="soft" icon={Mail} onClick={remindNow} disabled={reminding === 'Sending…'}>
-                    {reminding || 'Email reminders'}
-                  </Button>
-                )}
                 <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
                 <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
               </>
@@ -134,12 +118,14 @@ export default function EventsMeetings() {
       {loading ? (
         <LoadingRows />
       ) : view === 'calendar' ? (
-        <EventsCalendar
-          events={events}
-          meetings={meetings}
-          onSelectEvent={openEditEvent}
-          onSelectMeeting={openEditMeeting}
-        />
+        <div className="ja-fade">
+          <EventsCalendar
+            events={events}
+            meetings={meetings}
+            onSelectEvent={openEditEvent}
+            onSelectMeeting={openEditMeeting}
+          />
+        </div>
       ) : tab === 'events' ? (
         <>
           <Section title="Upcoming" count={upcomingEvents.length}>
@@ -210,7 +196,7 @@ function Section({ title, count, children }) {
       {count === 0 ? (
         <p className="text-sm text-ink-400">Nothing here yet.</p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">{children}</div>
+        <div className="ja-stagger grid gap-4 lg:grid-cols-2">{children}</div>
       )}
     </section>
   )

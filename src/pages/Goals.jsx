@@ -94,7 +94,7 @@ function Section({ title, count, children }) {
       {count === 0 ? (
         <p className="text-sm text-ink-400">Nothing here yet.</p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">{children}</div>
+        <div className="ja-stagger grid gap-4 lg:grid-cols-2">{children}</div>
       )}
     </section>
   )

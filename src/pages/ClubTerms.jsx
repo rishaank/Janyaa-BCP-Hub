@@ -99,7 +99,7 @@ export default function ClubTerms() {
     <>
       <PageHeader
         title="Terms"
-        subtitle="Every club term — events, meetings, members, and money — with an AI breakdown of each."
+        subtitle="Every club term — events, meetings, members, and money — with an AI breakdown that refreshes monthly."
         action={
           isAdmin ? (
             <div className="flex flex-col items-end gap-1">

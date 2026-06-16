@@ -570,6 +570,55 @@ export async function autoGenerateInsights(minMinutes = 10) {
   }
 }
 
+const MONTH_MIN = 60 * 24 * 30 // 30 days, in minutes
+
+// Monthly auto-refresh for the AI Planning page: regenerate insights and
+// next-event suggestions if their cache is over a month old. Best-effort and
+// throttled by cache age, so a normal page visit costs nothing. Social posts
+// have their own monthly cron + page Refresh, and run on the same cadence.
+export async function autoRefreshMonthlyAI() {
+  try {
+    const { data } = await supabase
+      .from('club_settings')
+      .select('ai_insights_at, ai_suggestions_at')
+      .eq('id', true)
+      .single()
+    const ageMin = (iso) => (iso ? (Date.now() - new Date(iso).getTime()) / 60000 : Infinity)
+    const jobs = []
+    if (ageMin(data?.ai_insights_at) >= MONTH_MIN) jobs.push(supabase.functions.invoke('ai-insights'))
+    if (ageMin(data?.ai_suggestions_at) >= MONTH_MIN) jobs.push(supabase.functions.invoke('ai-suggestions'))
+    if (jobs.length) await Promise.allSettled(jobs)
+    return jobs.length > 0
+  } catch {
+    return false
+  }
+}
+
+// ---- AI chatbot (ai-chat) ------------------------------------------------
+
+// Send the conversation (array of {role:'user'|'assistant', content}) to the
+// members-only assistant. Returns the function's JSON body directly — on a 429
+// (rate limit) or other error the Edge Function still returns a structured body
+// ({ ok:false, error, rateLimited, retryAfterSeconds, usage }), which we unwrap
+// from the FunctionsHttpError so the UI can show the message.
+export async function chatWithAI(messages) {
+  try {
+    const { data, error } = await supabase.functions.invoke('ai-chat', { body: { messages } })
+    if (error) {
+      try {
+        const body = await error.context.json()
+        if (body) return body
+      } catch {
+        /* not a JSON error body */
+      }
+      return { ok: false, error: error.message || 'Could not reach the assistant.' }
+    }
+    return data
+  } catch (error) {
+    return { ok: false, error: error?.message || 'Could not reach the assistant.' }
+  }
+}
+
 // ---- Locations -----------------------------------------------------------
 
 export async function getLocations() {
@@ -649,16 +698,8 @@ export const adminDeleteUser = (id) => callAdminUsers({ action: 'delete', id })
 // California SB 568 "eraser" right). No admin needed; sign out after it returns.
 export const deleteOwnAccount = () => callAdminUsers({ action: 'deleteSelf' })
 
-// ---- Reminder emails (Edge Function: send-reminders) ---------------------
-
-// Manually trigger tomorrow's to-do reminder emails (admin "Send now" button).
-export async function sendRemindersNow() {
-  try {
-    return await supabase.functions.invoke('send-reminders', { body: {} })
-  } catch (error) {
-    return { data: null, error }
-  }
-}
+// Note: the manual "Email reminders" button was removed from the Events tab.
+// The send-reminders Edge Function still runs automatically on its daily pg_cron.
 
 // ---- helpers -------------------------------------------------------------
 

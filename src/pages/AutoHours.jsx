@@ -84,7 +84,7 @@ export default function AutoHours() {
           ))}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="ja-stagger space-y-3">
           {ordered.map((rule) => (
             <RuleRow key={rule.role} rule={rule} isAdmin={isAdmin} />
           ))}
