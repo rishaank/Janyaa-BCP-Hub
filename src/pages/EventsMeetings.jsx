@@ -94,17 +94,15 @@ export default function EventsMeetings() {
                 </button>
               </div>
             )}
+            {/* Subscribe stays put in every view so it doesn't jump between tabs. */}
+            <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
             {view === 'calendar' ? (
               <>
-                <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
                 <Button variant="soft" icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
                 <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
               </>
             ) : tab === 'events' ? (
-              <>
-                <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
-                <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
-              </>
+              <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
             ) : (
               <>
                 <Button variant="soft" icon={Repeat} onClick={() => setSeriesOpen(true)}>Recurring</Button>
