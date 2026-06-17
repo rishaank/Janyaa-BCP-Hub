@@ -49,13 +49,15 @@ const memberNav = [
   { to: '/locations', label: 'Locations', icon: MapPin },
   { to: '/club-terms', label: 'Terms', icon: CalendarRange },
   { to: '/goals', label: 'Goals', icon: Target },
-  { to: '/auto-hours', label: 'Auto Hours', icon: Hourglass },
   { to: '/ai-planning', label: 'AI Planning', icon: Sparkles },
   { to: '/club', label: 'Club Info', icon: Info },
 ]
 
 // Admin-only pages — a nested collapsible group within "Members only".
-const adminNav = [{ to: '/history', label: 'History', icon: History }]
+const adminNav = [
+  { to: '/auto-hours', label: 'Auto Hours', icon: Hourglass },
+  { to: '/history', label: 'History', icon: History },
+]
 
 // Red notification count (e.g. unanswered hours requests).
 function CountDot({ n }) {

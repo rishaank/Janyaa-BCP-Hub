@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Clock, Info, RefreshCw, Check } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, EditAccessChip, roleLabels } from '../components/ui'
+import { PageHeader, Card, Button, Badge, EditAccessChip, EmptyState, roleLabels } from '../components/ui'
 import { getRoleHoursRules, updateRoleHoursRule, ensureMonthlyRoleHours } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -35,6 +35,17 @@ export default function AutoHours() {
   }
 
   const ordered = [...rules].sort((a, b) => ORDER.indexOf(a.role) - ORDER.indexOf(b.role))
+
+  if (!isAdmin) {
+    return (
+      <>
+        <PageHeader title="Auto hours" />
+        <EmptyState icon={Clock} title="Admins only">
+          Auto-hours rules are managed by club admins.
+        </EmptyState>
+      </>
+    )
+  }
 
   return (
     <>
