@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Users, Clock, ArrowRight, Sparkles, Target, LogIn, AlertTriangle, X, Check, PiggyBank,
+  CalendarDays, Presentation,
 } from 'lucide-react'
 import {
   StatPill, Card, PageHeader, Avatar, ProgressBar, Button, Skeleton, roleTones,
@@ -182,6 +183,20 @@ export default function Dashboard() {
           value={`${Number(d.term_hours)}h`}
           label="this term"
           hint={`${Number(d.total_hours)}h all-time`}
+          tone="blue"
+        />
+        <StatPill
+          icon={CalendarDays}
+          value={Number(d.events_term ?? 0)}
+          label="events this term"
+          hint={`${Number(d.events_count ?? 0)} all-time`}
+          tone="green"
+        />
+        <StatPill
+          icon={Presentation}
+          value={Number(d.meetings_term ?? 0)}
+          label="meetings this term"
+          hint={`${Number(d.meetings_count ?? 0)} all-time`}
           tone="blue"
         />
         <FundraisingPill raised={fundRaised} target={fundTarget} />

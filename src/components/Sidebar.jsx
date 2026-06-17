@@ -43,7 +43,7 @@ const affiliateNav = [
 
 // Internal club operations — tucked under a collapsible "Members only" group.
 const memberNav = [
-  { to: '/members', label: 'Members', icon: Users },
+  { to: '/members', label: 'Members & Hours', icon: Users },
   { to: '/events', label: 'Events & Meetings', icon: CalendarDays },
   { to: '/fundraising', label: 'Fundraising', icon: PiggyBank },
   { to: '/locations', label: 'Locations', icon: MapPin },
@@ -207,7 +207,7 @@ export default function Sidebar({ open, onClose }) {
                       >
                         <span className="flex items-center gap-2">
                           <Shield size={13} className="opacity-70" />
-                          Admin pages
+                          Admin only
                         </span>
                         <ChevronDown size={14} className={`transition-transform ${adminOpen ? '' : '-rotate-90'}`} />
                       </button>
