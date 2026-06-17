@@ -71,7 +71,6 @@ const cadenceQs = [
   { key: 'when', label: 'When? (a date, month, or “a Saturday in July”)', type: 'text', placeholder: 'e.g. a weekend in July' },
   { key: 'time', label: 'Time of day?', type: 'select', options: ['Morning', 'Afternoon', 'Evening'] },
   { key: 'location', label: 'Where? (a place, or leave to AI)', type: 'text', placeholder: 'e.g. Evergreen Village Square' },
-  { key: 'audience', label: 'Who is it for?', type: 'text', placeholder: 'e.g. families with young kids' },
   { key: 'duration', label: 'Roughly how long?', type: 'select', options: ['1 hour', '2 hours', '3 hours', '4+ hours'] },
 ]
 
