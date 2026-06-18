@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Target, Plus, Pencil, Trash2, Check, X, Lock, GripVertical } from 'lucide-react'
+import { Target, Plus, Pencil, Trash2, Check, X, Lock, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
 import { PageHeader, Card, Button, Modal, FormField, inputClass, Avatar, roleTones, roleLabels } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -26,11 +26,16 @@ function termMonths(termStartIso) {
 }
 
 const tierOf = (role) => (role && role !== 'member' ? 'Leadership' : 'Members')
+const tierLabel = { Leadership: 'Leadership', Members: 'Non-Leadership' }
 const toneOf = (role) => roleTones[role] ?? 'ink'
 const ROLE_ORDER = ['operations_lead', 'event_lead', 'pr_lead', 'outreach_lead', 'secretary', 'education_lead', 'member']
 
 // Column widths (px) — mirror the style-guide grid.
 const W = { member: 224, term: 244, mon: 168, flag: 56 }
+
+// Select with extra right padding so text clears the native dropdown arrow.
+const selectClass =
+  'w-full rounded-md border border-ink-300 bg-surface py-2.5 pl-3 pr-9 text-sm text-ink-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100'
 
 export default function Goals() {
   const { user, profile } = useAuth()
@@ -42,6 +47,13 @@ export default function Goals() {
   const [loading, setLoading] = useState(true)
   const [edit, setEdit] = useState(null) // { goal? , owner_id?, period? } | null
   const [targetsOpen, setTargetsOpen] = useState(false)
+  const [collapsedRows, setCollapsedRows] = useState(() => new Set()) // member ids
+  const [collapsedTiers, setCollapsedTiers] = useState(() => new Set()) // tier keys
+
+  const toggleRow = (id) =>
+    setCollapsedRows((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleTier = (t) =>
+    setCollapsedTiers((s) => { const n = new Set(s); n.has(t) ? n.delete(t) : n.add(t); return n })
 
   const loadGoals = () => getGoals().then(setGoals)
   const loadTargets = () => getSettings().then((s) => setTargets(Array.isArray(s?.term_targets) ? s.term_targets : []))
@@ -106,20 +118,19 @@ export default function Goals() {
             <Lock size={12} /> Read-only
           </span>
         )}
-        action={isAdmin && <Button icon={Plus} onClick={() => setEdit({})}>Add goal</Button>}
+        action={isAdmin && <Button icon={Plus} onClick={() => setEdit({})}>Add Goal</Button>}
       />
 
       {/* Semester targets strip */}
       <TargetsStrip targets={targets} editable={isAdmin} onEdit={() => setTargetsOpen(true)} />
 
-      {/* Desktop grid */}
-      <div className="mt-6 hidden overflow-hidden rounded-2xl border border-ink-200 bg-surface shadow-sm lg:block">
-        <div className="overflow-x-auto">
-          <div className="min-w-max">
+      {/* Desktop grid — the card hugs the table so columns sit flush (no empty gutter). */}
+      <div className="mt-6 hidden max-w-full overflow-x-auto rounded-2xl border border-ink-200 bg-surface shadow-sm lg:inline-block lg:align-top">
+        <div className="w-max">
             {/* Header */}
             <div className="flex border-b border-ink-200 bg-ink-50">
               <HCell w={W.member} className="justify-start pl-4">Member</HCell>
-              <HCell w={W.term} className="shadow-[inset_2px_0_0_var(--color-gold-500)]">
+              <HCell w={W.term}>
                 <span className="font-mono text-[11px] font-bold uppercase tracking-[0.09em] text-gold-700">Term goal</span>
               </HCell>
               {months.map((mo) => (
@@ -135,10 +146,11 @@ export default function Goals() {
             {['Leadership', 'Members'].map((tier) => {
               const rows = ordered[tier]
               if (rows.length === 0) return null
+              const tierCollapsed = collapsedTiers.has(tier)
               return (
                 <div key={tier}>
-                  <GroupBand tier={tier} rows={rows} byCell={byCell} />
-                  {rows.map((m, i) => (
+                  <GroupBand tier={tier} rows={rows} byCell={byCell} collapsed={tierCollapsed} onToggle={() => toggleTier(tier)} />
+                  {!tierCollapsed && rows.map((m, i) => (
                     <PersonRow
                       key={m.id}
                       m={m}
@@ -146,6 +158,8 @@ export default function Goals() {
                       byCell={byCell}
                       zebra={i % 2 === 1}
                       isAdmin={isAdmin}
+                      collapsed={collapsedRows.has(m.id)}
+                      onToggleRow={() => toggleRow(m.id)}
                       onAdd={(period) => setEdit({ owner_id: m.id, period })}
                       onOpen={(goal) => setEdit({ goal })}
                       onMove={moveGoal}
@@ -154,7 +168,6 @@ export default function Goals() {
                 </div>
               )
             })}
-          </div>
         </div>
       </div>
 
@@ -164,7 +177,7 @@ export default function Goals() {
           ordered[tier].length > 0 ? (
             <div key={tier} className="mb-6">
               <div className="mb-3 flex items-center gap-2">
-                <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-700">{tier}</span>
+                <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-700">{tierLabel[tier] ?? tier}</span>
                 <span className="font-mono text-2xs text-ink-400">· {ordered[tier].length}</span>
               </div>
               <div className="ja-stagger space-y-3">
@@ -212,7 +225,7 @@ function HCell({ w, className = '', children, title }) {
   )
 }
 
-function GroupBand({ tier, rows, byCell }) {
+function GroupBand({ tier, rows, byCell, collapsed, onToggle }) {
   // Collect every goal's progress for this tier (for the "N goals set · X% avg" stat).
   const all = []
   rows.forEach((m) => {
@@ -221,9 +234,17 @@ function GroupBand({ tier, rows, byCell }) {
     })
   })
   const avg = all.length ? Math.round(all.reduce((a, b) => a + b, 0) / all.length) : 0
+  const Chev = collapsed ? ChevronRight : ChevronDown
   return (
-    <div className="flex items-center gap-2 border-b border-ink-200 bg-ink-100 px-4 py-2">
-      <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-700">{tier}</span>
+    <div className="flex items-center gap-1.5 border-b border-ink-200 bg-ink-100 py-2 pl-2 pr-4">
+      <button
+        onClick={onToggle}
+        className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink-500 transition-colors hover:bg-ink-200 hover:text-ink-800"
+        aria-label={collapsed ? `Expand ${tierLabel[tier] ?? tier}` : `Collapse ${tierLabel[tier] ?? tier}`}
+      >
+        <Chev size={15} />
+      </button>
+      <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-700">{tierLabel[tier] ?? tier}</span>
       <span className="font-mono text-2xs text-ink-400">· {rows.length}</span>
       <span className="flex-1" />
       <span className="font-mono text-2xs text-ink-500">{all.length} goals set · {avg}% avg</span>
@@ -231,21 +252,29 @@ function GroupBand({ tier, rows, byCell }) {
   )
 }
 
-function PersonRow({ m, months, byCell, zebra, isAdmin, onAdd, onOpen, onMove }) {
+function PersonRow({ m, months, byCell, zebra, isAdmin, collapsed, onToggleRow, onAdd, onOpen, onMove }) {
   const termGoals = byCell[`${m.id}|TERM`] ?? []
   const termDone = termGoals.length > 0 && termGoals.every((g) => (g.progress || 0) >= 100)
+  const Chev = collapsed ? ChevronRight : ChevronDown
   return (
-    <div className={`flex border-b border-ink-200 last:border-b-0 hover:bg-blue-500/5 ${zebra ? 'bg-ink-50/60' : ''}`}>
-      <div style={{ width: W.member }} className="flex shrink-0 items-center gap-3 border-r border-ink-200 px-3.5 py-3">
+    <div className={`flex border-b border-ink-200 last:border-b-0 hover:bg-ink-100 ${zebra ? 'bg-ink-50/60' : ''}`}>
+      <div style={{ width: W.member }} className="flex shrink-0 items-center gap-2 border-r border-ink-200 py-3 pl-2 pr-3">
+        <button
+          onClick={onToggleRow}
+          className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink-400 transition-colors hover:bg-ink-200 hover:text-ink-700"
+          aria-label={collapsed ? `Expand ${m.name}` : `Collapse ${m.name}`}
+        >
+          <Chev size={15} />
+        </button>
         <Avatar size="sm" initials={initialsOf(m.name)} tone={toneOf(m.role)} src={m.avatar_url} />
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ink-900">{m.name}</p>
           <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-500">{roleLabels[m.role] ?? m.role}</p>
         </div>
       </div>
-      <GridCell w={W.term} isTerm goals={byCell[`${m.id}|TERM`]} period="TERM" memberId={m.id} isAdmin={isAdmin} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
+      <GridCell w={W.term} isTerm goals={byCell[`${m.id}|TERM`]} period="TERM" memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
       {months.map((mo) => (
-        <GridCell key={mo.key} w={W.mon} goals={byCell[`${m.id}|${mo.key}`]} period={mo.key} memberId={m.id} isAdmin={isAdmin} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
+        <GridCell key={mo.key} w={W.mon} goals={byCell[`${m.id}|${mo.key}`]} period={mo.key} memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
       ))}
       <div style={{ width: W.flag }} className="flex shrink-0 items-center justify-center px-2 py-3">
         <span className={`grid h-5 w-5 place-items-center rounded-md border ${termDone ? 'border-green-600 bg-green-600 text-white' : 'border-ink-300 bg-surface'}`} title={termDone ? 'Term goal complete' : 'Term goal not complete'}>
@@ -256,8 +285,20 @@ function PersonRow({ m, months, byCell, zebra, isAdmin, onAdd, onOpen, onMove })
   )
 }
 
-function GridCell({ w, goals = [], isTerm, period, memberId, isAdmin, onAdd, onOpen, onMove }) {
+function GridCell({ w, goals = [], isTerm, period, memberId, isAdmin, collapsed, onAdd, onOpen, onMove }) {
   const [over, setOver] = useState(false)
+  // Collapsed rows just show the goal count per column at member-row height.
+  if (collapsed) {
+    return (
+      <div style={{ width: w }} className="flex shrink-0 items-center justify-center border-r border-ink-200 px-2 py-2 last:border-r-0">
+        {goals.length ? (
+          <span className="font-mono text-xs font-semibold tabular-nums text-ink-600">{goals.length}</span>
+        ) : (
+          <span className="text-ink-300">—</span>
+        )}
+      </div>
+    )
+  }
   const dropProps = isAdmin
     ? {
         onDragOver: (e) => { e.preventDefault(); setOver(true) },
@@ -373,7 +414,7 @@ function MobilePersonCard({ m, months, byCell, isAdmin, onAdd, onOpen }) {
           onClick={() => onAdd('TERM')}
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-ink-200 py-2.5 text-sm font-semibold text-ink-400 transition hover:border-green-500 hover:text-green-600"
         >
-          <Plus size={15} /> Add a goal
+          <Plus size={15} /> Add a Goal
         </button>
       ) : (
         <div className="mt-3 rounded-xl bg-ink-50 py-2.5 text-center text-xs text-ink-400">No goals set yet</div>
@@ -387,7 +428,7 @@ function MobilePersonCard({ m, months, byCell, isAdmin, onAdd, onOpen }) {
 function TargetsStrip({ targets, editable, onEdit }) {
   if (!targets.length && !editable) return null
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-green-200 bg-green-50/60 px-4 py-3">
+    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-ink-200 bg-ink-50 px-4 py-3">
       <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">Semester targets</span>
       <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-2">
         {targets.length === 0 ? (
@@ -431,7 +472,7 @@ function TargetsEditorModal({ open, targets, onClose, onSave }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Edit semester targets">
+    <Modal open={open} onClose={onClose} title="Edit Semester Targets">
       <div className="space-y-3">
         <p className="text-sm text-ink-600">Club-wide goals for the term. These also show on the dashboard.</p>
         <div className="space-y-2">
@@ -464,11 +505,11 @@ function TargetsEditorModal({ open, targets, onClose, onSave }) {
           onClick={() => setItems([...items, { label: '', sub: '' }])}
           className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-ink-300 py-2.5 text-sm font-semibold text-ink-500 transition hover:border-green-500 hover:text-green-600"
         >
-          <Plus size={15} /> Add target
+          <Plus size={15} /> Add Target
         </button>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" onClick={onClose}>Cancel</Button>
-          <Button icon={Check} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save targets'}</Button>
+          <Button icon={Check} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Targets'}</Button>
         </div>
       </div>
     </Modal>
@@ -514,11 +555,11 @@ function GoalEditModal({ state, members, months, myId, onClose, onSaved }) {
   }
 
   return (
-    <Modal open onClose={onClose} title={editing ? 'Edit goal' : 'Add goal'}>
+    <Modal open onClose={onClose} title={editing ? 'Edit Goal' : 'Add Goal'}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Member">
-            <select className={inputClass} value={ownerId} onChange={(e) => setOwnerId(e.target.value)} required>
+            <select className={selectClass} value={ownerId} onChange={(e) => setOwnerId(e.target.value)} required>
               <option value="">Pick a member…</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
@@ -526,7 +567,7 @@ function GoalEditModal({ state, members, months, myId, onClose, onSaved }) {
             </select>
           </FormField>
           <FormField label="When">
-            <select className={inputClass} value={period} onChange={(e) => setPeriod(e.target.value)}>
+            <select className={selectClass} value={period} onChange={(e) => setPeriod(e.target.value)}>
               {periodOptions.map((p) => (
                 <option key={p.key} value={p.key}>{p.label}</option>
               ))}
@@ -547,7 +588,7 @@ function GoalEditModal({ state, members, months, myId, onClose, onSaved }) {
           ) : <span />}
           <div className="flex gap-2">
             <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save' : 'Add goal'}</Button>
+            <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save' : 'Add Goal'}</Button>
           </div>
         </div>
       </form>

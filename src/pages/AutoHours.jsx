@@ -39,7 +39,7 @@ export default function AutoHours() {
   if (!isAdmin) {
     return (
       <>
-        <PageHeader title="Auto hours" />
+        <PageHeader title="Auto Hours" />
         <EmptyState icon={Clock} title="Admins only">
           Auto-hours rules are managed by club admins.
         </EmptyState>
@@ -50,7 +50,7 @@ export default function AutoHours() {
   return (
     <>
       <PageHeader
-        title="Auto hours"
+        title="Auto Hours"
         subtitle="Volunteer hours that accrue automatically based on a member's role."
         action={
           isAdmin && (
@@ -69,7 +69,7 @@ export default function AutoHours() {
                     ? 'Granted'
                     : running === 'error'
                       ? 'Failed'
-                      : 'Grant this month'}
+                      : 'Grant This Month'}
               </Button>
             </div>
           )

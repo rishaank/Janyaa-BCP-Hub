@@ -9,7 +9,7 @@ import {
 } from '../components/ui'
 import {
   getPublicDashboard, initials, getPins, addPin, removePin,
-  getMyHoursRequests, dismissHoursRequest, currentTerm,
+  getMyHoursRequests, dismissHoursRequest, currentTerm, periodLabel,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -206,7 +206,7 @@ export default function Dashboard() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
         {/* Upcoming events + meetings */}
         <div className="grid gap-6 sm:grid-cols-2 lg:col-span-2">
-          <ListCard title="Upcoming events" to="/events" empty="No upcoming events scheduled." className="h-full">
+          <ListCard title="Upcoming Events" to="/events" empty="No upcoming events scheduled." className="h-full">
               {events.map((e) => (
                 <li key={e.id} className="first:pt-0 last:pb-0">
                   <Link to={`/events/${e.id}`} className="group flex items-center gap-3 py-2.5">
@@ -221,7 +221,7 @@ export default function Dashboard() {
               ))}
             </ListCard>
 
-          <ListCard title="Upcoming meetings" to="/events?tab=meetings" empty="No meetings on the schedule." className="h-full">
+          <ListCard title="Upcoming Meetings" to="/events?tab=meetings" empty="No meetings on the schedule." className="h-full">
               {meetings.map((m) => (
                 <li key={m.id} className="first:pt-0 last:pb-0">
                   <Link to={`/meetings/${m.id}`} className="group flex items-center gap-3 py-2.5">
@@ -240,7 +240,7 @@ export default function Dashboard() {
         {/* Hours leaderboard with term / all-time toggle */}
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-ink-900">Hours leaderboard</h3>
+            <h3 className="font-semibold text-ink-900">Hours Leaderboard</h3>
             <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
               {[['term', 'This term'], ['all', 'All time']].map(([val, label]) => (
                 <button
@@ -298,7 +298,7 @@ export default function Dashboard() {
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 font-semibold text-ink-900">
-              <Target size={16} className="text-green-600" /> Leadership goals
+              <Target size={16} className="text-green-600" /> Leadership Goals
             </h3>
             <Link to="/goals" className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
               View all <ArrowRight size={14} />
@@ -307,7 +307,7 @@ export default function Dashboard() {
 
           {termTargets.length > 0 && (
             <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-green-200 bg-green-50/60 px-4 py-3">
-              <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">Semester targets</span>
+              <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">Semester Targets</span>
               {termTargets.map((t, i) => (
                 <span key={i} className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700">
                   <Target size={13} className="text-green-600" />
@@ -321,6 +321,7 @@ export default function Dashboard() {
           <div className="ja-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {goals.slice(0, 3).map((g) => (
               <Card key={g.id} className="flex flex-col p-5">
+                <span className="mb-1 font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-400">{periodLabel(g.period)}</span>
                 <h4 className="font-display text-h4 font-semibold text-ink-900">{g.title}</h4>
                 {g.detail && <p className="mt-1 line-clamp-2 text-sm text-ink-600">{g.detail}</p>}
                 <div className="mt-auto pt-4">

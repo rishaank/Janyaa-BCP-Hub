@@ -381,7 +381,7 @@ function SearchBar({ onPick }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search a place, address, or business…"
-            className={`${inputClass} pl-9`}
+            className="w-full rounded-lg border border-ink-300 bg-surface py-2.5 pl-9 pr-3 text-sm text-ink-900 placeholder-ink-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           />
         </div>
         <Button type="submit" disabled={busy} icon={busy ? Loader2 : Search}>

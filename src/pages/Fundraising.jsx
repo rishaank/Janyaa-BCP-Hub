@@ -177,7 +177,7 @@ export default function Fundraising() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-ink-300 bg-surface p-2 text-ink-800 transition-colors hover:bg-ink-50 disabled:opacity-60 sm:px-3.5 sm:py-2 sm:text-sm sm:font-semibold"
             >
               {syncing ? <Loader2 size={16} className="shrink-0 animate-spin" /> : <RefreshCw size={16} className="shrink-0" />}
-              <span className="hidden sm:inline">{syncing ? 'Syncing…' : 'Sync now'}</span>
+              <span className="hidden sm:inline">{syncing ? 'Syncing…' : 'Sync Now'}</span>
             </button>
           </div>
         </div>
@@ -185,13 +185,13 @@ export default function Fundraising() {
         <div className="p-6">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <div>
-              <p className="text-sm font-medium text-ink-500">Raised so far</p>
+              <p className="text-sm font-medium text-ink-500">Raised So Far</p>
               <p className="mt-0.5 font-display text-5xl font-bold tracking-tight tabular-nums text-green-700">
                 {gfmRaised != null ? `$${gfmRaised.toLocaleString()}` : '—'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-medium text-ink-500">Shared goal</p>
+              <p className="text-sm font-medium text-ink-500">Shared Goal</p>
               <div className="mt-0.5 text-2xl font-bold text-ink-900">
                 <EditableGoal target={target} editable={!!settings} onSaved={loadSettings} />
               </div>
@@ -238,7 +238,7 @@ export default function Fundraising() {
       {/* Cumulative graph + projection */}
       <Card className="mt-6 p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-semibold text-ink-900">In-person fundraising over time</h3>
+          <h3 className="font-semibold text-ink-900">In-Person Fundraising Over Time</h3>
           <div className="flex items-center gap-4 text-xs text-ink-500">
             <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-green-600" /> Actual</span>
             <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full border border-dashed border-gold-500" /> Projected</span>
@@ -291,7 +291,7 @@ export default function Fundraising() {
 
       {/* Best days to fundraise — peak times for planning */}
       <Card className="mt-6 p-5">
-        <h3 className="mb-1 font-semibold text-ink-900">Best days to fundraise</h3>
+        <h3 className="mb-1 font-semibold text-ink-900">Best Days to Fundraise</h3>
         <p className="mb-3 text-sm text-ink-500">
           Average raised per weekday from past events.
           {bestDay && ` ${bestDay.day} leads at about $${bestDay.avgRaised} per event.`}
@@ -301,7 +301,7 @@ export default function Fundraising() {
 
       {/* Per-event breakdown */}
       <Card className="mt-6 p-5">
-        <h3 className="mb-4 font-semibold text-ink-900">By event</h3>
+        <h3 className="mb-4 font-semibold text-ink-900">By Event</h3>
         {events.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-400">No fundraising events yet.</p>
         ) : (

@@ -51,7 +51,7 @@ export default function Members() {
             <Button variant="soft" icon={exporting ? Loader2 : Download} loading={exporting} onClick={exportAll} disabled={exporting}>
               {exporting ? 'Exporting…' : 'Export hours'}
             </Button>
-            {isAdmin && <Button icon={UserPlus} onClick={() => setAddOpen(true)}>Add member</Button>}
+            {isAdmin && <Button icon={UserPlus} onClick={() => setAddOpen(true)}>Add Member</Button>}
           </div>
         }
       />

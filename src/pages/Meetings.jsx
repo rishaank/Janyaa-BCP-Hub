@@ -91,7 +91,7 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
             {meeting.location && (
               <span className="flex min-w-0 max-w-full items-center gap-1.5">
                 <MapPin size={14} className="shrink-0 text-ink-400" />
-                <span className="min-w-0 break-all">{meeting.location}</span>
+                <span className="min-w-0 break-all"><Linkify>{meeting.location}</Linkify></span>
               </span>
             )}
           </div>
@@ -297,7 +297,7 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit meeting' : 'Add meeting'}>
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit Meeting' : 'Add Meeting'}>
       <form onSubmit={submit} className="space-y-3">
         <FormField label="Title">
           <input className={inputClass} value={form.title} onChange={set('title')} required placeholder="Weekly officer sync" />
@@ -348,13 +348,13 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
               onClick={() => setForm({ ...form, links: [...(form.links ?? []), ''] })}
               className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
             >
-              <Link2 size={14} /> Add a link
+              <Link2 size={14} /> Add a Link
             </button>
           </div>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add meeting'}</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Meeting'}</Button>
         </div>
       </form>
     </Modal>
@@ -408,7 +408,7 @@ export function SeriesModal({ open, onClose, onChange }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Recurring meetings">
+    <Modal open={open} onClose={onClose} title="Recurring Meetings">
       <div className="space-y-4">
         <p className="text-sm text-ink-600">
           Set a weekly schedule (like every Thursday) and the Hub auto-creates the meetings for the next two
@@ -451,7 +451,7 @@ export function SeriesModal({ open, onClose, onChange }) {
 
         <form onSubmit={add} className="space-y-3 rounded-xl border border-ink-200 bg-ink-50/50 p-3">
           <p className="flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
-            <Plus size={13} /> New weekly schedule
+            <Plus size={13} /> New Weekly Schedule
           </p>
           <FormField label="Title">
             <input className={inputClass} value={form.title} onChange={set('title')} required placeholder="Thursday club meeting" />
@@ -477,7 +477,7 @@ export function SeriesModal({ open, onClose, onChange }) {
             </FormField>
           </div>
           <div className="flex justify-end">
-            <Button type="submit" icon={Check} disabled={busy}>{busy ? 'Adding…' : 'Add schedule'}</Button>
+            <Button type="submit" icon={Check} disabled={busy}>{busy ? 'Adding…' : 'Add Schedule'}</Button>
           </div>
         </form>
       </div>

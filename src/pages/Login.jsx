@@ -66,7 +66,7 @@ export default function Login() {
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-ink-900">Sign in</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-ink-900">Sign In</h2>
           <p className="mt-1 text-sm text-ink-500">Welcome back to the Janyaa Hub.</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
@@ -97,7 +97,7 @@ export default function Login() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-500 disabled:opacity-60"
             >
               {busy && <Loader2 size={16} className="animate-spin" />}
-              Sign in
+              Sign In
             </button>
           </form>
 

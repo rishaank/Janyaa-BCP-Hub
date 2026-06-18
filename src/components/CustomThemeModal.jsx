@@ -128,7 +128,7 @@ export default function CustomThemeModal({ open, onClose }) {
 
         <div className="flex items-center justify-between pt-1">
           {saved ? (
-            <Button variant="danger" icon={Trash2} onClick={clearTheme}>Remove theme</Button>
+            <Button variant="danger" icon={Trash2} onClick={clearTheme}>Remove Theme</Button>
           ) : (
             <span />
           )}

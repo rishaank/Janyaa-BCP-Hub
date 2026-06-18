@@ -30,6 +30,14 @@ export function currentTermStart(date = new Date()) {
   return `${y}-09-01`
 }
 
+// Human label for a goal's period: 'TERM' → "Term", 'YYYY-MM' → "Jun 2026".
+export function periodLabel(period) {
+  if (!period || period === 'TERM') return 'Term'
+  const [y, m] = String(period).split('-').map(Number)
+  if (!y || !m) return 'Term'
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
 export async function getMembersWithHours() {
   // Totals come from the unified hours breakdown (ledger + cutoff-filtered event
   // sign-ups + meeting attendance + admin adjustment) so every screen agrees.
@@ -163,7 +171,7 @@ export async function getProfileDetails(id) {
     supabase.from('event_signups').select('events ( id, name, date, location, raised, hours )').eq('member_id', id),
     supabase.from('event_todos').select('id, item, done, events ( id, name, date )').eq('assignee_id', id),
     supabase.rpc('get_hours_breakdowns', { p_member: id }),
-    supabase.from('goals').select('id, title, detail, progress, status, target_date').eq('owner_id', id).order('created_at', { ascending: false }),
+    supabase.from('goals').select('id, title, detail, progress, status, period').eq('owner_id', id).order('created_at', { ascending: false }),
   ])
   const events = (signups ?? []).map((s) => s.events).filter(Boolean)
   const breakdown = (bd ?? [])[0] ?? null

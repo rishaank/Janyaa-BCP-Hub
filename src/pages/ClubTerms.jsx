@@ -107,7 +107,7 @@ export default function ClubTerms() {
                 <Button variant="soft" icon={aiBusy ? Loader2 : Sparkles} loading={aiBusy} onClick={refreshAI} disabled={aiBusy}>
                   {aiBusy ? 'Analyzing…' : 'Refresh AI'}
                 </Button>
-                <Button icon={Plus} onClick={() => setModal('new')}>Add term</Button>
+                <Button icon={Plus} onClick={() => setModal('new')}>Add Term</Button>
               </div>
               {aiBusy && <span className="text-xs text-ink-400">Summarizing every term — ~15 seconds.</span>}
             </div>

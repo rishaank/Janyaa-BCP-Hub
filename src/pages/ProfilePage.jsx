@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check,
-  Sparkles, RefreshCw, ArrowUpRight,
+  Sparkles, RefreshCw, ArrowUpRight, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import {
   Card,
@@ -37,6 +37,7 @@ import {
   getEventsBrief,
   submitHoursRequest,
   generateMemberInsight,
+  periodLabel,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import AvatarCropper from '../components/AvatarCropper'
@@ -284,7 +285,7 @@ function SelfDangerZone({ onDeleted }) {
     <Card className="mt-6 border-coral-200 p-5">
       <div className="mb-2 flex items-center gap-2">
         <AlertTriangle size={16} className="text-coral-600" />
-        <h3 className="font-display text-h4 font-semibold text-ink-900">Delete your account</h3>
+        <h3 className="font-display text-h4 font-semibold text-ink-900">Delete Your Account</h3>
       </div>
       <p className="text-sm text-ink-600">
         Permanently delete your account and personal data — your profile, photo, event sign-ups, and
@@ -379,6 +380,8 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
   const [modalOpen, setModalOpen] = useState(false)
   const [editEntry, setEditEntry] = useState(null)
   const [requestOpen, setRequestOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const shownEntries = showAll ? entries : entries.slice(0, 5)
 
   function openAdd() {
     setEditEntry(null)
@@ -398,15 +401,15 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
     <Card className="mt-6 p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 font-semibold text-ink-900">
-          Hours breakdown
+          Hours Breakdown
           {canDirectEdit && <EditAccessChip />}
         </h3>
         <div className="flex items-center gap-3">
           {entries.length > 0 && (
             <Button variant="soft" icon={Download} onClick={() => exportMemberHours(breakdown)}>Export</Button>
           )}
-          {canDirectEdit && <Button icon={Plus} onClick={openAdd}>Add hours</Button>}
-          {canRequest && <Button icon={Plus} onClick={() => setRequestOpen(true)}>Request hours</Button>}
+          {canDirectEdit && <Button icon={Plus} onClick={openAdd}>Add Hours</Button>}
+          {canRequest && <Button icon={Plus} onClick={() => setRequestOpen(true)}>Request Hours</Button>}
         </div>
       </div>
       {canRequest && (
@@ -419,8 +422,9 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
       {entries.length === 0 ? (
         <p className="text-sm text-ink-400">No hours logged yet.</p>
       ) : (
+        <>
         <ul className="divide-y divide-ink-100">
-          {entries.map((e, i) => {
+          {shownEntries.map((e, i) => {
             const meta = kindMeta[e.kind] ?? { label: e.kind, tone: 'ink' }
             const editable = canDirectEdit && !!e.grant_id
             return (
@@ -465,6 +469,8 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
             )
           })}
         </ul>
+        {entries.length > 5 && <ShowMore expanded={showAll} total={entries.length} onToggle={() => setShowAll((v) => !v)} />}
+        </>
       )}
       {canDirectEdit && (
         <p className="mt-3 text-xs text-ink-400">
@@ -658,36 +664,53 @@ function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add hours'}</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Hours'}</Button>
         </div>
       </form>
     </Modal>
   )
 }
 
+// "Show all (N) ▾ / Show less ▴" toggle shared by the profile list cards.
+function ShowMore({ expanded, total, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-50 hover:text-ink-800"
+    >
+      {expanded ? <>Show Less <ChevronUp size={14} /></> : <>Show All {total} <ChevronDown size={14} /></>}
+    </button>
+  )
+}
+
 function EventList({ title, events, empty, className = '' }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? events : events.slice(0, 5)
   return (
     <Card className={`flex flex-col p-5 ${className}`}>
       <h3 className="mb-3 font-semibold text-ink-900">{title} · {events.length}</h3>
       {events.length === 0 ? (
         <p className="grid flex-1 place-items-center py-6 text-center text-sm text-ink-400">{empty}</p>
       ) : (
-        <ul className="divide-y divide-ink-100">
-          {events.map((e) => (
-            <li key={e.id} className="first:pt-0 last:pb-0">
-              <Link to={`/events/${e.id}`} className="group flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink-800 transition-colors group-hover:text-green-700">{e.name}</p>
-                  <p className="truncate text-xs text-ink-400">
-                    {formatDate(e.date)}
-                    {e.location ? ` · ${e.location}` : ''}
-                  </p>
-                </div>
-                <span className="shrink-0 font-mono text-xs text-ink-500">{e.hours} hrs</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="divide-y divide-ink-100">
+            {shown.map((e) => (
+              <li key={e.id} className="first:pt-0 last:pb-0">
+                <Link to={`/events/${e.id}`} className="group flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink-800 transition-colors group-hover:text-green-700">{e.name}</p>
+                    <p className="truncate text-xs text-ink-400">
+                      {formatDate(e.date)}
+                      {e.location ? ` · ${e.location}` : ''}
+                    </p>
+                  </div>
+                  <span className="shrink-0 font-mono text-xs text-ink-500">{e.hours} hrs</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {events.length > 5 && <ShowMore expanded={expanded} total={events.length} onToggle={() => setExpanded((v) => !v)} />}
+        </>
       )}
     </Card>
   )
@@ -695,44 +718,48 @@ function EventList({ title, events, empty, className = '' }) {
 
 // Claimed to-dos, styled to match the event lists so the three sit side by side.
 function ToDosCard({ todos, className = '' }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? todos : todos.slice(0, 5)
   return (
     <Card className={`flex flex-col p-5 ${className}`}>
-      <h3 className="mb-3 font-semibold text-ink-900">To-dos claimed · {todos.length}</h3>
+      <h3 className="mb-3 font-semibold text-ink-900">To-Dos Claimed · {todos.length}</h3>
       {todos.length === 0 ? (
         <p className="grid flex-1 place-items-center py-6 text-center text-sm text-ink-400">No to-do items claimed.</p>
       ) : (
-        <ul className="divide-y divide-ink-100">
-          {todos.map((t) => (
-            <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
-              <span className="min-w-0 truncate text-ink-800">{t.item}</span>
-              {t.events?.id ? (
-                <Link to={`/events/${t.events.id}`} className="shrink-0 text-xs text-ink-400 transition-colors hover:text-green-700">
-                  {t.events.name}
-                </Link>
-              ) : (
-                <span className="shrink-0 text-xs text-ink-400">{t.events?.name}</span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="divide-y divide-ink-100">
+            {shown.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+                <span className="min-w-0 truncate text-ink-800">{t.item}</span>
+                {t.events?.id ? (
+                  <Link to={`/events/${t.events.id}`} className="shrink-0 text-xs text-ink-400 transition-colors hover:text-green-700">
+                    {t.events.name}
+                  </Link>
+                ) : (
+                  <span className="shrink-0 text-xs text-ink-400">{t.events?.name}</span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {todos.length > 5 && <ShowMore expanded={expanded} total={todos.length} onToggle={() => setExpanded((v) => !v)} />}
+        </>
       )}
     </Card>
   )
 }
 
-// A leadership goal owned by this member, shown on their profile.
+// A leadership goal owned by this member, shown on their profile (term/month grid model).
 function ProfileGoalCard({ goal }) {
-  const done = goal.status === 'done'
+  const done = (goal.progress || 0) >= 100
   return (
     <Card className="flex flex-col p-5">
       <div className="flex items-start justify-between gap-2">
         <h4 className="font-display text-h4 font-semibold text-ink-900">{goal.title}</h4>
         {done && <Badge tone="green">Done</Badge>}
       </div>
-      {goal.detail && <p className="mt-1 line-clamp-2 text-sm text-ink-600">{goal.detail}</p>}
       <div className="mt-auto pt-4">
         <div className="mb-1.5 flex items-center justify-between">
-          <span className="text-xs text-ink-500">{goal.target_date ? formatDate(goal.target_date) : 'No target date'}</span>
+          <span className="font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-500">{periodLabel(goal.period)}</span>
           <span className="font-mono text-xs font-semibold tabular-nums text-ink-700">{goal.progress}%</span>
         </div>
         <ProgressBar value={goal.progress} max={100} tone={done ? 'green' : 'gold'} />
@@ -822,7 +849,7 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
     <Card className="mt-6 border-blue-200 p-5">
       <div className="mb-4 flex items-center gap-2">
         <Shield size={16} className="text-blue-600" />
-        <h3 className="font-display text-h4 font-semibold text-ink-900">Admin controls</h3>
+        <h3 className="font-display text-h4 font-semibold text-ink-900">Admin Controls</h3>
       </div>
       <div className="space-y-5">
         {/* Identity */}

@@ -124,15 +124,15 @@ export default function EventsMeetings() {
               <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
               {view === 'calendar' ? (
                 <>
-                  <Button variant="soft" icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
-                  <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
+                  <Button variant="soft" icon={Plus} onClick={openCreateMeeting}>Add Meeting</Button>
+                  <Button icon={Plus} onClick={openCreateEvent}>Add Event</Button>
                 </>
               ) : tab === 'events' ? (
-                <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
+                <Button icon={Plus} onClick={openCreateEvent}>Add Event</Button>
               ) : (
                 <>
                   <Button variant="soft" icon={Repeat} onClick={() => setSeriesOpen(true)}>Recurring</Button>
-                  <Button icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
+                  <Button icon={Plus} onClick={openCreateMeeting}>Add Meeting</Button>
                 </>
               )}
             </div>

@@ -254,8 +254,10 @@ export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
         </div>
       )}
 
-      {/* Crew / capacity — sticks to the card bottom on past events (no to-dos below) */}
-      <div className={`rounded-xl bg-ink-50 p-3 ${isPast ? 'mt-auto' : 'mt-4'}`}>
+      {/* Spacer pushes the crew box to the card bottom on past events while keeping a gap above. */}
+      {isPast && <div aria-hidden className="flex-1" />}
+      {/* Crew / capacity */}
+      <div className="mt-4 rounded-xl bg-ink-50 p-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
             <Users size={15} className="text-ink-400" />
@@ -471,7 +473,7 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit event' : 'Add event'}>
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit Event' : 'Add Event'}>
       <form onSubmit={submit} className="space-y-3">
         <FormField label="Event name">
           <input className={inputClass} value={form.name} onChange={set('name')} required placeholder="Library STEM session" />
@@ -588,13 +590,13 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
               onClick={() => setForm({ ...form, instagram_urls: [...(form.instagram_urls ?? []), ''] })}
               className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
             >
-              <Plus size={14} /> Add Instagram link
+              <Plus size={14} /> Add Instagram Link
             </button>
           </div>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add event'}</Button>
+          <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Event'}</Button>
         </div>
       </form>
     </Modal>
