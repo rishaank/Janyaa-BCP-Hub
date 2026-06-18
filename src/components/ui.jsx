@@ -2,19 +2,32 @@
 // Color/radii/shadow tokens come from src/styles/tailwind-theme.css; legacy
 // palette names are remapped to the brand in src/index.css.
 import { createPortal } from 'react-dom'
-import { X, Pin, Shield } from 'lucide-react'
+import { X, Pin, Shield, Lock } from 'lucide-react'
 
-// Small blue "Admin edit" pill marking a section as edit-restricted to the
-// people who can change it. Shown to those users on the hours breakdown + Auto Hours.
-export function EditAccessChip({ label = 'Admin edit' }) {
+// The single access indicator used across the site, for consistent style + placement.
+//   mode="edit"  → blue Shield pill ("Admin edit" / "Admin only") — you can change / it's restricted.
+//   mode="view"  → gray Lock pill ("Read-only")                   — you can't change it.
+// Placement convention: page-level access goes in the PageHeader badge slot (next
+// to the title); section-level access sits inline right after that section's heading.
+export function AccessChip({ mode = 'edit', label }) {
+  const view = mode === 'view'
+  const text = label ?? (view ? 'Read-only' : 'Admin edit')
+  const Icon = view ? Lock : Shield
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-2xs font-semibold text-blue-600"
-      title={`${label} access`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ${
+        view ? 'bg-ink-100 text-ink-600' : 'bg-blue-50 text-blue-600'
+      }`}
+      title={`${text} access`}
     >
-      <Shield size={11} /> {label}
+      <Icon size={11} /> {text}
     </span>
   )
+}
+
+// Back-compat alias — the "Admin edit" form used on section headings.
+export function EditAccessChip({ label = 'Admin edit' }) {
+  return <AccessChip mode="edit" label={label} />
 }
 
 // Pin toggle for AI cards — pinned cards survive regeneration (Feature 1).
@@ -64,7 +77,7 @@ export function PageHeader({ title, subtitle, badge, action }) {
       <div>
         <div className="flex items-center gap-2.5">
           <h1 className="font-display text-h1 font-bold tracking-tight text-ink-900">{title}</h1>
-          {badge && <Badge tone={badge.tone}>{badge.label}</Badge>}
+          {badge}
         </div>
         {subtitle && <p className="mt-1 text-ink-600">{subtitle}</p>}
       </div>

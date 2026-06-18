@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Clock, Info, Check, Loader2 } from 'lucide-react'
-import { PageHeader, Card, EditAccessChip, EmptyState, roleLabels } from '../components/ui'
+import { PageHeader, Card, AccessChip, EmptyState, roleLabels } from '../components/ui'
 import { getRoleHoursRules, updateRoleHoursRule, grantRoleMonth } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -66,14 +66,12 @@ export default function AutoHours() {
     <>
       <PageHeader
         title="Role Hours"
+        badge={<AccessChip mode="edit" />}
         subtitle="Volunteer hours that accrue automatically based on a member's role."
         action={
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-ink-100 px-3 py-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-600">
-              <Clock size={13} /> Next auto grant in {days} {days === 1 ? 'day' : 'days'}
-            </span>
-            <EditAccessChip />
-          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-ink-100 px-3 py-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-600">
+            <Clock size={13} /> Next auto grant in {days} {days === 1 ? 'day' : 'days'}
+          </span>
         }
       />
 

@@ -13,7 +13,7 @@ import {
   Sparkles,
   ExternalLink,
 } from 'lucide-react'
-import { PageHeader, Card, Badge, EmptyState } from '../components/ui'
+import { PageHeader, Card, Badge, EmptyState, AccessChip } from '../components/ui'
 import { getActivityLog } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -93,7 +93,7 @@ export default function History() {
       <PageHeader
         title="History"
         subtitle="Every action across the Hub, plus website updates."
-        badge={{ tone: 'blue', label: 'Admin' }}
+        badge={<AccessChip mode="edit" label="Admin only" />}
       />
       {loading ? (
         <Card className="p-6 text-sm text-ink-500">Loading…</Card>

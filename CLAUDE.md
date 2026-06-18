@@ -79,12 +79,23 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   (`EventView.jsx` — Leaflet map, full Instagram-post embeds, profits/hours/attendees; viewable
   logged-out via the `get_public_event` RPC), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
   **recurring schedules** in `meeting_series` auto-materialize occurrences you can cancel or edit
-  individually), `Fundraising`, `ClubTerms` (`/club-terms`, sidebar label **Terms** — every club term
+  individually; **tagged links** (`meetings.links`) render as favicon+name chips (`LinkChip.jsx`); click
+  any meeting for a **public full-screen view** at `/meetings/:id` (`MeetingView.jsx`, `get_public_meeting`
+  RPC — mirrors the event view); a meeting flips **upcoming → past** and grants attendee hours once its
+  **end time passes in PST** — see Hours model), `Fundraising` (live GoFundMe + the **In-Person Fundraising
+  Over Time** graph: a navigable 6-month window ending on the current month, with prev/next arrows, a
+  dashed year-boundary line, and a "Jump to current" button), `ClubTerms` (`/club-terms`, sidebar label **Terms** — every club term
   with an expandable breakdown: events, meetings, participants, profits, and a cached per-term **AI
   summary**; admins edit/add terms + toggle **auto terming**; routed at `/club-terms` because `/terms`
-  is the legal page), `Goals` (`/goals` — leadership goals with owner/progress/target date, any
-  signed-in member can edit, surfaced on the dashboard), `AutoHours` (`/auto-hours` — role-based automatic
-  volunteer hours; rules are admin-editable, members view read-only), `Locations` (Leaflet, dark-aware tiles),
+  is the legal page), `Goals` (`/goals` — a **person × month grid** (rows = members grouped Leadership /
+  Non-Leadership, columns = a Term goal + the current term's months); each cell is a goal card with text +
+  progress, done = 100%; admins add/edit and **drag cards** between cells, members are read-only; rows +
+  sections collapse; an editable club-wide **Semester targets** strip (`club_settings.term_targets`) also
+  shows on the dashboard. Data model: `goals.owner_id` (the person) + `goals.period` (`'TERM'` | `'YYYY-MM'`)
+  + `sort`), `AutoHours` (`/auto-hours`, sidebar label **Role Hours** — role-based automatic volunteer hours;
+  admin-only, rules editable; each role has a **Grant Now** button + a granted-this-month state, plus a
+  "Next auto grant in N days" chip), `Locations` (Leaflet, dark-aware tiles; desktop = full-height map +
+  scrollable AI-suggestions/saved panes),
   `Insights` (Gemini), `AIStudio` (`/studio` — **Plan events** wizard (auto-creates an event +
   to-dos + timeline) beside **Event suggestions** (next-event + location ideas), then the **Ask the Janyaa
   assistant** chatbot and monthly **social-media** ideas; every AI block here auto-refreshes monthly),
@@ -92,6 +103,21 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   member-accessible — Janyaa reference links + impact facts), `Restaurants` (placeholder). AI insight
   cards are the shared `src/components/InsightCard.jsx` (Dashboard + Insights). GitHub commits come from
   `src/lib/useGithubCommits.js` (30-min `localStorage` cache).
+- **Shared UI conventions:**
+  - **Auto-hyperlinking:** member-entered free text (event/meeting notes, location notes, meeting
+    location, goal text) renders through `<Linkify>` (`src/components/Linkify.jsx`, regex in
+    `src/lib/links.js`) so URLs become links. Tagged links render as favicon+name chips via
+    `<LinkChip>` (`linkMeta()` recognizes common sites + uses Google's favicon service).
+  - **Times are PST.** All event/meeting times are displayed labelled "PST" (the club is in
+    America/Los_Angeles); meeting bucketing + hours use that timezone.
+  - **Access indicators:** the single `AccessChip` in `ui.jsx` is the standard — `mode="edit"` (blue
+    Shield, "Admin edit"/"Admin only") and `mode="view"` (gray Lock, "Read-only"). Page-level access
+    goes in the `PageHeader` `badge` slot (a node, beside the title); section-level sits inline after
+    that section's heading. `EditAccessChip` is a back-compat wrapper for `mode="edit"`. Don't hand-roll
+    new access pills.
+  - **Admins can edit attendees** on any event or meeting via `ManageAttendeesModal.jsx` (add/remove
+    anyone; meetings also toggle attendee↔contributor) — backed by the admin-all RLS on
+    `event_signups` / `meeting_attendees`.
 
 ## Design system — READ THIS BEFORE TOUCHING UI
 
@@ -137,7 +163,7 @@ adding UI:**
 
 ## Database (Supabase)
 
-Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0027*.sql`
+Base schema is `supabase/schema.sql`; incremental changes are `supabase/migrations/0002…0031*.sql`
 (all already applied to the live project). Migration 0026 is the **security-hardening** pass: pinned
 `search_path` on `current_term_start()`, avatars-bucket listing scoped to the caller's own folder
 (public avatar URLs unaffected), and `club_settings.reminders_sent_at` for the send-reminders throttle.
@@ -149,7 +175,17 @@ admin edits move "this term" hours everywhere) with the seasonal rule as fallbac
 `profiles.ai_insight(_at)` and `terms.ai_summary(_at)` caches for the AI functions below.
 Migration 0028 adds the **AI chatbot rate limiter**: `ai_chat_log` (one row per answered message, own-row
 read) + `check_ai_chat_rate(member)` (SECURITY DEFINER, service-role only) enforcing 4/min · 20/hr ·
-60/day per member and stamping usage in the same call. Tables: `profiles`, `events`, `event_signups`,
+60/day per member and stamping usage in the same call.
+Migration 0029 locks `role_hours_rules` reads to admins and adds event/meeting **counts** (this-term +
+all-time) to `get_public_dashboard()`.
+Migration 0030 adds the **meeting full-screen view + tagged links + Goals grid**: `meetings.links`
+(`text[]`), `get_public_meeting(uuid)` (anon RPC, mirrors `get_public_event`), `goals.period`/`sort` +
+`club_settings.term_targets` for the person×month Goals grid (existing goals migrated into each owner's
+Term cell), and makes **meeting hours end-time aware** — `get_hours_breakdowns()` + `get_public_dashboard()`
+count a meeting (and flip it to "past") once `(date + end_time)` passes in `America/Los_Angeles`.
+Migration 0031 adds **per-role monthly granting** for the Role Hours page: `role_hours_rules.last_granted_month`
+('YYYY-MM', stamped when granted, PST) + `grant_role_month(role)` (admin-only); `ensure_monthly_role_hours()`
+now stamps every monthly rule it grants. Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
 `locations`, `club_settings` (single shared row, `id = true`),
@@ -196,7 +232,8 @@ computed in `get_public_dashboard()`. Tentative events never count.
 **Auto hours (migration 0015):** members also accrue role-based hours. `role_hours_rules` (admin-editable
 per role: `hours` + `monthly`/`per_event` cadence; defaults seeded) writes to the `hours_grants` ledger
 via a per-event INSERT trigger (`grant_event_role_hours`) and the `ensure_monthly_role_hours()` monthly
-**pg_cron** (1st of month; admins can also top up the current month from the `/auto-hours` page). Grants
+**pg_cron** (1st of month; admins can also grant a single role's current month early with the per-role
+**Grant Now** button on the `/auto-hours` page — sidebar **Role Hours** — via `grant_role_month`, 0031). Grants
 fold into **both** total + term hours everywhere they're computed (`get_public_dashboard()`,
 `getMembersWithHours`, `getProfileDetails`, the ai-insights function). Accrual is forward-only, so set each
 member's accurate baseline via the profile hours stepper. Role `pr_lead` is labelled "PR and Tech Lead".
@@ -208,6 +245,12 @@ cutoff-filtered event sign-ups + meeting attendance + `hours_adjustment`**, all 
 import date) makes derived event/meeting hours count only **on/after** the cutoff, so the imported history
 (below) doesn't double-count old sign-ups; sign-ups stay for attendance display. **Meetings grant hours**
 (0017): `meeting_attendees.role` — *attendee* earns the meeting length, *contributor* earns length + 1.
+Meeting hours land the moment the meeting **ends in PST** — `(date + end_time)` (or end of day if untimed)
+`at time zone 'America/Los_Angeles' <= now()`, in `get_hours_breakdowns()` + `get_public_dashboard()`
+(0030) — so a meeting flips upcoming→past and credits attendees the same instant. Events stay date-based.
+Role hours also accrue per role (`role_hours_rules` / `hours_grants`, source `role_monthly`/`role_event`);
+the monthly cron + the per-role **Grant Now** button (`grant_role_month`, 0031) materialize the current
+month's grants idempotently.
 **Hours breakdown (Feature 3):** `get_hours_breakdowns(p_member uuid)` (null = everyone) returns each
 member's itemized history; shown on `ProfilePage` and exported to **.xlsx** via `src/lib/exportHours.js`
 (SheetJS, lazy-loaded) — per-user on the profile, **global on the Members page**. **Spreadsheet import

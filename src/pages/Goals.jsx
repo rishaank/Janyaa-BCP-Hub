@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Target, Plus, Pencil, Trash2, Check, X, Lock, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
-import { PageHeader, Card, Button, Modal, FormField, inputClass, Avatar, roleTones, roleLabels } from '../components/ui'
+import { Target, Plus, Pencil, Trash2, Check, X, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
+import { PageHeader, Card, Button, Modal, FormField, inputClass, Avatar, roleTones, roleLabels, AccessChip } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
   getGoals, createGoal, updateGoal, deleteGoal, getMembersWithHours,
@@ -118,11 +118,7 @@ export default function Goals() {
         subtitle={isAdmin
           ? 'Set the club’s priorities for the term and track progress — one row per person, one column per month.'
           : 'The club’s priorities for the term — one row per person, one column per month.'}
-        badge={!isAdmin && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-ink-200 bg-ink-100 px-2.5 py-1 font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-600">
-            <Lock size={12} /> Read-only
-          </span>
-        )}
+        badge={!isAdmin ? <AccessChip mode="view" /> : null}
         action={isAdmin && <Button icon={Plus} onClick={() => setEdit({})}>Add Goal</Button>}
       />
 
