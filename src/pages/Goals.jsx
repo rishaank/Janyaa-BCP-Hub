@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Target, Plus, Pencil, Trash2, Check, X, Lock, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
 import { PageHeader, Card, Button, Modal, FormField, inputClass, Avatar, roleTones, roleLabels } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
@@ -30,8 +31,12 @@ const tierLabel = { Leadership: 'Leadership', Members: 'Non-Leadership' }
 const toneOf = (role) => roleTones[role] ?? 'ink'
 const ROLE_ORDER = ['operations_lead', 'event_lead', 'pr_lead', 'outreach_lead', 'secretary', 'education_lead', 'member']
 
-// Column widths (px) — mirror the style-guide grid.
-const W = { member: 224, term: 244, mon: 168, flag: 56 }
+// Grid columns — member is fixed; the term + month columns flex to fill the tab.
+const COL = {
+  member: 'w-[200px] shrink-0',
+  term: 'min-w-[210px] flex-[1.4]',
+  mon: 'min-w-[150px] flex-1',
+}
 
 // Select with extra right padding so text clears the native dropdown arrow.
 const selectClass =
@@ -124,23 +129,20 @@ export default function Goals() {
       {/* Semester targets strip */}
       <TargetsStrip targets={targets} editable={isAdmin} onEdit={() => setTargetsOpen(true)} />
 
-      {/* Desktop grid — the card hugs the table so columns sit flush (no empty gutter). */}
-      <div className="mt-6 hidden max-w-full overflow-x-auto rounded-2xl border border-ink-200 bg-surface shadow-sm lg:inline-block lg:align-top">
-        <div className="w-max">
+      {/* Desktop grid — fills the tab width; the term + month columns flex to share the space. */}
+      <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-ink-200 bg-surface shadow-sm lg:block">
+        <div className="min-w-[860px]">
             {/* Header */}
             <div className="flex border-b border-ink-200 bg-ink-50">
-              <HCell w={W.member} className="justify-start pl-4">Member</HCell>
-              <HCell w={W.term}>
+              <HCell col={COL.member} className="justify-start pl-4">Member</HCell>
+              <HCell col={COL.term}>
                 <span className="font-mono text-[11px] font-bold uppercase tracking-[0.09em] text-gold-700">Term goal</span>
               </HCell>
               {months.map((mo) => (
-                <HCell key={mo.key} w={W.mon}>
+                <HCell key={mo.key} col={COL.mon}>
                   <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-500">{mo.abbr}</span>
                 </HCell>
               ))}
-              <HCell w={W.flag} title="Term goal complete">
-                <Check size={14} className="text-ink-400" />
-              </HCell>
             </div>
 
             {['Leadership', 'Members'].map((tier) => {
@@ -215,9 +217,9 @@ export default function Goals() {
 
 // ---- desktop grid pieces -------------------------------------------------
 
-function HCell({ w, className = '', children, title }) {
+function HCell({ col = '', className = '', children, title }) {
   return (
-    <div style={{ width: w }} className={`flex h-[46px] shrink-0 items-center justify-center border-r border-ink-200 px-2.5 last:border-r-0 ${className}`} title={title}>
+    <div className={`flex h-[46px] items-center justify-center border-r border-ink-200 px-2.5 last:border-r-0 ${col} ${className}`} title={title}>
       {typeof children === 'string'
         ? <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-500">{children}</span>
         : children}
@@ -253,12 +255,11 @@ function GroupBand({ tier, rows, byCell, collapsed, onToggle }) {
 }
 
 function PersonRow({ m, months, byCell, zebra, isAdmin, collapsed, onToggleRow, onAdd, onOpen, onMove }) {
-  const termGoals = byCell[`${m.id}|TERM`] ?? []
-  const termDone = termGoals.length > 0 && termGoals.every((g) => (g.progress || 0) >= 100)
   const Chev = collapsed ? ChevronRight : ChevronDown
+  const showRole = m.role && m.role !== 'member'
   return (
-    <div className={`flex border-b border-ink-200 last:border-b-0 hover:bg-ink-100 ${zebra ? 'bg-ink-50/60' : ''}`}>
-      <div style={{ width: W.member }} className="flex shrink-0 items-center gap-2 border-r border-ink-200 py-3 pl-2 pr-3">
+    <div className={`flex border-b border-ink-200 last:border-b-0 ${zebra ? 'bg-ink-50/60' : ''}`}>
+      <div className={`${COL.member} flex items-center gap-2 border-r border-ink-200 py-3 pl-2 pr-3`}>
         <button
           onClick={onToggleRow}
           className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink-400 transition-colors hover:bg-ink-200 hover:text-ink-700"
@@ -268,31 +269,26 @@ function PersonRow({ m, months, byCell, zebra, isAdmin, collapsed, onToggleRow, 
         </button>
         <Avatar size="sm" initials={initialsOf(m.name)} tone={toneOf(m.role)} src={m.avatar_url} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink-900">{m.name}</p>
-          <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-500">{roleLabels[m.role] ?? m.role}</p>
+          <Link to={`/members/${m.id}`} className="block truncate text-sm font-semibold text-ink-900 transition-colors hover:text-green-700">{m.name}</Link>
+          {showRole && <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-500">{roleLabels[m.role] ?? m.role}</p>}
         </div>
       </div>
-      <GridCell w={W.term} isTerm goals={byCell[`${m.id}|TERM`]} period="TERM" memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
+      <GridCell col={COL.term} isTerm goals={byCell[`${m.id}|TERM`]} period="TERM" memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
       {months.map((mo) => (
-        <GridCell key={mo.key} w={W.mon} goals={byCell[`${m.id}|${mo.key}`]} period={mo.key} memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
+        <GridCell key={mo.key} col={COL.mon} goals={byCell[`${m.id}|${mo.key}`]} period={mo.key} memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
       ))}
-      <div style={{ width: W.flag }} className="flex shrink-0 items-center justify-center px-2 py-3">
-        <span className={`grid h-5 w-5 place-items-center rounded-md border ${termDone ? 'border-green-600 bg-green-600 text-white' : 'border-ink-300 bg-surface'}`} title={termDone ? 'Term goal complete' : 'Term goal not complete'}>
-          {termDone && <Check size={13} strokeWidth={3} />}
-        </span>
-      </div>
     </div>
   )
 }
 
-function GridCell({ w, goals = [], isTerm, period, memberId, isAdmin, collapsed, onAdd, onOpen, onMove }) {
+function GridCell({ col, goals = [], isTerm, period, memberId, isAdmin, collapsed, onAdd, onOpen, onMove }) {
   const [over, setOver] = useState(false)
   // Collapsed rows just show the goal count per column at member-row height.
   if (collapsed) {
     return (
-      <div style={{ width: w }} className="flex shrink-0 items-center justify-center border-r border-ink-200 px-2 py-2 last:border-r-0">
+      <div className={`${col} flex items-center justify-center border-r border-ink-200 px-2 py-2 last:border-r-0`}>
         {goals.length ? (
-          <span className="font-mono text-xs font-semibold tabular-nums text-ink-600">{goals.length}</span>
+          <span className="font-mono text-xs font-semibold tabular-nums text-ink-600">{goals.length} {goals.length === 1 ? 'goal' : 'goals'}</span>
         ) : (
           <span className="text-ink-300">—</span>
         )}
@@ -313,8 +309,7 @@ function GridCell({ w, goals = [], isTerm, period, memberId, isAdmin, collapsed,
     : {}
   return (
     <div
-      style={{ width: w }}
-      className={`shrink-0 border-r border-ink-200 p-1.5 last:border-r-0 ${over ? 'bg-green-500/10 ring-2 ring-inset ring-green-400' : ''}`}
+      className={`${col} border-r border-ink-200 p-1.5 last:border-r-0 ${over ? 'bg-green-500/10 ring-2 ring-inset ring-green-400' : ''}`}
       {...dropProps}
     >
       {goals.length === 0 ? (
@@ -376,19 +371,15 @@ function ProgressLine({ value, done }) {
 function MobilePersonCard({ m, months, byCell, isAdmin, onAdd, onOpen }) {
   const cells = [{ key: 'TERM', label: 'Term', isTerm: true }, ...months.map((mo) => ({ key: mo.key, label: mo.long, isTerm: false }))]
   const filled = cells.filter((c) => (byCell[`${m.id}|${c.key}`] ?? []).length > 0)
-  const termGoals = byCell[`${m.id}|TERM`] ?? []
-  const termDone = termGoals.length > 0 && termGoals.every((g) => (g.progress || 0) >= 100)
+  const showRole = m.role && m.role !== 'member'
   return (
     <Card className="p-4">
       <div className="flex items-center gap-3">
         <Avatar size="sm" initials={initialsOf(m.name)} tone={toneOf(m.role)} src={m.avatar_url} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-ink-900">{m.name}</p>
-          <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-500">{roleLabels[m.role] ?? m.role}</p>
+          <Link to={`/members/${m.id}`} className="block truncate font-semibold text-ink-900 transition-colors hover:text-green-700">{m.name}</Link>
+          {showRole && <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-500">{roleLabels[m.role] ?? m.role}</p>}
         </div>
-        <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border ${termDone ? 'border-green-600 bg-green-600 text-white' : 'border-ink-300 bg-surface'}`}>
-          {termDone && <Check size={13} strokeWidth={3} />}
-        </span>
       </div>
 
       {filled.length > 0 ? (

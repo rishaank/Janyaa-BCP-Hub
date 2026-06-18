@@ -12,7 +12,6 @@ import {
 import {
   DollarSign,
   TrendingUp,
-  Calendar,
   Target,
   Sparkles,
   ExternalLink,
@@ -20,7 +19,10 @@ import {
   Loader2,
   Pencil,
   Check,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { PageHeader, Card, StatCard, Button, Skeleton, formatDate, timeAgo } from '../components/ui'
 import {
   getFundraisingEvents, getSettings, updateRaiseTarget, syncGoFundme, autoGenerateInsights,
@@ -28,12 +30,23 @@ import {
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import BestDaysChart from '../components/BestDaysChart'
-import { bestDays, topDay } from '../lib/planning'
 
 const DAY = 86400000
 const ts = (iso) => new Date(iso + 'T00:00:00').getTime()
 const shortLabel = (iso) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+
+// --- month-key helpers for the windowed monthly chart ('YYYY-MM') ---
+const monthKeyOf = (iso) => iso.slice(0, 7)
+const addMonths = (key, n) => {
+  const [y, m] = key.split('-').map(Number)
+  const d = new Date(y, m - 1 + n, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+const monthShort = (key) => {
+  const [y, m] = key.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+}
 
 // Least-squares slope/intercept for points (x days, y dollars).
 function linearFit(xs, ys) {
@@ -66,6 +79,7 @@ export default function Fundraising() {
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [viewEnd, setViewEnd] = useState(null) // window's last-month index (null = current month)
   // Seasonal mirror as the instant value; the terms-table-aware RPC corrects it.
   const [termStart, setTermStart] = useState(currentTermStart())
 
@@ -105,41 +119,52 @@ export default function Fundraising() {
   const target = Number(settings?.raise_target ?? 500)
   const gfmRaised = settings?.gofundme_raised != null ? Number(settings.gofundme_raised) : null
   const pctFunded = target > 0 && gfmRaised != null ? Math.round((gfmRaised / target) * 100) : 0
-  const bestDay = topDay(bestDays(events))
 
-  // Cumulative running total of in-person events over time.
-  let cum = 0
-  const history = events.map((e) => {
-    cum += Number(e.raised)
-    return { date: e.date, label: shortLabel(e.date), value: cum }
-  })
-  const total = cum
-  const thisTerm = events.filter((e) => e.date >= termStart).reduce((s, e) => s + Number(e.raised), 0)
+  const total = events.reduce((s, e) => s + Number(e.raised), 0)
+  const thisTermEvents = events.filter((e) => e.date >= termStart)
+  const thisTerm = thisTermEvents.reduce((s, e) => s + Number(e.raised), 0)
+  const eventsThisTermCount = thisTermEvents.length
+  const eventsAllTimeCount = events.length
   const avg = events.length ? Math.round(total / events.length) : 0
   const thisYear = new Date().getFullYear()
 
-  // ---- Projection: fit a trend line and extend it. ----
-  let chartData = history.map((h) => ({ label: h.label, actual: h.value, projected: null }))
-  let perMonth = 0
-  let projectedYearEnd = total
-  const canProject = history.length >= 2
+  // ---- Monthly cumulative timeline, shown 6 months at a time ----
+  const todayKey = monthKeyOf(new Date().toISOString().slice(0, 10))
+  const raisedByMonth = {}
+  events.forEach((e) => { const k = monthKeyOf(e.date); raisedByMonth[k] = (raisedByMonth[k] || 0) + Number(e.raised) })
+  const firstEventKey = events.length ? monthKeyOf(events[0].date) : todayKey
+  const startKey = firstEventKey < addMonths(todayKey, -5) ? firstEventKey : addMonths(todayKey, -5)
+  const endKey = addMonths(todayKey, 6)
+  const timeline = []
+  for (let k = startKey; k <= endKey; k = addMonths(k, 1)) timeline.push({ key: k, label: monthShort(k) })
+  const currentIdx = Math.max(0, timeline.findIndex((t) => t.key === todayKey))
+  let run = 0
+  timeline.forEach((t) => { run += raisedByMonth[t.key] || 0; t.cum = run })
+  const currentCum = timeline[currentIdx]?.cum ?? run
 
-  if (canProject) {
-    const first = ts(history[0].date)
-    const xs = history.map((h) => (ts(h.date) - first) / DAY)
-    const ys = history.map((h) => h.value)
-    const { slope } = linearFit(xs, ys)
-    perMonth = Math.round(slope * 30)
+  // Per-month slope from actual months, used to project future months.
+  const actualPts = timeline.slice(0, currentIdx + 1)
+  const canProject = actualPts.length >= 2
+  const slope = canProject ? linearFit(actualPts.map((_, i) => i), actualPts.map((t) => t.cum)).slope : 0
+  const perMonth = Math.round(slope)
+  timeline.forEach((t, i) => {
+    if (i <= currentIdx) { t.actual = t.cum; t.projected = i === currentIdx ? t.cum : null }
+    else { t.actual = null; t.projected = Math.round(currentCum + slope * (i - currentIdx)) }
+  })
+  const idxDec = timeline.findIndex((t) => t.key === `${thisYear}-12`)
+  const projectedYearEnd = idxDec > currentIdx ? Math.round(currentCum + slope * (idxDec - currentIdx)) : total
 
-    const last = history[history.length - 1]
-    const lastTs = ts(last.date)
-    chartData[chartData.length - 1].projected = last.value
-    for (const d of [30, 60, 90]) {
-      const iso = new Date(lastTs + d * DAY).toISOString().slice(0, 10)
-      chartData.push({ label: shortLabel(iso), actual: null, projected: Math.round(last.value + slope * d) })
-    }
-    projectedYearEnd = Math.round(last.value + slope * ((ts(`${thisYear}-12-31`) - lastTs) / DAY))
-  }
+  // 6-month sliding window (paged by the arrows; defaults to ending on the current month).
+  const maxEnd = timeline.length - 1
+  const defaultEnd = Math.min(maxEnd, Math.max(5, currentIdx))
+  const effEnd = Math.min(maxEnd, Math.max(5, viewEnd ?? currentIdx))
+  const windowData = timeline.slice(Math.max(0, effEnd - 5), effEnd + 1)
+  const prevDisabled = effEnd <= 5
+  const nextDisabled = effEnd >= maxEnd
+  const atCurrent = effEnd === defaultEnd
+  const yearLines = windowData.filter((t) => t.key.endsWith('-01')).map((t) => ({ x: t.label, year: t.key.slice(0, 4) }))
+  const currentInWindow = windowData.find((t) => t.key === todayKey)
+  const chartMax = Math.max(...windowData.map((d) => d.projected ?? d.actual ?? 0), 0)
 
   return (
     <>
@@ -217,9 +242,9 @@ export default function Fundraising() {
       </Card>
 
       {/* In-person event stats */}
-      <div className="ja-stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="ja-stagger grid grid-cols-2 gap-4 lg:grid-cols-3">
         {loading ? (
-          [0, 1, 2, 3].map((i) => (
+          [0, 1, 2].map((i) => (
             <Card key={i} className="p-5">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="mt-3 h-8 w-16" />
@@ -227,54 +252,98 @@ export default function Fundraising() {
           ))
         ) : (
           <>
-            <StatCard icon={DollarSign} label="Events · this term" value={`$${thisTerm}`} tone="green" />
-            <StatCard icon={TrendingUp} label="Events · all time" value={`$${total}`} />
-            <StatCard icon={Calendar} label="Fundraisers" value={events.length} tone="blue" />
+            <StatCard icon={DollarSign} label={`${eventsThisTermCount} Events this term`} value={`$${thisTerm}`} tone="green" />
+            <StatCard icon={TrendingUp} label={`${eventsAllTimeCount} Events all time`} value={`$${total}`} />
             <StatCard icon={Target} label="Avg / event" value={`$${avg}`} tone="gold" />
           </>
         )}
       </div>
 
-      {/* Cumulative graph + projection */}
+      {/* Cumulative graph + projection — 6-month windows, navigable */}
       <Card className="mt-6 p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold text-ink-900">In-Person Fundraising Over Time</h3>
-          <div className="flex items-center gap-4 text-xs text-ink-500">
-            <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-green-600" /> Actual</span>
-            <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full border border-dashed border-gold-500" /> Projected</span>
+          <div className="flex items-center gap-3">
+            {!atCurrent && (
+              <button
+                onClick={() => setViewEnd(currentIdx)}
+                className="rounded-lg bg-ink-100 px-2.5 py-1 text-xs font-semibold text-ink-700 transition-colors hover:bg-ink-200"
+              >
+                Jump to current
+              </button>
+            )}
+            <div className="flex items-center gap-4 text-xs text-ink-500">
+              <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full bg-green-600" /> Actual</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-4 rounded-full border border-dashed border-gold-500" /> Projected</span>
+            </div>
           </div>
         </div>
 
         {loading ? (
           <p className="py-16 text-center text-sm text-ink-400">Loading…</p>
-        ) : history.length === 0 ? (
+        ) : events.length === 0 ? (
           <p className="py-16 text-center text-sm text-ink-400">No in-person fundraising recorded yet.</p>
         ) : (
-          <div className="h-72 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(140,132,117,0.18)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
-                <YAxis
-                  tickFormatter={(v) => `$${v}`}
-                  tick={{ fontSize: 12, fill: '#8c8475' }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={56}
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(140,132,117,0.45)' }} />
-                {target <= Math.max(...chartData.map((d) => d.projected ?? d.actual ?? 0)) && (
-                  <ReferenceLine
-                    y={target}
-                    stroke="rgba(140,132,117,0.45)"
-                    strokeDasharray="4 4"
-                    label={{ value: `Goal $${target}`, position: 'insideTopRight', fontSize: 11, fill: '#8c8475' }}
+          <div className="flex items-stretch gap-1">
+            <button
+              onClick={() => setViewEnd(Math.max(5, effEnd - 6))}
+              disabled={prevDisabled}
+              aria-label="Earlier months"
+              className="grid w-7 shrink-0 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-700 disabled:opacity-25 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="h-72 min-w-0 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={windowData} margin={{ top: 14, right: 12, bottom: 0, left: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(140,132,117,0.18)" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
+                  <YAxis
+                    tickFormatter={(v) => `$${v}`}
+                    tick={{ fontSize: 12, fill: '#8c8475' }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={56}
                   />
-                )}
-                <Line type="monotone" dataKey="actual" stroke="#2a943b" strokeWidth={2.5} dot={{ r: 3, fill: '#2a943b' }} connectNulls={false} />
-                <Line type="monotone" dataKey="projected" stroke="#fba631" strokeWidth={2} strokeDasharray="6 5" dot={false} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(140,132,117,0.45)' }} />
+                  {yearLines.map((yl) => (
+                    <ReferenceLine
+                      key={yl.year}
+                      x={yl.x}
+                      stroke="rgba(140,132,117,0.55)"
+                      strokeDasharray="4 4"
+                      label={{ value: yl.year, position: 'insideTopLeft', fontSize: 11, fill: '#8c8475' }}
+                    />
+                  ))}
+                  {currentInWindow && (
+                    <ReferenceLine
+                      x={currentInWindow.label}
+                      stroke="#2a943b"
+                      strokeDasharray="3 3"
+                      label={{ value: 'This month', position: 'top', fontSize: 10, fill: '#2a943b' }}
+                    />
+                  )}
+                  {target <= chartMax && (
+                    <ReferenceLine
+                      y={target}
+                      stroke="rgba(140,132,117,0.45)"
+                      strokeDasharray="4 4"
+                      label={{ value: `Goal $${target}`, position: 'insideTopRight', fontSize: 11, fill: '#8c8475' }}
+                    />
+                  )}
+                  <Line type="monotone" dataKey="actual" stroke="#2a943b" strokeWidth={2.5} dot={{ r: 3, fill: '#2a943b' }} connectNulls={false} />
+                  <Line type="monotone" dataKey="projected" stroke="#fba631" strokeWidth={2} strokeDasharray="6 5" dot={false} connectNulls />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <button
+              onClick={() => setViewEnd(Math.min(maxEnd, effEnd + 6))}
+              disabled={nextDisabled}
+              aria-label="Later months"
+              className="grid w-7 shrink-0 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-700 disabled:opacity-25 disabled:hover:bg-transparent"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         )}
 
@@ -291,11 +360,7 @@ export default function Fundraising() {
 
       {/* Best days to fundraise — peak times for planning */}
       <Card className="mt-6 p-5">
-        <h3 className="mb-1 font-semibold text-ink-900">Best Days to Fundraise</h3>
-        <p className="mb-3 text-sm text-ink-500">
-          Average raised per weekday from past events.
-          {bestDay && ` ${bestDay.day} leads at about $${bestDay.avgRaised} per event.`}
-        </p>
+        <h3 className="mb-3 font-semibold text-ink-900">Best Days to Fundraise</h3>
         <BestDaysChart events={events} />
       </Card>
 
@@ -307,12 +372,14 @@ export default function Fundraising() {
         ) : (
           <ul className="divide-y divide-ink-100">
             {[...events].reverse().map((e) => (
-              <li key={e.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                <div>
-                  <p className="text-sm font-medium text-ink-800">{e.name}</p>
-                  <p className="text-xs text-ink-400">{formatDate(e.date)} · {e.location}</p>
-                </div>
-                <span className="font-semibold text-ink-900">${e.raised}</span>
+              <li key={e.id} className="first:pt-0 last:pb-0">
+                <Link to={`/events/${e.id}`} className="group flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink-800 transition-colors group-hover:text-green-700">{e.name}</p>
+                    <p className="truncate text-xs text-ink-400">{formatDate(e.date)} · {e.location}</p>
+                  </div>
+                  <span className="shrink-0 font-semibold text-ink-900">${e.raised}</span>
+                </Link>
               </li>
             ))}
           </ul>

@@ -224,6 +224,12 @@ export function ensureMonthlyRoleHours() {
   return supabase.rpc('ensure_monthly_role_hours')
 }
 
+// Grant the current month's hours for a single role now (admin-only). Stamps the
+// rule's last_granted_month so the UI shows a granted state until next month.
+export function grantRoleMonth(role) {
+  return supabase.rpc('grant_role_month', { p_role: role })
+}
+
 // ---- Events --------------------------------------------------------------
 
 // Events with their signups (incl. member names) and to-dos, newest first.

@@ -178,7 +178,6 @@ export default function Dashboard() {
 
       {/* Compact stat chips */}
       <div className="flex flex-wrap items-center gap-3">
-        <StatPill icon={Users} value={d.members_count} label="members" />
         <StatPill
           icon={Clock}
           value={`${Number(d.term_hours)}h`}

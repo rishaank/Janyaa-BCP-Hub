@@ -55,7 +55,7 @@ const memberNav = [
 
 // Admin-only pages — a nested collapsible group within "Members only".
 const adminNav = [
-  { to: '/auto-hours', label: 'Auto Hours', icon: Hourglass },
+  { to: '/auto-hours', label: 'Role Hours', icon: Hourglass },
   { to: '/history', label: 'History', icon: History },
 ]
 
