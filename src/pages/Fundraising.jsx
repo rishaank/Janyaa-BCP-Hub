@@ -147,27 +147,39 @@ export default function Fundraising() {
 
       {/* GoFundMe live hero + editable shared goal */}
       <Card className="mb-6 overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-gold-100 bg-gradient-to-r from-gold-50 to-green-50 px-6 py-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-green-700">
-            <span className="relative flex h-2 w-2">
+        <div className="flex items-center justify-between gap-2 border-b border-gold-100 bg-gradient-to-r from-gold-50 to-green-50 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-green-700">
+            <span className="relative flex h-2 w-2 shrink-0">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
             </span>
-            GoFundMe campaign · live
+            <span className="truncate">GoFundMe campaign · live</span>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {settings?.gofundme_url && (
               <a
                 href={settings.gofundme_url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-green-600/70 hover:text-green-700"
+                title="View campaign on GoFundMe"
+                aria-label="View campaign on GoFundMe"
+                className="inline-flex items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 sm:px-2.5 sm:py-1.5 sm:text-sm sm:font-medium"
               >
-                view <ExternalLink size={12} />
+                <ExternalLink size={16} className="shrink-0" />
+                <span className="hidden sm:inline">View</span>
               </a>
             )}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              title="Sync now"
+              aria-label="Sync now"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-ink-300 bg-surface p-2 text-ink-800 transition-colors hover:bg-ink-50 disabled:opacity-60 sm:px-3.5 sm:py-2 sm:text-sm sm:font-semibold"
+            >
+              {syncing ? <Loader2 size={16} className="shrink-0 animate-spin" /> : <RefreshCw size={16} className="shrink-0" />}
+              <span className="hidden sm:inline">{syncing ? 'Syncing…' : 'Sync now'}</span>
+            </button>
           </div>
-          <Button variant="soft" icon={syncing ? Loader2 : RefreshCw} loading={syncing} onClick={handleSync} disabled={syncing}>
-            {syncing ? 'Syncing…' : 'Sync now'}
-          </Button>
         </div>
 
         <div className="p-6">

@@ -16,6 +16,7 @@ const SetPassword = lazy(() => import('./pages/SetPassword'))
 const Privacy = lazy(() => import('./pages/Privacy'))
 const Terms = lazy(() => import('./pages/Terms'))
 const EventView = lazy(() => import('./pages/EventView'))
+const MeetingView = lazy(() => import('./pages/MeetingView'))
 const Members = lazy(() => import('./pages/Members'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const EventsMeetings = lazy(() => import('./pages/EventsMeetings'))
@@ -51,8 +52,9 @@ export default function App() {
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
-            {/* Shareable full-screen event view — public (Feature 2). */}
+            {/* Shareable full-screen event + meeting views — public (Feature 2). */}
             <Route path="/events/:id" element={<EventView />} />
+            <Route path="/meetings/:id" element={<MeetingView />} />
 
             {/* App shell. The dashboard is public; everything else needs a session. */}
             <Route element={<Layout />}>

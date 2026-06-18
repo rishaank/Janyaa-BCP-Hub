@@ -90,6 +90,7 @@ export default function Dashboard() {
   const insights = Array.isArray(d.insights) ? d.insights : []
   const pinnedTitles = new Set(pins.map((p) => p.payload?.title))
   const goals = Array.isArray(d.goals) ? d.goals : []
+  const termTargets = Array.isArray(d.term_targets) ? d.term_targets : []
   const events = d.upcoming_events_list ?? []
   const meetings = d.upcoming_meetings_list ?? []
 
@@ -222,13 +223,15 @@ export default function Dashboard() {
 
           <ListCard title="Upcoming meetings" to="/events?tab=meetings" empty="No meetings on the schedule." className="h-full">
               {meetings.map((m) => (
-                <li key={m.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                  <DateTile iso={m.date} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-ink-900">{m.title}</p>
-                    <p className="truncate text-sm text-ink-500">{m.start_time ? fmtTime(m.start_time) : 'Time TBD'}</p>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{m.attendees} in</span>
+                <li key={m.id} className="first:pt-0 last:pb-0">
+                  <Link to={`/meetings/${m.id}`} className="group flex items-center gap-3 py-2.5">
+                    <DateTile iso={m.date} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-ink-900 group-hover:text-green-700">{m.title}</p>
+                      <p className="truncate text-sm text-ink-500">{m.start_time ? `${fmtTime(m.start_time)} PST` : 'Time TBD'}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600">{m.attendees} in</span>
+                  </Link>
                 </li>
               ))}
           </ListCard>
@@ -290,8 +293,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Leadership goals */}
-      {goals.length > 0 && (
+      {/* Leadership goals + semester targets */}
+      {(goals.length > 0 || termTargets.length > 0) && (
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="flex items-center gap-1.5 font-semibold text-ink-900">
@@ -301,6 +304,20 @@ export default function Dashboard() {
               View all <ArrowRight size={14} />
             </Link>
           </div>
+
+          {termTargets.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-green-200 bg-green-50/60 px-4 py-3">
+              <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">Semester targets</span>
+              {termTargets.map((t, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700">
+                  <Target size={13} className="text-green-600" />
+                  {t.label}
+                  {t.sub && <span className="text-ink-400">· {t.sub}</span>}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="ja-stagger grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {goals.slice(0, 3).map((g) => (
               <Card key={g.id} className="flex flex-col p-5">

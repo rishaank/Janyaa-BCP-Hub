@@ -19,6 +19,7 @@ import { getLocations, getEvents, saveLocation, updateLocation, deleteLocation, 
 import { useRealtime } from '../lib/useRealtime'
 import { useTheme } from '../context/ThemeContext'
 import { locationPerformance } from '../lib/planning'
+import Linkify from '../components/Linkify'
 
 // Green dot for a not-yet-saved pin.
 const pendingIcon = L.divIcon({
@@ -155,10 +156,10 @@ export default function Locations() {
         }}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3 lg:items-start">
-        {/* Map */}
-        <Card className="relative z-0 overflow-hidden lg:col-span-2">
-          <div className="relative z-0 h-[460px] w-full isolate">
+      <div className="grid gap-6 lg:h-[calc(100vh-13rem)] lg:grid-cols-3 lg:items-stretch">
+        {/* Map — full screen height on desktop */}
+        <Card className="relative z-0 flex flex-col overflow-hidden lg:col-span-2 lg:h-full">
+          <div className="relative z-0 h-[460px] w-full isolate lg:h-auto lg:min-h-0 lg:flex-1">
             <MapContainer center={SAN_JOSE} zoom={10} className="h-full w-full" scrollWheelZoom>
               <TileLayer
                 key={isDark ? 'dark' : 'light'}
@@ -230,14 +231,14 @@ export default function Locations() {
           </p>
         </Card>
 
-        {/* Right column: AI new-location suggestions atop the saved list */}
-        <div>
+        {/* Right column: AI suggestions (top) + saved (bottom), each scrollable, full screen height on desktop */}
+        <div className="lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:gap-5">
           {suggestions.length > 0 && (
-            <div className="mb-5">
+            <div className="mb-5 lg:mb-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
               <h3 className="mb-3 flex items-center gap-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-[#8b5cf6]">
                 <Sparkles size={12} /> AI suggestions · {suggestions.length}
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
                 {suggestions.map((s, i) => (
                   <Card key={`sug-${i}`} className="p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -257,7 +258,7 @@ export default function Locations() {
                         <MapPin size={13} className="mt-0.5 shrink-0 text-ink-400" /> {s.address}
                       </p>
                     )}
-                    {s.why && <p className="mt-2 text-sm text-ink-600">{s.why}</p>}
+                    {s.why && <p className="mt-2 break-words text-sm text-ink-600"><Linkify>{s.why}</Linkify></p>}
                     <button
                       onClick={() => setPending({ lat: Number(s.lat), lng: Number(s.lng), name: s.name, address: s.address || '' })}
                       className="mt-2 inline-flex items-center gap-1 rounded-lg bg-[#8b5cf6] px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-[#7c3aed]"
@@ -270,10 +271,11 @@ export default function Locations() {
             </div>
           )}
 
+          <div className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
           <h3 className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
             Saved · {locations.length}
           </h3>
-          <div className="ja-stagger space-y-3 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
+          <div className="ja-stagger space-y-3 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
             {locations.length === 0 && <p className="text-sm text-ink-400">No saved locations yet.</p>}
             {locations.map((loc, i) => (
               <Card key={loc.id} className="p-4">
@@ -296,7 +298,7 @@ export default function Locations() {
                     <MapPin size={13} className="mt-0.5 shrink-0 text-ink-400" /> {loc.address}
                   </p>
                 )}
-                {loc.description && <p className="mt-2 text-sm text-ink-600">{loc.description}</p>}
+                {loc.description && <p className="mt-2 break-words text-sm text-ink-600"><Linkify>{loc.description}</Linkify></p>}
                 {perf[loc.id]?.count > 0 && (
                   <p className="mt-2 text-xs font-semibold text-green-700">
                     ${perf[loc.id].raised.toLocaleString()} raised · {perf[loc.id].count} event
@@ -327,6 +329,7 @@ export default function Locations() {
                 </div>
               </Card>
             ))}
+          </div>
           </div>
         </div>
       </div>

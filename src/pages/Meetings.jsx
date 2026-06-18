@@ -1,7 +1,8 @@
 // Meeting pieces shared by the merged Events & Meetings page (src/pages/EventsMeetings.jsx):
 // the meeting card, the create/edit form modal, and the recurring-series modal.
 import { useEffect, useState } from 'react'
-import { Plus, Clock, MapPin, Users, Pencil, Trash2, Ban, RotateCcw, Check } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Clock, MapPin, Users, Pencil, Trash2, Ban, RotateCcw, Check, UserCog, Maximize2, X, Link2 } from 'lucide-react'
 import { Card, Button, Badge, Modal, FormField, inputClass } from '../components/ui'
 import {
   getMeetingSeries, ensureUpcomingMeetings,
@@ -10,6 +11,9 @@ import {
   registerMeeting, unmarkAttendance,
 } from '../lib/api'
 import MemberChip from '../components/MemberChip'
+import ManageAttendeesModal from '../components/ManageAttendeesModal'
+import Linkify from '../components/Linkify'
+import LinkChip from '../components/LinkChip'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -21,7 +25,7 @@ function fmtTime(t) {
 }
 function timeRangeOf(start, end) {
   if (!start) return ''
-  return end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)
+  return (end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)) + ' PST'
 }
 // Meeting length in hours (default 1 if untimed). Attendees earn this; contributors earn +1.
 function meetingLength(m) {
@@ -34,12 +38,13 @@ function meetingLength(m) {
   return 1
 }
 
-export function MeetingCard({ meeting, myId, onChange, onEdit }) {
-  const isPast = meeting.date < TODAY
+export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp, onChange, onEdit }) {
+  const isPast = isPastProp ?? meeting.date < TODAY
   const canceled = meeting.canceled
   const attendees = meeting.meeting_attendees ?? []
   const myReg = attendees.find((a) => a.member_id === myId)
   const [busy, setBusy] = useState(false)
+  const [manage, setManage] = useState(false)
   const timeRange = timeRangeOf(meeting.start_time, meeting.end_time)
   const len = meetingLength(meeting)
 
@@ -70,9 +75,12 @@ export function MeetingCard({ meeting, myId, onChange, onEdit }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className={`break-words font-display text-h4 font-semibold text-ink-900 ${canceled ? 'line-through' : ''}`}>
+            <Link
+              to={`/meetings/${meeting.id}`}
+              className={`break-words font-display text-h4 font-semibold text-ink-900 transition-colors hover:text-green-700 ${canceled ? 'line-through' : ''}`}
+            >
               {meeting.title}
-            </h3>
+            </Link>
             {meeting.series_id && <Badge tone="blue">Weekly</Badge>}
             {canceled && <Badge tone="coral">Canceled</Badge>}
           </div>
@@ -81,7 +89,10 @@ export function MeetingCard({ meeting, myId, onChange, onEdit }) {
               <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {timeRange}</span>
             )}
             {meeting.location && (
-              <span className="flex items-center gap-1.5"><MapPin size={14} className="text-ink-400" /> {meeting.location}</span>
+              <span className="flex min-w-0 max-w-full items-center gap-1.5">
+                <MapPin size={14} className="shrink-0 text-ink-400" />
+                <span className="min-w-0 break-all">{meeting.location}</span>
+              </span>
             )}
           </div>
         </div>
@@ -95,6 +106,14 @@ export function MeetingCard({ meeting, myId, onChange, onEdit }) {
             </p>
           </div>
           <div className="flex gap-1">
+            <Link
+              to={`/meetings/${meeting.id}`}
+              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+              aria-label="Open full view"
+              title="Open shareable view"
+            >
+              <Maximize2 size={14} />
+            </Link>
             <button
               onClick={() => onEdit(meeting)}
               className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
@@ -121,15 +140,39 @@ export function MeetingCard({ meeting, myId, onChange, onEdit }) {
         </div>
       </div>
 
-      {meeting.notes && <p className="mt-3 whitespace-pre-wrap text-sm text-ink-600">{meeting.notes}</p>}
+      {meeting.notes && (
+        <p className="mt-3 whitespace-pre-wrap break-words text-sm text-ink-600">
+          <Linkify>{meeting.notes}</Linkify>
+        </p>
+      )}
 
-      <div className="mt-4 rounded-xl bg-ink-50 p-3">
+      {meeting.links?.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {meeting.links.map((url, i) => (
+            <LinkChip key={i} url={url} />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-auto pt-4">
+       <div className="rounded-xl bg-ink-50 p-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
             <Users size={15} className="text-ink-400" />
             {isPast ? 'Attended' : 'Attending'}
           </span>
-          <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{attendees.length}</span>
+          <span className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setManage(true)}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
+                title="Add or remove attendees"
+              >
+                <UserCog size={13} /> Manage
+              </button>
+            )}
+            <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{attendees.length}</span>
+          </span>
         </div>
         {attendees.length > 0 ? (
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -187,14 +230,31 @@ export function MeetingCard({ meeting, myId, onChange, onEdit }) {
             </div>
           ))}
         {!canceled && (
-          <p className="mt-2 text-2xs text-ink-400">Contributors earn the meeting length + 1 hr; attendees earn the length.</p>
+          <p className="mt-2 text-2xs text-ink-400">
+            Contributors earn the meeting length + 1 hr; attendees earn the length.{' '}
+            {isPast ? 'These hours are counted automatically.' : 'Hours are added automatically once the meeting ends (PST).'}
+          </p>
         )}
+       </div>
       </div>
+
+      {isAdmin && (
+        <ManageAttendeesModal
+          open={manage}
+          onClose={() => setManage(false)}
+          title={meeting.title}
+          current={attendees}
+          withRoles
+          onAdd={async (id, role) => { await registerMeeting(meeting.id, id, role); await onChange() }}
+          onRemove={async (id) => { await unmarkAttendance(meeting.id, id); await onChange() }}
+          onSetRole={async (id, role) => { await registerMeeting(meeting.id, id, role); await onChange() }}
+        />
+      )}
     </Card>
   )
 }
 
-const blankMeeting = { title: '', date: '', start_time: '', end_time: '', location: '', notes: '' }
+const blankMeeting = { title: '', date: '', start_time: '', end_time: '', location: '', notes: '', links: [] }
 
 export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
   const [form, setForm] = useState(blankMeeting)
@@ -211,6 +271,7 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
         end_time: (meeting.end_time ?? '').slice(0, 5),
         location: meeting.location ?? '',
         notes: meeting.notes ?? '',
+        links: meeting.links ?? [],
       })
     } else {
       setForm(blankMeeting)
@@ -227,6 +288,7 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
       end_time: form.end_time || null,
       location: form.location || null,
       notes: form.notes || null,
+      links: (form.links ?? []).map((s) => s.trim()).filter(Boolean),
     }
     if (editing) await updateMeeting(meeting.id, fields)
     else await createMeeting(fields)
@@ -256,6 +318,39 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
         </FormField>
         <FormField label="Notes">
           <textarea className={inputClass} rows={3} value={form.notes} onChange={set('notes')} placeholder="Agenda, decisions, action items…" />
+        </FormField>
+        <FormField label="Links">
+          <div className="space-y-2">
+            {(form.links ?? []).map((url, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  className={inputClass}
+                  value={url}
+                  onChange={(e) => {
+                    const next = [...form.links]
+                    next[i] = e.target.value
+                    setForm({ ...form, links: next })
+                  }}
+                  placeholder="Agenda doc, Meet link, slides…"
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, links: form.links.filter((_, j) => j !== i) })}
+                  className="shrink-0 rounded-lg border border-ink-300 px-2.5 text-ink-500 transition-colors hover:bg-coral-50 hover:text-coral-600"
+                  aria-label="Remove link"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, links: [...(form.links ?? []), ''] })}
+              className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+            >
+              <Link2 size={14} /> Add a link
+            </button>
+          </div>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>

@@ -9,6 +9,7 @@ import {
 import { Logo, Avatar, Badge, roleTones } from '../components/ui'
 import { getPublicEvent, initials } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
+import Linkify from '../components/Linkify'
 
 const pin = L.divIcon({
   className: '',
@@ -145,9 +146,9 @@ function EventBody({ event, isDark, copied, onShare }) {
   const attendees = event.attendees ?? []
   const igUrls = (event.instagram_urls ?? []).filter((u) => cleanIg(u))
   const timeRange = event.start_time
-    ? event.end_time
-      ? `${fmtTime(event.start_time)}–${fmtTime(event.end_time)}`
-      : fmtTime(event.start_time)
+    ? (event.end_time
+        ? `${fmtTime(event.start_time)}–${fmtTime(event.end_time)}`
+        : fmtTime(event.start_time)) + ' PST'
     : ''
   const mapsUrl = event.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`
@@ -238,7 +239,7 @@ function EventBody({ event, isDark, copied, onShare }) {
       {event.notes && (
         <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5">
           <h2 className="mb-2 font-semibold text-ink-900">Details</h2>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-600">{event.notes}</p>
+          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-600"><Linkify>{event.notes}</Linkify></p>
         </div>
       )}
 

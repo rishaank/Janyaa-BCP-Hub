@@ -204,7 +204,7 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
 
   return (
     <Card className="mt-6 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${meta.iconBg}`}>
             {busy && !ins ? <Loader2 size={20} className="animate-spin" /> : <Icon size={20} />}
@@ -241,16 +241,18 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
           </div>
         </div>
         {canRefresh && (
-          <div className="flex shrink-0 flex-col items-end gap-1">
+          <div className="shrink-0">
             <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={refresh} disabled={busy}>
               {busy ? 'Thinking…' : ins ? 'Refresh' : 'Generate'}
             </Button>
-            {ins && p.ai_insight_at && !busy && (
-              <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(p.ai_insight_at)}</span>
-            )}
           </div>
         )}
       </div>
+      {canRefresh && ins && p.ai_insight_at && !busy && (
+        <p className="mt-3 text-right text-xs text-ink-400">
+          Auto-refreshes monthly · updated {timeAgo(p.ai_insight_at)}
+        </p>
+      )}
     </Card>
   )
 }
@@ -426,6 +428,10 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
                 <div className="min-w-0">
                   {e.event_id ? (
                     <Link to={`/events/${e.event_id}`} className="block truncate text-sm font-medium text-ink-800 transition-colors hover:text-green-700">
+                      {e.description}
+                    </Link>
+                  ) : e.meeting_id ? (
+                    <Link to={`/meetings/${e.meeting_id}`} className="block truncate text-sm font-medium text-ink-800 transition-colors hover:text-green-700">
                       {e.description}
                     </Link>
                   ) : (

@@ -47,6 +47,12 @@ export async function getMembersWithHours() {
   }))
 }
 
+// Lightweight roster for the admin attendee picker — just id/name/role.
+export async function getMembersBrief() {
+  const { data } = await supabase.from('profiles').select('id, name, role').order('name')
+  return data ?? []
+}
+
 // Per-member itemized hours history (Feature 3). Pass null for everyone (export).
 export async function getHoursBreakdowns(memberId = null) {
   const { data } = await supabase.rpc('get_hours_breakdowns', { p_member: memberId })
@@ -500,6 +506,18 @@ export async function getPublicEvent(id) {
   const { data, error } = await supabase.rpc('get_public_event', { p_id: id })
   if (error) return null
   return data
+}
+
+// One meeting's public data for the shareable full-screen view (mirrors the event one).
+export async function getPublicMeeting(id) {
+  const { data, error } = await supabase.rpc('get_public_meeting', { p_id: id })
+  if (error) return null
+  return data
+}
+
+// Club-wide "semester targets" list (Goals + dashboard). Stored on club_settings.
+export function setTermTargets(targets) {
+  return supabase.from('club_settings').update({ term_targets: targets }).eq('id', true)
 }
 
 // ---- AI tools (suggestions / planner / social) ---------------------------

@@ -2,7 +2,7 @@
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Maximize2 } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Maximize2, UserCog } from 'lucide-react'
 import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import {
   getLocations,
@@ -17,6 +17,7 @@ import {
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
+import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { bestDays, topDay } from '../lib/planning'
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -32,7 +33,7 @@ function fmtTime(t) {
 }
 function timeRangeOf(start, end) {
   if (!start) return ''
-  return end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)
+  return (end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)) + ' PST'
 }
 
 export function CalendarSubscribeModal({ open, onClose }) {
@@ -82,7 +83,7 @@ export function CalendarSubscribeModal({ open, onClose }) {
   )
 }
 
-export function EventCard({ event, myId, onChange, onEdit }) {
+export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
   const isPast = event.date < TODAY
   const signups = event.event_signups ?? []
   const todos = event.event_todos ?? []
@@ -92,6 +93,7 @@ export function EventCard({ event, myId, onChange, onEdit }) {
   const [busy, setBusy] = useState(false)
   const [newTodo, setNewTodo] = useState('')
   const [copied, setCopied] = useState('')
+  const [manage, setManage] = useState(false)
   const timeRange = timeRangeOf(event.start_time, event.end_time)
   const mapsUrl = event.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`
@@ -252,20 +254,31 @@ export function EventCard({ event, myId, onChange, onEdit }) {
         </div>
       )}
 
-      {/* Crew / capacity */}
-      <div className="mt-4 rounded-xl bg-ink-50 p-3">
+      {/* Crew / capacity — sticks to the card bottom on past events (no to-dos below) */}
+      <div className={`rounded-xl bg-ink-50 p-3 ${isPast ? 'mt-auto' : 'mt-4'}`}>
         <div className="mb-2 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
             <Users size={15} className="text-ink-400" />
             {isPast ? 'Attended' : 'Crew'}
           </span>
-          <span className={`font-mono text-sm font-semibold tabular-nums ${understaffed && !isPast ? 'text-gold-700' : 'text-ink-700'}`}>
-            {signups.length}
-            {!isPast && (
-              <span className="font-normal text-ink-400">
-                {' '}/ {event.max_people ?? '∞'} · min {event.min_people}
-              </span>
+          <span className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setManage(true)}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
+                title="Add or remove crew"
+              >
+                <UserCog size={13} /> Manage
+              </button>
             )}
+            <span className={`font-mono text-sm font-semibold tabular-nums ${understaffed && !isPast ? 'text-gold-700' : 'text-ink-700'}`}>
+              {signups.length}
+              {!isPast && (
+                <span className="font-normal text-ink-400">
+                  {' '}/ {event.max_people ?? '∞'} · min {event.min_people}
+                </span>
+              )}
+            </span>
           </span>
         </div>
 
@@ -296,6 +309,14 @@ export function EventCard({ event, myId, onChange, onEdit }) {
             {isSignedUp ? 'Leave event' : atCapacity ? 'Event full' : 'Sign up'}
           </button>
         )}
+
+        {!event.is_tentative && (
+          <p className="mt-2 text-2xs text-ink-400">
+            {isPast
+              ? `${event.hours} hrs counted automatically for everyone on the crew.`
+              : `Everyone who signs up earns ${event.hours} hrs — added automatically once the event has taken place.`}
+          </p>
+        )}
       </div>
 
       {/* To-dos (upcoming only) */}
@@ -322,6 +343,17 @@ export function EventCard({ event, myId, onChange, onEdit }) {
             </button>
           </form>
         </div>
+      )}
+
+      {isAdmin && (
+        <ManageAttendeesModal
+          open={manage}
+          onClose={() => setManage(false)}
+          title={event.name}
+          current={signups}
+          onAdd={async (id) => { await signUpForEvent(event.id, id); await onChange() }}
+          onRemove={async (id) => { await leaveEvent(event.id, id); await onChange() }}
+        />
       )}
     </Card>
   )

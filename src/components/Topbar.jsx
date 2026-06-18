@@ -6,7 +6,7 @@ import { Logo } from './ui'
 // bottom of the (always-visible) sidebar.
 export default function Topbar({ onMenu }) {
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-ink-200 bg-surface/80 px-4 backdrop-blur lg:hidden">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-ink-200 bg-surface/90 px-4 backdrop-blur lg:hidden">
       <button
         onClick={onMenu}
         className="rounded-lg p-2 text-ink-500 hover:bg-ink-100"

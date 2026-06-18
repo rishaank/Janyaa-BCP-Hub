@@ -16,6 +16,24 @@ import { MeetingCard, MeetingFormModal, SeriesModal } from './Meetings'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
+// "now" in PST/PDT as naive parts — compare to stored LA-local times without DST math.
+function laNow() {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date()).map((x) => [x.type, x.value]),
+  )
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${(p.hour === '24' ? '00' : p.hour)}:${p.minute}` }
+}
+// A meeting becomes "past" once its end time (or end of day if untimed) passes in PST.
+function meetingEnded(m, now) {
+  if (m.date < now.date) return true
+  if (m.date > now.date) return false
+  const end = (m.end_time || '').slice(0, 5) || '23:59'
+  return end <= now.time
+}
+
 const segBtn = (active) =>
   `flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
     active ? 'bg-green-600 text-white shadow-xs' : 'text-ink-600 hover:text-ink-900'
@@ -24,7 +42,8 @@ const segBtn = (active) =>
 // Events and Meetings merged into one tab. A toggle picks which list you see; the
 // calendar view shows both at once. `?tab=meetings` deep-links the meetings list.
 export default function EventsMeetings() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
+  const isAdmin = !!profile?.is_admin
 
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'meetings' ? 'meetings' : 'events'
@@ -60,9 +79,10 @@ export default function EventsMeetings() {
   const tentative = events.filter((e) => e.is_tentative)
   const upcomingEvents = events.filter((e) => !e.is_tentative && e.date && e.date >= TODAY)
   const pastEvents = events.filter((e) => !e.is_tentative && e.date && e.date < TODAY).reverse()
-  // Meeting buckets
-  const upcomingMeetings = meetings.filter((m) => m.date >= TODAY)
-  const pastMeetings = meetings.filter((m) => m.date < TODAY).reverse()
+  // Meeting buckets — end-time aware (a meeting moves to Past when it ends, PST)
+  const now = laNow()
+  const upcomingMeetings = meetings.filter((m) => !meetingEnded(m, now))
+  const pastMeetings = meetings.filter((m) => meetingEnded(m, now)).reverse()
 
   const openCreateEvent = () => { setEditEvent(null); setEventForm(true) }
   const openEditEvent = (ev) => { setEditEvent(ev); setEventForm(true) }
@@ -75,40 +95,47 @@ export default function EventsMeetings() {
         title="Events & Meetings"
         subtitle="Manage and view events, meetings, and attendance."
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
-              <button onClick={() => setView('list')} className={segBtn(view === 'list')}>
-                <List size={15} /> List
-              </button>
-              <button onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
-                <CalendarDays size={15} /> Calendar
-              </button>
-            </div>
-            {view === 'list' && (
+          // Two rows on mobile (view toggles, then action buttons); one wrapped row on desktop.
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            {/* Row 1 — view toggles */}
+            <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
-                <button onClick={() => setTab('events')} className={segBtn(tab === 'events')}>
-                  <CalendarDays size={15} /> Events
+                <button onClick={() => setView('list')} className={segBtn(view === 'list')}>
+                  <List size={15} /> List
                 </button>
-                <button onClick={() => setTab('meetings')} className={segBtn(tab === 'meetings')}>
-                  <CalendarClock size={15} /> Meetings
+                <button onClick={() => setView('calendar')} className={segBtn(view === 'calendar')}>
+                  <CalendarDays size={15} /> Calendar
                 </button>
               </div>
-            )}
-            {/* Subscribe stays put in every view so it doesn't jump between tabs. */}
-            <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
-            {view === 'calendar' ? (
-              <>
-                <Button variant="soft" icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
+              {view === 'list' && (
+                <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
+                  <button onClick={() => setTab('events')} className={segBtn(tab === 'events')}>
+                    <CalendarDays size={15} /> Events
+                  </button>
+                  <button onClick={() => setTab('meetings')} className={segBtn(tab === 'meetings')}>
+                    <CalendarClock size={15} /> Meetings
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Row 2 — actions */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Subscribe stays put in every view so it doesn't jump between tabs. */}
+              <Button variant="soft" icon={CalendarPlus} onClick={() => setShowSubscribe(true)}>Subscribe</Button>
+              {view === 'calendar' ? (
+                <>
+                  <Button variant="soft" icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
+                  <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
+                </>
+              ) : tab === 'events' ? (
                 <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
-              </>
-            ) : tab === 'events' ? (
-              <Button icon={Plus} onClick={openCreateEvent}>Add event</Button>
-            ) : (
-              <>
-                <Button variant="soft" icon={Repeat} onClick={() => setSeriesOpen(true)}>Recurring</Button>
-                <Button icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button variant="soft" icon={Repeat} onClick={() => setSeriesOpen(true)}>Recurring</Button>
+                  <Button icon={Plus} onClick={openCreateMeeting}>Add meeting</Button>
+                </>
+              )}
+            </div>
           </div>
         }
       />
@@ -128,19 +155,19 @@ export default function EventsMeetings() {
         <>
           <Section title="Upcoming" count={upcomingEvents.length}>
             {upcomingEvents.map((e) => (
-              <EventCard key={e.id} event={e} myId={user?.id} onChange={loadEvents} onEdit={openEditEvent} />
+              <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
             ))}
           </Section>
           {tentative.length > 0 && (
             <Section title="Tentative" count={tentative.length}>
               {tentative.map((e) => (
-                <EventCard key={e.id} event={e} myId={user?.id} onChange={loadEvents} onEdit={openEditEvent} />
+                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
               ))}
             </Section>
           )}
           <Section title="Past" count={pastEvents.length}>
             {pastEvents.map((e) => (
-              <EventCard key={e.id} event={e} myId={user?.id} onChange={loadEvents} onEdit={openEditEvent} />
+              <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
             ))}
           </Section>
         </>
@@ -148,12 +175,12 @@ export default function EventsMeetings() {
         <>
           <Section title="Upcoming" count={upcomingMeetings.length}>
             {upcomingMeetings.map((m) => (
-              <MeetingCard key={m.id} meeting={m} myId={user?.id} onChange={loadMeetings} onEdit={openEditMeeting} />
+              <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast={false} onChange={loadMeetings} onEdit={openEditMeeting} />
             ))}
           </Section>
           <Section title="Past" count={pastMeetings.length}>
             {pastMeetings.map((m) => (
-              <MeetingCard key={m.id} meeting={m} myId={user?.id} onChange={loadMeetings} onEdit={openEditMeeting} />
+              <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast onChange={loadMeetings} onEdit={openEditMeeting} />
             ))}
           </Section>
         </>

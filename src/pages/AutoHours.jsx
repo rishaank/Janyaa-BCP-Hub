@@ -85,6 +85,10 @@ export default function AutoHours() {
             <li><span className="font-medium text-ink-800">Per new event</span> grants the moment an event is created.</li>
             <li>Auto-hours accrue going forward — set each member’s accurate hours so far from their profile.</li>
           </ul>
+          <p className="pt-1 text-ink-600">
+            <span className="font-semibold text-ink-800">Events &amp; meetings are separate.</span> Hours from signing
+            up for an event or attending a meeting are added automatically once that event or meeting has taken place.
+          </p>
         </div>
       </Card>
 
