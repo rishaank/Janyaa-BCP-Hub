@@ -6,6 +6,7 @@ import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUs
 import { exportAllHours } from '../lib/exportHours'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
+import { useIsDesktop } from '../lib/useMediaQuery'
 
 // Gold / silver / bronze for the top-3 hours leaders.
 const TROPHY = ['#eab308', '#9ca3af', '#cd7f32']
@@ -18,6 +19,8 @@ export default function Members() {
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
+  const isDesktop = useIsDesktop()
+  const [sortBy, setSortBy] = useState('total') // mobile list sort: 'total' | 'term'
 
   async function exportAll() {
     setExporting(true)
@@ -40,6 +43,24 @@ export default function Members() {
   const totalTermHours = Math.round(members.reduce((s, m) => s + (m.term_hours ?? 0), 0) * 10) / 10
   // Ranked most → least hours, so the list order + trophies line up.
   const ranked = [...members].sort((a, b) => b.hours - a.hours)
+
+  if (!isDesktop)
+    return (
+      <MembersMobile
+        members={members}
+        loading={loading}
+        isAdmin={isAdmin}
+        exporting={exporting}
+        onExport={exportAll}
+        addOpen={addOpen}
+        setAddOpen={setAddOpen}
+        onAdded={load}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        totalHours={totalHours}
+        totalTermHours={totalTermHours}
+      />
+    )
 
   return (
     <>
@@ -164,6 +185,121 @@ export default function Members() {
       </Card>
 
       <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
+    </>
+  )
+}
+
+/* ============================================================
+   MOBILE MEMBERS — bottom-tab shell layout (below lg)
+   ============================================================ */
+function MemberPill({ icon: Icon, val, lab, tone }) {
+  return (
+    <div className="jh-pill">
+      <span className={'jh-pill-ic tone-' + tone}><Icon size={17} /></span>
+      <span className="jh-pill-val">{val}</span>
+      <span className="jh-pill-lab">{lab}</span>
+    </div>
+  )
+}
+
+function AccessCardMobile({ icon: Icon, tone, title, active, items }) {
+  return (
+    <div className={`acc-card ${tone === 'blue' ? 'blue ' : ''}${active ? 'on' : ''}`}>
+      <div className="acc-head">
+        <span className={`acc-title ${tone}`}><Icon size={13} /> {title}</span>
+      </div>
+      <div className="acc-list">
+        {items.map((t) => <span className="acc-li" key={t}>{t}</span>)}
+      </div>
+    </div>
+  )
+}
+
+function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen, setAddOpen, onAdded, sortBy, setSortBy, totalHours, totalTermHours }) {
+  const navigate = useNavigate()
+  const ranked = [...members].sort((a, b) =>
+    sortBy === 'total' ? b.hours - a.hours : (b.term_hours ?? 0) - (a.term_hours ?? 0),
+  )
+
+  return (
+    <>
+      <div className="jh-pagehead">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1 className="jh-h1">Members</h1>
+          <p className="jh-sub">Everyone in the Hub — tap anyone for their profile.</p>
+        </div>
+        <button className="jh-action-btn" onClick={onExport} disabled={exporting}>
+          {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {exporting ? 'Exporting…' : 'Export'}
+        </button>
+      </div>
+
+      <div className="jh-statrow">
+        <MemberPill icon={Users} val={members.length} lab="members" tone="green" />
+        <MemberPill icon={Clock} val={`${totalTermHours}h`} lab="term hours" tone="gold" />
+        <MemberPill icon={Clock} val={`${totalHours}h`} lab="total hours" tone="blue" />
+      </div>
+
+      <div className="acc-grid">
+        <AccessCardMobile
+          icon={Users}
+          tone="green"
+          title="Every member"
+          active={!isAdmin}
+          items={['Sign up for events & meetings', 'Add & edit events, meetings, goals', 'Claim to-dos · pin AI cards', 'View, export & request hours']}
+        />
+        <AccessCardMobile
+          icon={Shield}
+          tone="blue"
+          title="Admins only"
+          active={isAdmin}
+          items={['Add & remove members', 'Edit roles, hours, names & emails', 'Reset passwords · auto-hours rules', 'See the full audit log']}
+        />
+      </div>
+
+      <div className="jh-card jh-card-pad" style={{ marginTop: 16 }}>
+        <div className="jh-card-head" style={{ marginBottom: 6 }}>
+          <span className="jh-card-title">All members</span>
+          <span className="jh-seg">
+            <button className={sortBy === 'total' ? 'on' : ''} onClick={() => setSortBy('total')}>Total</button>
+            <button className={sortBy === 'term' ? 'on' : ''} onClick={() => setSortBy('term')}>This term</button>
+          </span>
+        </div>
+        {loading ? (
+          <p style={{ padding: '14px 0', fontSize: 13, color: 'var(--ink-400)' }}>Loading…</p>
+        ) : members.length === 0 ? (
+          <p style={{ padding: '14px 0', fontSize: 13, color: 'var(--ink-500)' }}>No members yet. The first person to sign up shows up here.</p>
+        ) : (
+          ranked.map((m, i) => (
+            <button key={m.id} className="mem-row" onClick={() => navigate(`/members/${m.id}`)}>
+              <span className="mem-rank">
+                {i < 3 ? <Trophy size={18} style={{ color: TROPHY[i] }} /> : <span className="num">{i + 1}</span>}
+              </span>
+              {m.avatar_url
+                ? <img className="jh-avatar" src={m.avatar_url} alt="" />
+                : <span className={'jh-avatar av-' + (roleTones[m.role] ?? 'ink')}>{m.avatar}</span>}
+              <div className="mem-main">
+                <div className="mem-name">{m.name || '—'}</div>
+                <div className="mem-roles">
+                  <span className={'badge badge-' + (roleTones[m.role] ?? 'ink')}>{roleLabels[m.role] ?? 'Member'}</span>
+                  {m.is_founder && <span className="badge badge-gold"><Crown size={11} /> Founder</span>}
+                  {m.is_admin && <span className="badge badge-blue"><Shield size={11} /> Admin</span>}
+                </div>
+              </div>
+              <div className="mem-hrs">
+                <div className="mem-hrs-v">{sortBy === 'total' ? m.hours : (m.term_hours ?? 0)}h</div>
+                <div className="mem-hrs-l">{sortBy === 'total' ? `${m.term_hours ?? 0}h term` : `${m.hours}h total`}</div>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+
+      {isAdmin && (
+        <button className="jh-fab" onClick={() => setAddOpen(true)} aria-label="Add member">
+          <UserPlus size={24} /> Add
+        </button>
+      )}
+      <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={onAdded} />
     </>
   )
 }

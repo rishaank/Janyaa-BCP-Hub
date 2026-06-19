@@ -13,7 +13,9 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
+import { useIsDesktop } from '../lib/useMediaQuery'
 import InsightCard from '../components/InsightCard'
+import Linkify from '../components/Linkify'
 
 const monthOf = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
 const dayOf = (iso) => new Date(iso + 'T00:00:00').getDate()
@@ -32,6 +34,7 @@ export default function Dashboard() {
   const [pins, setPins] = useState([])
   const [requests, setRequests] = useState([]) // my hours-request status cards
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
 
   useEffect(() => {
     getPublicDashboard().then((data) => {
@@ -68,6 +71,7 @@ export default function Dashboard() {
   }
 
   if (loading) {
+    if (!isDesktop) return <MobileDashSkeleton />
     return (
       <>
         <PageHeader title="Dashboard" subtitle={`${currentTerm()} term at a glance`} />
@@ -77,6 +81,16 @@ export default function Dashboard() {
   }
 
   if (!d) {
+    if (!isDesktop)
+      return (
+        <>
+          <h1 className="jh-h1">Dashboard</h1>
+          <p className="jh-sub">{currentTerm()} term at a glance</p>
+          <div className="jh-card jh-card-pad" style={{ marginTop: 16, color: 'var(--ink-500)', fontSize: 13.5 }}>
+            Couldn’t load the dashboard. Try again in a moment.
+          </div>
+        </>
+      )
     return (
       <>
         <PageHeader title="Dashboard" subtitle={`${currentTerm()} term at a glance`} />
@@ -102,6 +116,23 @@ export default function Dashboard() {
     .sort((a, b) => (lbView === 'term' ? b.term_hours - a.term_hours : b.hours - a.hours))
     .slice(0, 5)
   const termEmpty = lbView === 'term' && Number(d.term_hours) === 0
+
+  if (!isDesktop)
+    return (
+      <DashboardMobile
+        d={d}
+        isGuest={isGuest}
+        pendingReqs={pendingReqs}
+        approvedReqs={approvedReqs}
+        deniedReqs={deniedReqs}
+        onDismiss={dismissRequest}
+        pins={pins}
+        insights={insights}
+        pinnedTitles={pinnedTitles}
+        onPin={pinIns}
+        onUnpin={unpinIns}
+      />
+    )
 
   return (
     <>
@@ -321,8 +352,8 @@ export default function Dashboard() {
             {goals.slice(0, 3).map((g) => (
               <Card key={g.id} className="flex flex-col p-5">
                 <span className="mb-1 font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-400">{periodLabel(g.period)}</span>
-                <h4 className="font-display text-h4 font-semibold text-ink-900">{g.title}</h4>
-                {g.detail && <p className="mt-1 line-clamp-2 text-sm text-ink-600">{g.detail}</p>}
+                <h4 className="whitespace-pre-wrap font-display text-h4 font-semibold text-ink-900"><Linkify>{g.title}</Linkify></h4>
+                {g.detail && <p className="mt-1 whitespace-pre-wrap text-sm text-ink-600"><Linkify>{g.detail}</Linkify></p>}
                 <div className="mt-auto pt-4">
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="text-xs text-ink-500">
@@ -445,6 +476,243 @@ function DashboardSkeleton() {
         </div>
         <Card className="p-5"><Skeleton className="h-5 w-28" /><Skeleton className="mt-4 h-44 w-full" /></Card>
       </div>
+    </>
+  )
+}
+
+/* ============================================================
+   MOBILE DASHBOARD — bottom-tab shell layout (below lg)
+   ============================================================ */
+
+// Stat pill — icon chip + value + label, in the design's pill style.
+function MPill({ icon: Icon, val, lab, tone }) {
+  return (
+    <div className="jh-pill">
+      <span className={'jh-pill-ic tone-' + tone}><Icon size={17} /></span>
+      <span className="jh-pill-val">{val}</span>
+      <span className="jh-pill-lab">{lab}</span>
+    </div>
+  )
+}
+
+// Fundraising pill with a gold progress ring around the piggy-bank.
+function MFundPill({ raised, target }) {
+  const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0
+  const C = 2 * Math.PI * 13
+  return (
+    <div className="jh-pill">
+      <span className="jh-pill-ic" style={{ position: 'relative', background: 'transparent' }}>
+        <svg width="32" height="32" viewBox="0 0 32 32" style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
+          <circle cx="16" cy="16" r="13" fill="none" stroke="var(--ink-150)" strokeWidth="3" />
+          <circle cx="16" cy="16" r="13" fill="none" stroke="var(--gold-500)" strokeWidth="3" strokeLinecap="round" strokeDasharray={`${(pct / 100) * C} ${C}`} />
+        </svg>
+        <PiggyBank size={15} style={{ color: 'var(--gold-text)' }} />
+      </span>
+      <span className="jh-pill-val">{pct}%</span>
+      <span className="jh-pill-lab">to goal</span>
+    </div>
+  )
+}
+
+function MobileDashSkeleton() {
+  return (
+    <>
+      <h1 className="jh-h1">Dashboard</h1>
+      <p className="jh-sub">{currentTerm()} term at a glance</p>
+      <div className="jh-statrow">
+        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-11 w-32 shrink-0 rounded-full" />)}
+      </div>
+      <Skeleton className="mt-5 h-44 w-full rounded-2xl" />
+      <Skeleton className="mt-4 h-56 w-full rounded-2xl" />
+    </>
+  )
+}
+
+function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, onDismiss, pins, insights, pinnedTitles, onPin, onUnpin }) {
+  const navigate = useNavigate()
+  const [lbView, setLbView] = useState('term')
+
+  const fundRaised = Number(d.fundraising?.raised ?? 0)
+  const fundTarget = Number(d.fundraising?.target ?? 500)
+  const events = d.upcoming_events_list ?? []
+  const meetings = d.upcoming_meetings_list ?? []
+  const goals = Array.isArray(d.goals) ? d.goals : []
+  const leaderboard = [...(d.leaderboard ?? [])]
+    .sort((a, b) => (lbView === 'term' ? b.term_hours - a.term_hours : b.hours - a.hours))
+    .slice(0, 4)
+  const termEmpty = lbView === 'term' && Number(d.term_hours) === 0
+  const liveInsights = (insights ?? []).filter((i) => !pinnedTitles.has(i.title)).slice(0, 3)
+
+  return (
+    <>
+      <h1 className="jh-h1">Dashboard</h1>
+      <p className="jh-sub">{currentTerm()} term at a glance</p>
+
+      {isGuest && (
+        <div className="jh-card jh-card-pad" style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontSize: 13, color: 'var(--ink-700)', lineHeight: 1.5 }}>
+            You’re viewing the public dashboard. Sign in to sign up for events, log hours, and more.
+          </p>
+          <Link to="/login" className="jh-btn-primary"><LogIn size={16} /> Sign in</Link>
+        </div>
+      )}
+
+      {/* My hours-request status */}
+      {(pendingReqs.length > 0 || approvedReqs.length > 0) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
+          {pendingReqs.map((r) => (
+            <span key={r.id} className="badge badge-gold" style={{ padding: '6px 11px', fontSize: 12 }}>
+              <Clock size={13} /> Pending — {Number(r.hours)}h · {r.activity}
+            </span>
+          ))}
+          {approvedReqs.map((r) => (
+            <span key={r.id} className="badge badge-green" style={{ padding: '6px 11px', fontSize: 12 }}>
+              <Check size={13} /> Approved — {Number(r.hours)}h
+              <button onClick={() => onDismiss(r.id)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', marginLeft: 2 }}><X size={12} /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      {deniedReqs.map((r) => (
+        <div key={r.id} className="jh-card jh-card-pad" style={{ marginTop: 12, display: 'flex', gap: 10, borderColor: 'var(--coral-200)' }}>
+          <span style={{ color: 'var(--coral-500)', flex: 'none' }}><AlertTriangle size={18} /></span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ fontWeight: 700, color: 'var(--ink-900)' }}>Hours request denied</p>
+            <p style={{ marginTop: 2, fontSize: 13, color: 'var(--ink-700)' }}>
+              Your request for {Number(r.hours)}h ({r.activity}) was denied{r.reviewer?.name ? ` by ${r.reviewer.name}` : ''}.
+            </p>
+            {r.denial_reason && <p style={{ marginTop: 4, fontSize: 13, color: 'var(--ink-600)' }}>Reason: {r.denial_reason}</p>}
+          </div>
+          <button onClick={() => onDismiss(r.id)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'var(--ink-400)', cursor: 'pointer', flex: 'none' }}><X size={16} /></button>
+        </div>
+      ))}
+
+      {/* Stat pills */}
+      <div className="jh-statrow">
+        <MPill icon={Users} val={Number(d.members_count ?? 0)} lab="members" tone="green" />
+        <MPill icon={Clock} val={`${Number(d.term_hours)}h`} lab="this term" tone="blue" />
+        <MPill icon={CalendarDays} val={Number(d.events_term ?? 0)} lab="events" tone="green" />
+        <MFundPill raised={fundRaised} target={fundTarget} />
+      </div>
+
+      {/* Upcoming */}
+      <div className="jh-card jh-card-pad" style={{ marginTop: 18 }}>
+        <div className="jh-card-head">
+          <span className="jh-card-title">Upcoming</span>
+          <Link to="/events" className="jh-viewall">View all <ArrowRight size={13} /></Link>
+        </div>
+        {events.length === 0 && meetings.length === 0 ? (
+          <p style={{ padding: '14px 0 4px', fontSize: 13, color: 'var(--ink-400)' }}>No upcoming events or meetings.</p>
+        ) : (
+          <>
+            {events.slice(0, 2).map((e) => (
+              <Link key={e.id} to={`/events/${e.id}`} className="jh-row">
+                <div className="jh-date">
+                  <span className="jh-date-m">{e.date ? monthOf(e.date) : 'TBD'}</span>
+                  {e.date && <span className="jh-date-d">{dayOf(e.date)}</span>}
+                </div>
+                <div className="jh-row-main">
+                  <div className="jh-row-t">{e.name}</div>
+                  <div className="jh-row-s">{e.location || 'Location TBD'}</div>
+                </div>
+                <span className="jh-count">{e.signups} in</span>
+              </Link>
+            ))}
+            {meetings.slice(0, 1).map((m) => (
+              <Link key={m.id} to={`/meetings/${m.id}`} className="jh-row">
+                <div className="jh-date" style={{ background: 'var(--blue-soft)' }}>
+                  <span className="jh-date-m" style={{ color: 'var(--blue-text)' }}>{m.date ? monthOf(m.date) : 'TBD'}</span>
+                  {m.date && <span className="jh-date-d" style={{ color: 'var(--blue-text)' }}>{dayOf(m.date)}</span>}
+                </div>
+                <div className="jh-row-main">
+                  <div className="jh-row-t">{m.title}</div>
+                  <div className="jh-row-s">{m.start_time ? `${fmtTime(m.start_time)} PST · Meeting` : 'Meeting'}</div>
+                </div>
+                <span className="jh-count">{m.attendees} in</span>
+              </Link>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Hours leaderboard */}
+      <div className="jh-card jh-card-pad" style={{ marginTop: 14 }}>
+        <div className="jh-card-head" style={{ marginBottom: 8 }}>
+          <span className="jh-card-title">Hours leaderboard</span>
+          <span className="jh-seg">
+            <button className={lbView === 'term' ? 'on' : ''} onClick={() => setLbView('term')}>This term</button>
+            <button className={lbView === 'all' ? 'on' : ''} onClick={() => setLbView('all')}>All time</button>
+          </span>
+        </div>
+        {termEmpty ? (
+          <div style={{ padding: '14px 0', textAlign: 'center' }}>
+            <p style={{ fontSize: 13, color: 'var(--ink-500)' }}>No hours logged yet this term.</p>
+            <button onClick={() => setLbView('all')} className="jh-viewall" style={{ marginTop: 4 }}>See all-time hours</button>
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <p style={{ padding: '14px 0', textAlign: 'center', fontSize: 13, color: 'var(--ink-400)' }}>No hours logged yet.</p>
+        ) : (
+          leaderboard.map((m, i) => (
+            <button key={m.id} className="jh-lb" onClick={() => !isGuest && navigate(`/members/${m.id}`)}>
+              <span className="jh-rank">{i + 1}</span>
+              {m.avatar_url
+                ? <img className="jh-avatar" src={m.avatar_url} alt="" />
+                : <span className={'jh-avatar av-' + (roleTones[m.role] ?? 'blue')}>{initials(m.name)}</span>}
+              <span className="jh-lb-name">{m.name}</span>
+              <span className="jh-lb-h">{lbView === 'term' ? m.term_hours : m.hours}h</span>
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Leadership goals */}
+      {goals.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div className="jh-card-head">
+            <span className="jh-sec-title"><Target size={16} style={{ color: 'var(--green-text)' }} /> Leadership goals</span>
+            <Link to="/goals" className="jh-viewall">View all <ArrowRight size={13} /></Link>
+          </div>
+          <div className="jh-goals">
+            {goals.slice(0, 4).map((g) => (
+              <div className="jh-card jh-goal" key={g.id}>
+                <span className="jh-overline">{periodLabel(g.period)}</span>
+                <div className="jh-goal-t"><Linkify>{g.title}</Linkify></div>
+                {g.detail && <div className="jh-goal-d">{g.detail}</div>}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 0 8px' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--ink-500)' }}>
+                    {g.owner_name ? (
+                      <>
+                        <span className={'jh-avatar av-' + (roleTones[g.owner_role] ?? 'blue')} style={{ width: 20, height: 20, fontSize: 9 }}>{initials(g.owner_name)}</span>
+                        {g.owner_name.split(' ')[0]}
+                      </>
+                    ) : 'Unassigned'}
+                  </span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--ink-700)' }}>{g.progress}%</span>
+                </div>
+                <div className="jh-prog"><i style={{ width: g.progress + '%' }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI insights */}
+      {(liveInsights.length > 0 || pins.length > 0) && (
+        <div style={{ marginTop: 22 }}>
+          <div className="jh-card-head">
+            <span className="jh-sec-title"><Sparkles size={16} style={{ color: 'var(--blue-text)' }} /> AI insights</span>
+            <Link to="/ai-planning" className="jh-viewall">View all <ArrowRight size={13} /></Link>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 4 }}>
+            {pins.map((p) => (
+              <InsightCard key={p.id} ins={p.payload} hideAiMark pin={{ pinned: true, onToggle: () => onUnpin(p.id) }} />
+            ))}
+            {liveInsights.map((ins, i) => (
+              <InsightCard key={i} ins={ins} hideAiMark pin={isGuest ? undefined : { pinned: false, onToggle: () => onPin(ins) }} />
+            ))}
+          </div>
+        </div>
+      )}
     </>
   )
 }

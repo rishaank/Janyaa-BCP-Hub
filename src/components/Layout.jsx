@@ -2,11 +2,17 @@ import { useState } from 'react'
 import { Outlet, useLocation, Link } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import MobileShell from './mobile/MobileShell'
+import { useIsDesktop } from '../lib/useMediaQuery'
 
-// App shell: fixed sidebar + top bar, with the active page rendered into <Outlet />.
+// App shell. Desktop (lg+) keeps the fixed sidebar + top bar; below lg it swaps to
+// the mobile redesign's bottom-tab shell. Both render the active page via <Outlet />.
 export default function Layout() {
+  const isDesktop = useIsDesktop()
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+
+  if (!isDesktop) return <MobileShell />
 
   return (
     <div className="min-h-screen bg-paper">

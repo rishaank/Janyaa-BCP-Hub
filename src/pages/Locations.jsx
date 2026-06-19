@@ -159,7 +159,7 @@ export default function Locations() {
       <div className="grid gap-6 lg:h-[calc(100vh-13rem)] lg:grid-cols-3 lg:items-stretch">
         {/* Map — full screen height on desktop */}
         <Card className="relative z-0 flex flex-col overflow-hidden lg:col-span-2 lg:h-full">
-          <div className="relative z-0 h-[460px] w-full isolate lg:h-auto lg:min-h-0 lg:flex-1">
+          <div className="relative z-0 h-[320px] w-full isolate sm:h-[440px] lg:h-auto lg:min-h-0 lg:flex-1">
             <MapContainer center={SAN_JOSE} zoom={10} className="h-full w-full" scrollWheelZoom>
               <TileLayer
                 key={isDark ? 'dark' : 'light'}

@@ -42,7 +42,9 @@ import {
   getMembersBrief,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { useIsDesktop } from '../lib/useMediaQuery'
 import MemberChip from '../components/MemberChip'
+import Linkify from '../components/Linkify'
 import AvatarCropper from '../components/AvatarCropper'
 import { exportMemberHours } from '../lib/exportHours'
 
@@ -55,6 +57,7 @@ export default function ProfilePage() {
   const isAdmin = !!me?.is_admin
   const isOpsLead = me?.role === 'operations_lead'
   const isOwn = user?.id === id
+  const isDesktop = useIsDesktop()
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -93,31 +96,53 @@ export default function ProfilePage() {
       </button>
 
       {/* Header */}
-      <Card className="p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-          <ProfilePhoto profile={p} canEdit={isOwn || isAdmin} onChange={load} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-display text-h2 font-bold text-ink-900">{p.name || '—'}</h1>
-              <Badge tone={roleTones[p.role] ?? 'ink'}>{roleLabels[p.role] ?? 'Member'}</Badge>
-              {p.is_founder && (
-                <Badge tone="gold"><Crown size={11} /> Founder</Badge>
-              )}
-              {p.is_admin && (
-                <Badge tone="blue"><Shield size={11} /> Admin</Badge>
-              )}
+      {isDesktop ? (
+        <Card className="p-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <ProfilePhoto profile={p} canEdit={isOwn || isAdmin} onChange={load} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="font-display text-h2 font-bold text-ink-900">{p.name || '—'}</h1>
+                <Badge tone={roleTones[p.role] ?? 'ink'}>{roleLabels[p.role] ?? 'Member'}</Badge>
+                {p.is_founder && (
+                  <Badge tone="gold"><Crown size={11} /> Founder</Badge>
+                )}
+                {p.is_admin && (
+                  <Badge tone="blue"><Shield size={11} /> Admin</Badge>
+                )}
+              </div>
+              <p className="mt-1 text-sm text-ink-500">
+                {p.email}
+                {p.joined_date && ` · joined ${formatDate(p.joined_date)}`}
+              </p>
             </div>
+            <div className="text-center sm:text-right">
+              <p className="font-mono text-4xl font-bold tabular-nums text-ink-900">{data.hours}</p>
+              <p className="text-xs text-ink-500">volunteer hours</p>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card className="p-6">
+          <div className="flex flex-col items-center text-center">
+            <ProfilePhoto profile={p} canEdit={isOwn || isAdmin} onChange={load} />
+            <h1 className="mt-3 font-display text-h3 font-bold text-ink-900">{p.name || '—'}</h1>
             <p className="mt-1 text-sm text-ink-500">
               {p.email}
               {p.joined_date && ` · joined ${formatDate(p.joined_date)}`}
             </p>
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-2">
+              <Badge tone={roleTones[p.role] ?? 'ink'}>{roleLabels[p.role] ?? 'Member'}</Badge>
+              {p.is_founder && <Badge tone="gold"><Crown size={11} /> Founder</Badge>}
+              {p.is_admin && <Badge tone="blue"><Shield size={11} /> Admin</Badge>}
+            </div>
+            <div className="mt-4 flex items-baseline gap-1.5">
+              <span className="font-mono text-3xl font-bold tabular-nums text-ink-900">{data.hours}</span>
+              <span className="text-xs text-ink-500">volunteer hours</span>
+            </div>
           </div>
-          <div className="text-center sm:text-right">
-            <p className="font-mono text-4xl font-bold tabular-nums text-ink-900">{data.hours}</p>
-            <p className="text-xs text-ink-500">volunteer hours</p>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <MemberInsightCard profile={p} canRefresh={isOwn || isAdmin} onChanged={load} />
 
@@ -214,49 +239,53 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
 
   return (
     <Card className="mt-6 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-start gap-3">
-          <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${meta.iconBg}`}>
-            {busy && !ins ? <Loader2 size={20} className="animate-spin" /> : <Icon size={20} />}
-          </span>
-          <div className="min-w-0 flex-1">
-            {ins ? (
-              <>
+      <div className="flex items-start gap-3">
+        <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-md ${meta.iconBg}`}>
+          {busy && !ins ? <Loader2 size={20} className="animate-spin" /> : <Icon size={20} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          {/* Title shares a row with Refresh; the body spans the full card width below. */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              {ins ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-display text-h4 font-semibold text-ink-900">{ins.title}</h3>
                   {ins.metric && <Badge tone={meta.chip}>{ins.metric}</Badge>}
                   <Sparkles size={13} className="text-ink-300" aria-label="AI-generated" />
                 </div>
-                <p className="mt-1 text-sm text-ink-600">{ins.detail}</p>
-                {ins.improve && (
-                  <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-700">
-                    <ArrowUpRight size={15} className="mt-0.5 shrink-0 text-green-600" />
-                    <span><span className="font-semibold">Try next:</span> {ins.improve}</span>
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
+              ) : (
                 <h3 className="flex items-center gap-1.5 font-display text-h4 font-semibold text-ink-900">
                   AI insight <Sparkles size={13} className="text-ink-300" />
                 </h3>
-                <p className="mt-1 text-sm text-ink-500">
-                  {busy
-                    ? 'Reading the volunteering history — this takes ~10 seconds.'
-                    : 'A personal look at progress and what to try next appears here once generated.'}
-                </p>
-              </>
+              )}
+            </div>
+            {canRefresh && (
+              <div className="shrink-0">
+                <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={refresh} disabled={busy}>
+                  {busy ? 'Thinking…' : ins ? 'Refresh' : 'Generate'}
+                </Button>
+              </div>
             )}
-            {error && <p className="mt-2 text-xs text-coral-700">{error}</p>}
           </div>
+          {ins ? (
+            <>
+              <p className="mt-1 text-sm text-ink-600">{ins.detail}</p>
+              {ins.improve && (
+                <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-700">
+                  <ArrowUpRight size={15} className="mt-0.5 shrink-0 text-green-600" />
+                  <span><span className="font-semibold">Try next:</span> {ins.improve}</span>
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="mt-1 text-sm text-ink-500">
+              {busy
+                ? 'Reading the volunteering history — this takes ~10 seconds.'
+                : 'A personal look at progress and what to try next appears here once generated.'}
+            </p>
+          )}
+          {error && <p className="mt-2 text-xs text-coral-700">{error}</p>}
         </div>
-        {canRefresh && (
-          <div className="shrink-0">
-            <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={refresh} disabled={busy}>
-              {busy ? 'Thinking…' : ins ? 'Refresh' : 'Generate'}
-            </Button>
-          </div>
-        )}
       </div>
       {canRefresh && ins && p.ai_insight_at && !busy && (
         <p className="mt-3 text-right text-xs text-ink-400">
@@ -422,16 +451,18 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
         </div>
       </div>
       {canRequest && (
-        <p className="mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          <span>
-            {isOwn
-              ? 'Request hours for activities outside events & meetings — the operations lead'
-              : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead`}
-          </span>
+        <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-700">
+          {isOwn
+            ? 'Request hours for activities outside events & meetings — the operations lead'
+            : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead`}
           {opsLead && (
-            <span className="inline-flex items-center">(<MemberChip id={opsLead.id} name={opsLead.name} role={opsLead.role} />)</span>
+            <>
+              {' '}
+              <span className="inline-flex items-center align-middle">(<MemberChip id={opsLead.id} name={opsLead.name} role={opsLead.role} />)</span>
+            </>
           )}
-          <span>{isOwn ? 'approves them.' : 'approves it.'}</span>
+          {' '}
+          {isOwn ? 'approves them.' : 'approves it.'}
         </p>
       )}
       {entries.length === 0 ? (
@@ -769,7 +800,7 @@ function ProfileGoalCard({ goal }) {
   return (
     <Card className="flex flex-col p-5">
       <div className="flex items-start justify-between gap-2">
-        <h4 className="font-display text-h4 font-semibold text-ink-900">{goal.title}</h4>
+        <h4 className="whitespace-pre-wrap break-words font-display text-h4 font-semibold text-ink-900"><Linkify>{goal.title}</Linkify></h4>
         {done && <Badge tone="green">Done</Badge>}
       </div>
       <div className="mt-auto pt-4">

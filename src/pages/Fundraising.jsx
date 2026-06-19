@@ -29,6 +29,7 @@ import {
   currentTermStart, getCurrentTermStart,
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useIsDesktop } from '../lib/useMediaQuery'
 import BestDaysChart from '../components/BestDaysChart'
 
 const DAY = 86400000
@@ -83,6 +84,7 @@ export default function Fundraising() {
   const [chartView, setChartView] = useState('window') // 'window' (6-month) | 'all' (first month → now)
   // Seasonal mirror as the instant value; the terms-table-aware RPC corrects it.
   const [termStart, setTermStart] = useState(currentTermStart())
+  const isDesktop = useIsDesktop()
 
   const loadSettings = () => getSettings().then(setSettings)
 
@@ -173,6 +175,145 @@ export default function Fundraising() {
   const yearLines = displayData.filter((t) => t.key.endsWith('-01')).map((t) => ({ x: t.label, year: t.key.slice(0, 4) }))
   const currentInWindow = displayData.find((t) => t.key === todayKey)
   const chartMax = Math.max(...displayData.map((d) => d.projected ?? d.actual ?? 0), 0)
+
+  if (!isDesktop)
+    return (
+      <>
+        <h1 className="jh-h1">Fundraising</h1>
+        <p className="jh-sub">Live GoFundMe total, the goal, and events over time.</p>
+
+        {/* GoFundMe live hero + editable shared goal */}
+        <div className="gfm-hero" style={{ marginTop: 14 }}>
+          <div className="gfm-top">
+            <span className="gfm-live"><span className="gfm-dot" /> GoFundMe · live</span>
+            <span style={{ display: 'flex', gap: 7 }}>
+              {settings?.gofundme_url && (
+                <a className="gfm-sync" href={settings.gofundme_url} target="_blank" rel="noreferrer" aria-label="View campaign on GoFundMe">
+                  <ExternalLink size={14} />
+                </a>
+              )}
+              <button className="gfm-sync" onClick={handleSync} disabled={syncing}>
+                {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sync
+              </button>
+            </span>
+          </div>
+          <div className="gfm-body">
+            <div className="gfm-raised-l">Raised so far</div>
+            <div className="gfm-raised">{gfmRaised != null ? `$${gfmRaised.toLocaleString()}` : '—'}</div>
+            <div className="gfm-goal">
+              <span>Shared goal</span>
+              <b><EditableGoal target={target} editable={!!settings} onSaved={loadSettings} /></b>
+            </div>
+            <div className="gfm-bar"><i style={{ width: `${Math.min(100, pctFunded)}%` }} /></div>
+            <div className="gfm-meta">
+              <span>{pctFunded}% funded</span>
+              <span>{settings?.gofundme_donations != null ? `${settings.gofundme_donations} donations · ` : ''}synced {timeAgo(settings?.gofundme_synced_at) || 'never'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* in-person event stats */}
+        <div className="fund-stats">
+          <div className="fund-stat"><DollarSign size={18} style={{ color: 'var(--green-text)' }} /><div className="v">${thisTerm}</div><div className="l">{eventsThisTermCount} events this term</div></div>
+          <div className="fund-stat"><TrendingUp size={18} style={{ color: 'var(--ink-500)' }} /><div className="v">${total}</div><div className="l">{eventsAllTimeCount} events all time</div></div>
+          <div className="fund-stat"><Target size={18} style={{ color: 'var(--gold-text)' }} /><div className="v">${avg}</div><div className="l">avg / event</div></div>
+        </div>
+
+        {/* cumulative graph + projection */}
+        <div className="jh-card jh-card-pad" style={{ marginTop: 16 }}>
+          <div className="jh-card-head" style={{ marginBottom: 10 }}>
+            <span className="jh-card-title">Over time</span>
+            <span className="chart-legend">
+              <span><i style={{ background: 'var(--green-500)' }} /> Actual</span>
+              <span><i style={{ background: 'var(--gold-500)' }} /> Projected</span>
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+            <span className="jh-seg">
+              <button className={chartView === 'window' ? 'on' : ''} onClick={() => setChartView('window')}>6 months</button>
+              <button className={chartView === 'all' ? 'on' : ''} onClick={() => setChartView('all')}>All time</button>
+            </span>
+            {!isAll && !atCurrent && (
+              <button className="jh-action-btn" style={{ padding: '5px 11px' }} onClick={() => setViewEnd(currentIdx)}>Jump to current</button>
+            )}
+          </div>
+          {loading ? (
+            <p style={{ padding: '40px 0', textAlign: 'center', fontSize: 13, color: 'var(--ink-400)' }}>Loading…</p>
+          ) : events.length === 0 ? (
+            <p style={{ padding: '40px 0', textAlign: 'center', fontSize: 13, color: 'var(--ink-400)' }}>No in-person fundraising recorded yet.</p>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 2 }}>
+              {!isAll && (
+                <button onClick={() => setViewEnd(Math.max(5, effEnd - 6))} disabled={prevDisabled} aria-label="Earlier months"
+                  style={{ width: 24, flex: 'none', border: 'none', background: 'none', color: 'var(--ink-400)', cursor: 'pointer', opacity: prevDisabled ? 0.25 : 1 }}>
+                  <ChevronLeft size={18} />
+                </button>
+              )}
+              <div style={{ height: 220, minWidth: 0, flex: 1 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={displayData} margin={{ top: 14, right: 10, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(140,132,117,0.18)" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
+                    <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#8c8475' }} tickLine={false} axisLine={false} width={44} />
+                    <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'rgba(140,132,117,0.45)' }} />
+                    {yearLines.map((yl) => (
+                      <ReferenceLine key={yl.year} x={yl.x} stroke="rgba(140,132,117,0.55)" strokeDasharray="4 4"
+                        label={{ value: yl.year, position: 'insideTopLeft', fontSize: 10, fill: '#8c8475' }} />
+                    ))}
+                    {currentInWindow && (
+                      <ReferenceLine x={currentInWindow.label} stroke="#2a943b" strokeDasharray="3 3"
+                        label={{ value: 'This month', position: 'top', fontSize: 9, fill: '#2a943b' }} />
+                    )}
+                    {target <= chartMax && (
+                      <ReferenceLine y={target} stroke="rgba(140,132,117,0.45)" strokeDasharray="4 4"
+                        label={{ value: `Goal $${target}`, position: 'insideTopRight', fontSize: 10, fill: '#8c8475' }} />
+                    )}
+                    <Line type="monotone" dataKey="actual" stroke="#2a943b" strokeWidth={2.5} dot={{ r: 3, fill: '#2a943b' }} connectNulls={false} />
+                    <Line type="monotone" dataKey="projected" stroke="#fba631" strokeWidth={2} strokeDasharray="6 5" dot={false} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              {!isAll && (
+                <button onClick={() => setViewEnd(Math.min(maxEnd, effEnd + 6))} disabled={nextDisabled} aria-label="Later months"
+                  style={{ width: 24, flex: 'none', border: 'none', background: 'none', color: 'var(--ink-400)', cursor: 'pointer', opacity: nextDisabled ? 0.25 : 1 }}>
+                  <ChevronRight size={18} />
+                </button>
+              )}
+            </div>
+          )}
+          {canProject && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, padding: 11, borderRadius: 12, background: 'var(--blue-soft)', fontSize: 12.5, color: 'var(--ink-700)', lineHeight: 1.45 }}>
+              <Sparkles size={15} style={{ color: 'var(--blue-text)', flex: 'none', marginTop: 1 }} />
+              <span>At ~<b>${perMonth}/month</b>, in-person events are on track for about <b>${projectedYearEnd.toLocaleString()}</b> by the end of {thisYear}.</span>
+            </div>
+          )}
+        </div>
+
+        {/* best days */}
+        <div className="jh-card jh-card-pad" style={{ marginTop: 14 }}>
+          <span className="jh-card-title" style={{ display: 'block', marginBottom: 12 }}>Best days to fundraise</span>
+          <BestDaysChart events={events} />
+        </div>
+
+        {/* by event */}
+        <div className="jh-card jh-card-pad" style={{ marginTop: 14 }}>
+          <span className="jh-card-title" style={{ display: 'block', marginBottom: 4 }}>By event</span>
+          {events.length === 0 ? (
+            <p style={{ padding: '14px 0', textAlign: 'center', fontSize: 13, color: 'var(--ink-400)' }}>No fundraising events yet.</p>
+          ) : (
+            [...events].reverse().map((e) => (
+              <Link key={e.id} to={`/events/${e.id}`} className="byevent-row">
+                <div style={{ minWidth: 0 }}>
+                  <div className="jh-row-t">{e.name}</div>
+                  <div className="jh-row-s">{formatDate(e.date)} · {e.location}</div>
+                </div>
+                <span className="amt">${e.raised}</span>
+              </Link>
+            ))
+          )}
+        </div>
+      </>
+    )
 
   return (
     <>

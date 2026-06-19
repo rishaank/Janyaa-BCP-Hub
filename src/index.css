@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/tailwind-theme.css";
+@import "./styles/mobile.css";
 
 /* ============================================================
    Brand compatibility layer.
@@ -200,6 +201,20 @@ body::before {
 }
 .ja-veil-in { animation: ja-veil-in 0.2s ease-out both; }
 
+/* Opacity-only entrance (no transform) — safe over position:fixed children like
+   the mobile FAB. Used for mobile page transitions. */
+@keyframes ja-fade-soft {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ja-fade-soft { animation: ja-fade-soft 0.28s ease both; }
+
+/* Bottom fade for clipped goal text — reads as "there's more below". */
+.goal-fade-mask {
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
+}
+
 /* Staggered entrance for card grids: the first few children cascade in. */
 .ja-stagger > * { animation: ja-fade-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .ja-stagger > *:nth-child(1) { animation-delay: 0.03s; }
@@ -214,7 +229,7 @@ body::before {
 .ja-collapse { transition: grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ja-fade, .ja-pop, .ja-veil-in, .ja-stagger > * { animation: none; }
+  .ja-fade, .ja-fade-soft, .ja-pop, .ja-veil-in, .ja-stagger > * { animation: none; }
   .ja-userdot::after { animation: none; }
   .ja-collapse { transition: none; }
 }

@@ -10,6 +10,7 @@ import {
   autoGenerateInsights,
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useIsDesktop } from '../lib/useMediaQuery'
 import EventsCalendar from '../components/EventsCalendar'
 import { EventCard, EventFormModal, CalendarSubscribeModal } from './Events'
 import { MeetingCard, MeetingFormModal, SeriesModal } from './Meetings'
@@ -45,6 +46,7 @@ export default function EventsMeetings() {
   const { user, profile } = useAuth()
   const isAdmin = !!profile?.is_admin
 
+  const isDesktop = useIsDesktop()
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'meetings' ? 'meetings' : 'events'
   const setTab = (t) => setParams(t === 'meetings' ? { tab: 'meetings' } : {}, { replace: true })
@@ -88,6 +90,111 @@ export default function EventsMeetings() {
   const openEditEvent = (ev) => { setEditEvent(ev); setEventForm(true) }
   const openCreateMeeting = () => { setEditMeeting(null); setMeetingForm(true) }
   const openEditMeeting = (m) => { setEditMeeting(m); setMeetingForm(true) }
+
+  // Shared add/edit/subscribe modals — rendered in both the desktop and mobile trees.
+  const modals = (
+    <>
+      <EventFormModal
+        open={eventForm}
+        event={editEvent}
+        events={events}
+        onClose={() => setEventForm(false)}
+        onSaved={() => { setEventForm(false); loadEvents(); autoGenerateInsights() }}
+      />
+      <CalendarSubscribeModal open={showSubscribe} onClose={() => setShowSubscribe(false)} />
+      <MeetingFormModal
+        open={meetingForm}
+        meeting={editMeeting}
+        onClose={() => setMeetingForm(false)}
+        onSaved={() => { setMeetingForm(false); loadMeetings() }}
+      />
+      <SeriesModal open={seriesOpen} onClose={() => setSeriesOpen(false)} onChange={loadMeetings} />
+    </>
+  )
+
+  if (!isDesktop)
+    return (
+      <>
+        <div className="jh-pagehead">
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1 className="jh-h1">Events &amp; Meetings</h1>
+            <p className="jh-sub">Events, meetings, and attendance.</p>
+          </div>
+          <button className="jh-action-btn" onClick={() => setShowSubscribe(true)}><CalendarPlus size={15} /> Subscribe</button>
+        </div>
+
+        <div className="seg-bar">
+          <span className="jh-seg">
+            <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}><List size={14} /> List</button>
+            <button className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}><CalendarDays size={14} /> Calendar</button>
+          </span>
+          {view === 'list' && (
+            <span className="jh-seg">
+              <button className={tab === 'events' ? 'on' : ''} onClick={() => setTab('events')}>Events</button>
+              <button className={tab === 'meetings' ? 'on' : ''} onClick={() => setTab('meetings')}>Meetings</button>
+            </span>
+          )}
+          {view === 'list' && tab === 'meetings' && (
+            <button className="jh-action-btn" onClick={() => setSeriesOpen(true)}><Repeat size={14} /> Recurring</button>
+          )}
+        </div>
+
+        {loading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 }}>
+            {[0, 1, 2].map((i) => <div key={i} className="jh-card" style={{ height: 150, background: 'var(--ink-50)' }} />)}
+          </div>
+        ) : view === 'calendar' ? (
+          <div style={{ marginTop: 16 }}>
+            <EventsCalendar events={events} meetings={meetings} onSelectEvent={openEditEvent} onSelectMeeting={openEditMeeting} />
+          </div>
+        ) : tab === 'events' ? (
+          <>
+            <MobileSection title="Upcoming" count={upcomingEvents.length}>
+              {upcomingEvents.map((e) => (
+                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
+              ))}
+            </MobileSection>
+            {tentative.length > 0 && (
+              <MobileSection title="Tentative" count={tentative.length}>
+                {tentative.map((e) => (
+                  <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
+                ))}
+              </MobileSection>
+            )}
+            <MobileSection title="Past" count={pastEvents.length}>
+              {pastEvents.map((e) => (
+                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
+              ))}
+            </MobileSection>
+          </>
+        ) : (
+          <>
+            <MobileSection title="Upcoming" count={upcomingMeetings.length}>
+              {upcomingMeetings.map((m) => (
+                <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast={false} onChange={loadMeetings} onEdit={openEditMeeting} />
+              ))}
+            </MobileSection>
+            <MobileSection title="Past" count={pastMeetings.length}>
+              {pastMeetings.map((m) => (
+                <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast onChange={loadMeetings} onEdit={openEditMeeting} />
+              ))}
+            </MobileSection>
+          </>
+        )}
+
+        {view !== 'calendar' && (
+          <button
+            className="jh-fab"
+            onClick={tab === 'meetings' ? openCreateMeeting : openCreateEvent}
+            aria-label={tab === 'meetings' ? 'Add meeting' : 'Add event'}
+          >
+            <Plus size={24} /> {tab === 'meetings' ? 'Meeting' : 'Event'}
+          </button>
+        )}
+
+        {modals}
+      </>
+    )
 
   return (
     <>
@@ -186,29 +293,22 @@ export default function EventsMeetings() {
         </>
       )}
 
-      <EventFormModal
-        open={eventForm}
-        event={editEvent}
-        events={events}
-        onClose={() => setEventForm(false)}
-        onSaved={() => {
-          setEventForm(false)
-          loadEvents()
-          autoGenerateInsights() // new/edited event → refresh AI insights (throttled)
-        }}
-      />
-      <CalendarSubscribeModal open={showSubscribe} onClose={() => setShowSubscribe(false)} />
-      <MeetingFormModal
-        open={meetingForm}
-        meeting={editMeeting}
-        onClose={() => setMeetingForm(false)}
-        onSaved={() => {
-          setMeetingForm(false)
-          loadMeetings()
-        }}
-      />
-      <SeriesModal open={seriesOpen} onClose={() => setSeriesOpen(false)} onChange={loadMeetings} />
+      {modals}
     </>
+  )
+}
+
+// Single-column section for the mobile list (overline header + stacked cards).
+function MobileSection({ title, count, children }) {
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div className="jh-overline" style={{ marginBottom: 10 }}>{title} · {count}</div>
+      {count === 0 ? (
+        <p style={{ fontSize: 13, color: 'var(--ink-400)' }}>Nothing here yet.</p>
+      ) : (
+        <div className="ja-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
+      )}
+    </div>
   )
 }
 

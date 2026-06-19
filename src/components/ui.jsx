@@ -71,15 +71,17 @@ export function Card({ className = '', children }) {
 }
 
 // Page title (display face) + optional subtitle, overline badge, and action slot.
+// Below `lg` (the mobile redesign's shell) the title shrinks to the mobile scale
+// so every page header matches the bottom-tab pages; lg+ is the original desktop size.
 export function PageHeader({ title, subtitle, badge, action }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:mb-6">
       <div>
         <div className="flex items-center gap-2.5">
-          <h1 className="font-display text-h1 font-bold tracking-tight text-ink-900">{title}</h1>
+          <h1 className="font-display text-[1.6875rem] font-bold leading-[1.1] tracking-tight text-ink-900 lg:text-h1">{title}</h1>
           {badge}
         </div>
-        {subtitle && <p className="mt-1 text-ink-600">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-sm text-ink-600 lg:text-base">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -345,7 +347,7 @@ export function Modal({ open, onClose, title, children }) {
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="ja-veil-in absolute inset-0 bg-ink-950/50" onClick={onClose} />
+      <div className="ja-veil-in absolute inset-0 bg-ink-950/50 backdrop-blur-sm" onClick={onClose} />
       <div className="ja-pop relative z-10 w-full max-w-md rounded-2xl bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-ink-200 px-5 py-4">
           <h2 className="font-display text-h4 font-semibold text-ink-900">{title}</h2>

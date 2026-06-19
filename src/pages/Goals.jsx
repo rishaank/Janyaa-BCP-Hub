@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Target, Plus, Pencil, Trash2, Check, X, GripVertical, ChevronDown, ChevronRight } from 'lucide-react'
 import { PageHeader, Card, Button, Modal, FormField, inputClass, Avatar, roleTones, roleLabels, AccessChip } from '../components/ui'
@@ -129,7 +129,7 @@ export default function Goals() {
       <TargetsStrip targets={targets} editable={isAdmin} onEdit={() => setTargetsOpen(true)} />
 
       {/* Desktop grid — fills the tab width; the term + month columns flex to share the space. */}
-      <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-ink-200 bg-surface shadow-sm lg:block">
+      <div className="ja-fade mt-6 hidden overflow-x-auto rounded-2xl border border-ink-200 bg-surface shadow-sm lg:block">
         <div className="min-w-[860px]">
             {/* Header */}
             <div className="flex border-b border-ink-200 bg-ink-50">
@@ -337,19 +337,54 @@ function GridCell({ col, goals = [], isTerm, period, memberId, canEdit, collapse
 
 function GoalChipCard({ goal, isTerm, canEdit, onOpen }) {
   const done = (goal.progress || 0) >= 100
+  const [expanded, setExpanded] = useState(false)
+  const [clipped, setClipped] = useState(false)
+  const textRef = useRef(null)
+
+  // The text fills whatever height the cell has (a taller row — e.g. a sibling
+  // column with two goals — reveals more lines). Show the expand affordance + a
+  // bottom fade only when text is actually clipped; re-check when the row resizes.
+  useEffect(() => {
+    const el = textRef.current
+    if (!el || expanded) return
+    const check = () => setClipped(el.scrollHeight - el.clientHeight > 2)
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [goal.title, expanded])
+
   return (
     <div
-      draggable={canEdit}
+      draggable={canEdit && !expanded}
       onDragStart={(e) => e.dataTransfer.setData('text/goal', goal.id)}
       onClick={() => canEdit && onOpen(goal)}
-      className={`flex flex-1 flex-col justify-between gap-2 rounded-xl border p-3 shadow-xs transition ${
+      className={`flex flex-1 flex-col gap-2 rounded-xl border p-3 shadow-xs transition ${
         isTerm ? 'border-gold-200 bg-gold-50/70' : 'border-ink-200 bg-surface'
       } ${canEdit ? 'cursor-grab hover:shadow-card active:cursor-grabbing' : ''}`}
     >
-      <p className={`text-[13px] leading-snug text-ink-700 ${isTerm ? 'line-clamp-4' : 'line-clamp-3'}`}>
+      <p
+        ref={textRef}
+        className={`whitespace-pre-wrap break-words text-[13px] leading-snug text-ink-700 ${
+          expanded ? '' : `min-h-[4.5rem] flex-1 overflow-hidden ${clipped ? 'goal-fade-mask' : ''}`
+        }`}
+      >
         <Linkify>{goal.title}</Linkify>
       </p>
-      <ProgressLine value={goal.progress || 0} done={done} />
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1"><ProgressLine value={goal.progress || 0} done={done} /></div>
+        {(clipped || expanded) && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v) }}
+            aria-label={expanded ? 'Collapse goal' : 'Expand goal'}
+            aria-expanded={expanded}
+            className="-mr-1 grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink-400 transition-colors hover:bg-ink-150 hover:text-ink-700"
+          >
+            <ChevronDown size={14} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -393,7 +428,7 @@ function MobilePersonCard({ m, months, byCell, canEdit, onAdd, onOpen }) {
               >
                 <span className={`w-10 shrink-0 pt-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.06em] ${c.isTerm ? 'text-gold-700' : 'text-ink-500'}`}>{c.isTerm ? 'Term' : MONTH_ABBR[Number(c.key.split('-')[1]) - 1]}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="mb-2 block text-sm leading-snug text-ink-800"><Linkify>{g.title}</Linkify></span>
+                  <span className="mb-2 block whitespace-pre-wrap break-words text-sm leading-snug text-ink-800"><Linkify>{g.title}</Linkify></span>
                   <ProgressLine value={g.progress || 0} done={(g.progress || 0) >= 100} />
                 </span>
               </button>
