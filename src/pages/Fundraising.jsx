@@ -80,6 +80,7 @@ export default function Fundraising() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [viewEnd, setViewEnd] = useState(null) // window's last-month index (null = current month)
+  const [chartView, setChartView] = useState('window') // 'window' (6-month) | 'all' (first month → now)
   // Seasonal mirror as the instant value; the terms-table-aware RPC corrects it.
   const [termStart, setTermStart] = useState(currentTermStart())
 
@@ -162,9 +163,16 @@ export default function Fundraising() {
   const prevDisabled = effEnd <= 5
   const nextDisabled = effEnd >= maxEnd
   const atCurrent = effEnd === defaultEnd
-  const yearLines = windowData.filter((t) => t.key.endsWith('-01')).map((t) => ({ x: t.label, year: t.key.slice(0, 4) }))
-  const currentInWindow = windowData.find((t) => t.key === todayKey)
-  const chartMax = Math.max(...windowData.map((d) => d.projected ?? d.actual ?? 0), 0)
+
+  // "All time": first logged month on the left → current month on the right edge.
+  const idxFirst = Math.max(0, timeline.findIndex((t) => t.key === firstEventKey))
+  const allData = timeline.slice(idxFirst, currentIdx + 1)
+
+  const isAll = chartView === 'all'
+  const displayData = isAll ? allData : windowData
+  const yearLines = displayData.filter((t) => t.key.endsWith('-01')).map((t) => ({ x: t.label, year: t.key.slice(0, 4) }))
+  const currentInWindow = displayData.find((t) => t.key === todayKey)
+  const chartMax = Math.max(...displayData.map((d) => d.projected ?? d.actual ?? 0), 0)
 
   return (
     <>
@@ -263,8 +271,21 @@ export default function Fundraising() {
       <Card className="mt-6 p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold text-ink-900">In-Person Fundraising Over Time</h3>
-          <div className="flex items-center gap-3">
-            {!atCurrent && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-lg border border-ink-200 bg-surface p-0.5">
+              {[['window', '6 months'], ['all', 'All time']].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setChartView(val)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                    chartView === val ? 'bg-green-600 text-white shadow-xs' : 'text-ink-500 hover:text-ink-900'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {!isAll && !atCurrent && (
               <button
                 onClick={() => setViewEnd(currentIdx)}
                 className="rounded-lg bg-ink-100 px-2.5 py-1 text-xs font-semibold text-ink-700 transition-colors hover:bg-ink-200"
@@ -285,17 +306,19 @@ export default function Fundraising() {
           <p className="py-16 text-center text-sm text-ink-400">No in-person fundraising recorded yet.</p>
         ) : (
           <div className="flex items-stretch gap-1">
-            <button
-              onClick={() => setViewEnd(Math.max(5, effEnd - 6))}
-              disabled={prevDisabled}
-              aria-label="Earlier months"
-              className="grid w-7 shrink-0 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-700 disabled:opacity-25 disabled:hover:bg-transparent"
-            >
-              <ChevronLeft size={18} />
-            </button>
+            {!isAll && (
+              <button
+                onClick={() => setViewEnd(Math.max(5, effEnd - 6))}
+                disabled={prevDisabled}
+                aria-label="Earlier months"
+                className="grid w-7 shrink-0 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-700 disabled:opacity-25 disabled:hover:bg-transparent"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            )}
             <div className="h-72 min-w-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={windowData} margin={{ top: 14, right: 12, bottom: 0, left: 4 }}>
+                <LineChart data={displayData} margin={{ top: 14, right: 12, bottom: 0, left: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(140,132,117,0.18)" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
                   <YAxis
@@ -336,14 +359,16 @@ export default function Fundraising() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <button
-              onClick={() => setViewEnd(Math.min(maxEnd, effEnd + 6))}
-              disabled={nextDisabled}
-              aria-label="Later months"
-              className="grid w-7 shrink-0 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-700 disabled:opacity-25 disabled:hover:bg-transparent"
-            >
-              <ChevronRight size={18} />
-            </button>
+            {!isAll && (
+              <button
+                onClick={() => setViewEnd(Math.min(maxEnd, effEnd + 6))}
+                disabled={nextDisabled}
+                aria-label="Later months"
+                className="grid w-7 shrink-0 place-items-center rounded-lg text-ink-400 transition-colors hover:bg-ink-100 hover:text-ink-700 disabled:opacity-25 disabled:hover:bg-transparent"
+              >
+                <ChevronRight size={18} />
+              </button>
+            )}
           </div>
         )}
 

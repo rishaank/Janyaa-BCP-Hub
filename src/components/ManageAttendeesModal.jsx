@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, Plus, Search } from 'lucide-react'
-import { Modal } from './ui'
+import { Modal, AccessChip } from './ui'
 import MemberChip from './MemberChip'
 import { getMembersBrief } from '../lib/api'
 
@@ -44,9 +44,9 @@ export default function ManageAttendeesModal({
   return (
     <Modal open={open} onClose={onClose} title="Manage attendees">
       <div className="space-y-4">
-        <p className="text-sm text-ink-600">
-          Add or remove anyone for <span className="font-medium text-ink-800">{title}</span>. Changes
-          apply immediately.
+        <p className="flex flex-wrap items-center gap-2 text-sm text-ink-600">
+          <AccessChip mode="edit" />
+          <span>Add or remove anyone for <span className="font-medium text-ink-800">{title}</span>. Changes apply immediately.</span>
         </p>
 
         <div>

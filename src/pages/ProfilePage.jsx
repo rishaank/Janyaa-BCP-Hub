@@ -19,6 +19,7 @@ import {
   formatDate,
   timeAgo,
   EditAccessChip,
+  AccessChip,
 } from '../components/ui'
 import { toneMeta } from '../components/InsightCard'
 import {
@@ -38,8 +39,10 @@ import {
   submitHoursRequest,
   generateMemberInsight,
   periodLabel,
+  getMembersBrief,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import MemberChip from '../components/MemberChip'
 import AvatarCropper from '../components/AvatarCropper'
 import { exportMemberHours } from '../lib/exportHours'
 
@@ -55,6 +58,7 @@ export default function ProfilePage() {
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [opsLead, setOpsLead] = useState(null) // current operations lead, shown on the request-hours hint
 
   const load = () =>
     getProfileDetails(id).then((d) => {
@@ -67,6 +71,10 @@ export default function ProfilePage() {
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  useEffect(() => {
+    getMembersBrief().then((ms) => setOpsLead(ms.find((m) => m.role === 'operations_lead') ?? null))
+  }, [])
 
   if (loading) return <p className="text-sm text-ink-500">Loading…</p>
   if (!data?.profile) return <p className="text-sm text-ink-500">Member not found.</p>
@@ -120,6 +128,7 @@ export default function ProfilePage() {
         isOwn={isOwn}
         memberId={id}
         memberName={p.name}
+        opsLead={opsLead}
         onChange={load}
       />
 
@@ -375,7 +384,7 @@ const kindMeta = {
 // an Excel export. Admins can add, edit, or remove ledger entries (event hours,
 // imported rows, role/manual grants) inline; derived event sign-ups and meeting
 // attendance (no grant_id) are read-only here and managed on their own pages.
-function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId, memberName, onChange }) {
+function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId, memberName, opsLead, onChange }) {
   const entries = breakdown?.entries ?? []
   const [modalOpen, setModalOpen] = useState(false)
   const [editEntry, setEditEntry] = useState(null)
@@ -413,10 +422,16 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
         </div>
       </div>
       {canRequest && (
-        <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          {isOwn
-            ? 'Request hours for activities outside events & meetings — the operations lead approves them.'
-            : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead approves it.`}
+        <p className="mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+          <span>
+            {isOwn
+              ? 'Request hours for activities outside events & meetings — the operations lead'
+              : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead`}
+          </span>
+          {opsLead && (
+            <span className="inline-flex items-center">(<MemberChip id={opsLead.id} name={opsLead.name} role={opsLead.role} />)</span>
+          )}
+          <span>{isOwn ? 'approves them.' : 'approves it.'}</span>
         </p>
       )}
       {entries.length === 0 ? (
@@ -850,6 +865,7 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
       <div className="mb-4 flex items-center gap-2">
         <Shield size={16} className="text-blue-600" />
         <h3 className="font-display text-h4 font-semibold text-ink-900">Admin Controls</h3>
+        <AccessChip mode="edit" />
       </div>
       <div className="space-y-5">
         {/* Identity */}

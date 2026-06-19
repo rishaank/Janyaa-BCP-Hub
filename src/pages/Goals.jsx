@@ -45,6 +45,9 @@ const selectClass =
 export default function Goals() {
   const { user, profile } = useAuth()
   const isAdmin = !!profile?.is_admin
+  const myId = user?.id
+  // Admins edit everyone; members edit only their own row (set goals for themselves).
+  const canEditMember = (id) => isAdmin || id === myId
   const [goals, setGoals] = useState([])
   const [members, setMembers] = useState([])
   const [targets, setTargets] = useState([])
@@ -117,9 +120,9 @@ export default function Goals() {
         title="Leadership goals"
         subtitle={isAdmin
           ? 'Set the club’s priorities for the term and track progress — one row per person, one column per month.'
-          : 'The club’s priorities for the term — one row per person, one column per month.'}
-        badge={!isAdmin ? <AccessChip mode="view" /> : null}
-        action={isAdmin && <Button icon={Plus} onClick={() => setEdit({})}>Add Goal</Button>}
+          : 'The club’s priorities for the term — set your own goals on your row.'}
+        badge={isAdmin ? <AccessChip mode="edit" /> : null}
+        action={<Button icon={Plus} onClick={() => setEdit(isAdmin ? {} : { owner_id: myId })}>Add Goal</Button>}
       />
 
       {/* Semester targets strip */}
@@ -155,7 +158,7 @@ export default function Goals() {
                       months={months}
                       byCell={byCell}
                       zebra={i % 2 === 1}
-                      isAdmin={isAdmin}
+                      canEdit={canEditMember(m.id)}
                       collapsed={collapsedRows.has(m.id)}
                       onToggleRow={() => toggleRow(m.id)}
                       onAdd={(period) => setEdit({ owner_id: m.id, period })}
@@ -185,7 +188,7 @@ export default function Goals() {
                     m={m}
                     months={months}
                     byCell={byCell}
-                    isAdmin={isAdmin}
+                    canEdit={canEditMember(m.id)}
                     onAdd={(period) => setEdit({ owner_id: m.id, period })}
                     onOpen={(goal) => setEdit({ goal })}
                   />
@@ -201,7 +204,8 @@ export default function Goals() {
           state={edit}
           members={members}
           months={months}
-          myId={user?.id}
+          myId={myId}
+          isAdmin={isAdmin}
           onClose={() => setEdit(null)}
           onSaved={() => { setEdit(null); loadGoals() }}
         />
@@ -250,7 +254,7 @@ function GroupBand({ tier, rows, byCell, collapsed, onToggle }) {
   )
 }
 
-function PersonRow({ m, months, byCell, zebra, isAdmin, collapsed, onToggleRow, onAdd, onOpen, onMove }) {
+function PersonRow({ m, months, byCell, zebra, canEdit, collapsed, onToggleRow, onAdd, onOpen, onMove }) {
   const Chev = collapsed ? ChevronRight : ChevronDown
   const showRole = m.role && m.role !== 'member'
   return (
@@ -269,15 +273,15 @@ function PersonRow({ m, months, byCell, zebra, isAdmin, collapsed, onToggleRow, 
           {showRole && <p className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-ink-500">{roleLabels[m.role] ?? m.role}</p>}
         </div>
       </div>
-      <GridCell col={COL.term} isTerm goals={byCell[`${m.id}|TERM`]} period="TERM" memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
+      <GridCell col={COL.term} isTerm goals={byCell[`${m.id}|TERM`]} period="TERM" memberId={m.id} canEdit={canEdit} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
       {months.map((mo) => (
-        <GridCell key={mo.key} col={COL.mon} goals={byCell[`${m.id}|${mo.key}`]} period={mo.key} memberId={m.id} isAdmin={isAdmin} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
+        <GridCell key={mo.key} col={COL.mon} goals={byCell[`${m.id}|${mo.key}`]} period={mo.key} memberId={m.id} canEdit={canEdit} collapsed={collapsed} onAdd={onAdd} onOpen={onOpen} onMove={onMove} />
       ))}
     </div>
   )
 }
 
-function GridCell({ col, goals = [], isTerm, period, memberId, isAdmin, collapsed, onAdd, onOpen, onMove }) {
+function GridCell({ col, goals = [], isTerm, period, memberId, canEdit, collapsed, onAdd, onOpen, onMove }) {
   const [over, setOver] = useState(false)
   // Collapsed rows just show the goal count per column at member-row height.
   if (collapsed) {
@@ -291,7 +295,7 @@ function GridCell({ col, goals = [], isTerm, period, memberId, isAdmin, collapse
       </div>
     )
   }
-  const dropProps = isAdmin
+  const dropProps = canEdit
     ? {
         onDragOver: (e) => { e.preventDefault(); setOver(true) },
         onDragLeave: () => setOver(false),
@@ -309,7 +313,7 @@ function GridCell({ col, goals = [], isTerm, period, memberId, isAdmin, collapse
       {...dropProps}
     >
       {goals.length === 0 ? (
-        isAdmin ? (
+        canEdit ? (
           <button
             onClick={() => onAdd(period)}
             className="group/add grid h-full min-h-[92px] w-full place-items-center rounded-xl border border-dashed border-ink-200 text-ink-300 opacity-40 transition hover:border-green-500 hover:text-green-600 hover:opacity-100"
@@ -323,7 +327,7 @@ function GridCell({ col, goals = [], isTerm, period, memberId, isAdmin, collapse
       ) : (
         <div className="flex h-full flex-col gap-1.5">
           {goals.map((g) => (
-            <GoalChipCard key={g.id} goal={g} isTerm={isTerm} isAdmin={isAdmin} onOpen={onOpen} />
+            <GoalChipCard key={g.id} goal={g} isTerm={isTerm} canEdit={canEdit} onOpen={onOpen} />
           ))}
         </div>
       )}
@@ -331,16 +335,16 @@ function GridCell({ col, goals = [], isTerm, period, memberId, isAdmin, collapse
   )
 }
 
-function GoalChipCard({ goal, isTerm, isAdmin, onOpen }) {
+function GoalChipCard({ goal, isTerm, canEdit, onOpen }) {
   const done = (goal.progress || 0) >= 100
   return (
     <div
-      draggable={isAdmin}
+      draggable={canEdit}
       onDragStart={(e) => e.dataTransfer.setData('text/goal', goal.id)}
-      onClick={() => isAdmin && onOpen(goal)}
+      onClick={() => canEdit && onOpen(goal)}
       className={`flex flex-1 flex-col justify-between gap-2 rounded-xl border p-3 shadow-xs transition ${
         isTerm ? 'border-gold-200 bg-gold-50/70' : 'border-ink-200 bg-surface'
-      } ${isAdmin ? 'cursor-grab hover:shadow-card active:cursor-grabbing' : ''}`}
+      } ${canEdit ? 'cursor-grab hover:shadow-card active:cursor-grabbing' : ''}`}
     >
       <p className={`text-[13px] leading-snug text-ink-700 ${isTerm ? 'line-clamp-4' : 'line-clamp-3'}`}>
         <Linkify>{goal.title}</Linkify>
@@ -364,7 +368,7 @@ function ProgressLine({ value, done }) {
 
 // ---- mobile -------------------------------------------------------------
 
-function MobilePersonCard({ m, months, byCell, isAdmin, onAdd, onOpen }) {
+function MobilePersonCard({ m, months, byCell, canEdit, onAdd, onOpen }) {
   const cells = [{ key: 'TERM', label: 'Term', isTerm: true }, ...months.map((mo) => ({ key: mo.key, label: mo.long, isTerm: false }))]
   const filled = cells.filter((c) => (byCell[`${m.id}|${c.key}`] ?? []).length > 0)
   const showRole = m.role && m.role !== 'member'
@@ -384,7 +388,7 @@ function MobilePersonCard({ m, months, byCell, isAdmin, onAdd, onOpen }) {
             (byCell[`${m.id}|${c.key}`] ?? []).map((g) => (
               <button
                 key={g.id}
-                onClick={() => isAdmin && onOpen(g)}
+                onClick={() => canEdit && onOpen(g)}
                 className="flex w-full gap-3 border-t border-ink-150 py-3 text-left first:border-t-0"
               >
                 <span className={`w-10 shrink-0 pt-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.06em] ${c.isTerm ? 'text-gold-700' : 'text-ink-500'}`}>{c.isTerm ? 'Term' : MONTH_ABBR[Number(c.key.split('-')[1]) - 1]}</span>
@@ -396,7 +400,7 @@ function MobilePersonCard({ m, months, byCell, isAdmin, onAdd, onOpen }) {
             )),
           )}
         </div>
-      ) : isAdmin ? (
+      ) : canEdit ? (
         <button
           onClick={() => onAdd('TERM')}
           className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-ink-200 py-2.5 text-sm font-semibold text-ink-400 transition hover:border-green-500 hover:text-green-600"
@@ -505,10 +509,10 @@ function TargetsEditorModal({ open, targets, onClose, onSave }) {
 
 // ---- add / edit a single goal cell --------------------------------------
 
-function GoalEditModal({ state, members, months, myId, onClose, onSaved }) {
+function GoalEditModal({ state, members, months, myId, isAdmin, onClose, onSaved }) {
   const goal = state.goal
   const editing = !!goal
-  const [ownerId, setOwnerId] = useState(goal?.owner_id ?? state.owner_id ?? '')
+  const [ownerId, setOwnerId] = useState(goal?.owner_id ?? state.owner_id ?? (isAdmin ? '' : myId))
   const [period, setPeriod] = useState(goal?.period ?? state.period ?? 'TERM')
   const [text, setText] = useState(goal?.title ?? '')
   const [progress, setProgress] = useState(goal?.progress ?? 0)
@@ -546,7 +550,14 @@ function GoalEditModal({ state, members, months, myId, onClose, onSaved }) {
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Member">
-            <select className={selectClass} value={ownerId} onChange={(e) => setOwnerId(e.target.value)} required>
+            <select
+              className={selectClass}
+              value={ownerId}
+              onChange={(e) => setOwnerId(e.target.value)}
+              required
+              disabled={!isAdmin}
+              title={!isAdmin ? 'You can only set goals for yourself' : undefined}
+            >
               <option value="">Pick a member…</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
