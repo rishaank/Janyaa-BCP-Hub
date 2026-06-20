@@ -36,8 +36,20 @@ export default function MeetingView() {
     getPublicMeeting(id).then(setMeeting)
   }, [id])
 
-  function share() {
-    navigator.clipboard?.writeText(window.location.href)
+  async function share() {
+    const url = window.location.href
+    // Native share sheet on mobile (and any browser that supports it); fall
+    // back to copying the link on desktop / unsupported browsers.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: meeting?.title || 'Janyaa BCP meeting', url })
+        return
+      } catch (err) {
+        if (err?.name === 'AbortError') return // user dismissed the sheet
+        // otherwise fall through to clipboard
+      }
+    }
+    navigator.clipboard?.writeText(url)
     setCopied(true)
     setTimeout(() => setCopied(false), 1600)
   }
