@@ -258,11 +258,14 @@ const blankMeeting = { title: '', date: '', start_time: '', end_time: '', locati
 
 export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
   const [form, setForm] = useState(blankMeeting)
+  const [repeat, setRepeat] = useState(false)
   const [busy, setBusy] = useState(false)
   const editing = Boolean(meeting)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  const repeatDay = form.date ? DOW[new Date(form.date + 'T00:00:00').getDay()] : null
 
   useEffect(() => {
+    setRepeat(false)
     if (meeting) {
       setForm({
         title: meeting.title ?? '',
@@ -281,17 +284,32 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
   async function submit(e) {
     e.preventDefault()
     setBusy(true)
-    const fields = {
-      title: form.title,
-      date: form.date,
-      start_time: form.start_time || null,
-      end_time: form.end_time || null,
-      location: form.location || null,
-      notes: form.notes || null,
-      links: (form.links ?? []).map((s) => s.trim()).filter(Boolean),
+    const links = (form.links ?? []).map((s) => s.trim()).filter(Boolean)
+    if (!editing && repeat && form.date) {
+      // Recurring: spin up a weekly schedule on the chosen date's weekday; the
+      // Hub materializes the upcoming occurrences (replaces the old Recurring button).
+      await createMeetingSeries({
+        title: form.title,
+        weekday: new Date(form.date + 'T00:00:00').getDay(),
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        location: form.location || null,
+        notes: form.notes || null,
+      })
+      await ensureUpcomingMeetings()
+    } else {
+      const fields = {
+        title: form.title,
+        date: form.date,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        location: form.location || null,
+        notes: form.notes || null,
+        links,
+      }
+      if (editing) await updateMeeting(meeting.id, fields)
+      else await createMeeting(fields)
     }
-    if (editing) await updateMeeting(meeting.id, fields)
-    else await createMeeting(fields)
     setBusy(false)
     onSaved()
   }
@@ -305,6 +323,24 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
         <FormField label="Date">
           <input type="date" className={inputClass} value={form.date} onChange={set('date')} required />
         </FormField>
+        {!editing && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={repeat}
+              onChange={(e) => setRepeat(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-green-600"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-ink-800">Repeat weekly</span>
+              <span className="mt-0.5 block text-xs text-ink-500">
+                {form.date
+                  ? `Auto-creates this meeting every ${repeatDay} for the next two months. You can still cancel or edit any single one.`
+                  : 'Pick a date first — it repeats on that weekday.'}
+              </span>
+            </span>
+          </label>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Start time">
             <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />

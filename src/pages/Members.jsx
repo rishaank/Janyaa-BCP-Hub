@@ -223,11 +223,7 @@ function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen
 
   return (
     <>
-      <div className="jh-pagehead">
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <h1 className="jh-h1">Members</h1>
-          <p className="jh-sub">Everyone in the Hub — tap anyone for their profile.</p>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button className="jh-action-btn" onClick={onExport} disabled={exporting}>
           {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {exporting ? 'Exporting…' : 'Export'}
         </button>

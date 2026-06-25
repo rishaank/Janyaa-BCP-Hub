@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Plus, CalendarPlus, Repeat, List, CalendarDays, CalendarClock } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { Plus, CalendarPlus, Repeat, List, CalendarDays, CalendarClock, ChevronRight } from 'lucide-react'
 import { PageHeader, Card, Button } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -33,6 +33,18 @@ function meetingEnded(m, now) {
   if (m.date > now.date) return false
   const end = (m.end_time || '').slice(0, 5) || '23:59'
   return end <= now.time
+}
+
+// "15:00" → "3:00 PM"; "9:00 AM–10:00 AM PST" for a range. Used by the compact
+// mobile glance cards.
+function fmtTime(t) {
+  if (!t) return ''
+  const [h, m] = t.split(':')
+  return new Date(2000, 0, 1, Number(h), Number(m)).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+function timeRange(start, end) {
+  if (!start) return ''
+  return (end ? `${fmtTime(start)}–${fmtTime(end)}` : fmtTime(start)) + ' PST'
 }
 
 const segBtn = (active) =>
@@ -115,33 +127,22 @@ export default function EventsMeetings() {
   if (!isDesktop)
     return (
       <>
-        <div className="jh-pagehead">
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <h1 className="jh-h1">Events &amp; Meetings</h1>
-            <p className="jh-sub">Events, meetings, and attendance.</p>
-          </div>
+        {/* Big Events/Meetings tab switcher is the page header now (the title is gone). */}
+        <div className="jh-eventbar">
+          {view === 'list' ? (
+            <div className="jh-pagetabs">
+              <button className={'jh-pagetab' + (tab === 'events' ? ' on' : '')} onClick={() => setTab('events')}>Events</button>
+              <button className={'jh-pagetab' + (tab === 'meetings' ? ' on' : '')} onClick={() => setTab('meetings')}>Meetings</button>
+            </div>
+          ) : (
+            <div className="jh-pagetabs"><span className="jh-pagetab on">Calendar</span></div>
+          )}
           <button className="jh-action-btn" onClick={() => setShowSubscribe(true)}><CalendarPlus size={15} /> Subscribe</button>
         </div>
 
-        <div className="seg-bar">
-          <span className="jh-seg">
-            <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}><List size={14} /> List</button>
-            <button className={view === 'calendar' ? 'on' : ''} onClick={() => setView('calendar')}><CalendarDays size={14} /> Calendar</button>
-          </span>
-          {view === 'list' && (
-            <span className="jh-seg">
-              <button className={tab === 'events' ? 'on' : ''} onClick={() => setTab('events')}>Events</button>
-              <button className={tab === 'meetings' ? 'on' : ''} onClick={() => setTab('meetings')}>Meetings</button>
-            </span>
-          )}
-          {view === 'list' && tab === 'meetings' && (
-            <button className="jh-action-btn" onClick={() => setSeriesOpen(true)}><Repeat size={14} /> Recurring</button>
-          )}
-        </div>
-
         {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 18 }}>
-            {[0, 1, 2].map((i) => <div key={i} className="jh-card" style={{ height: 150, background: 'var(--ink-50)' }} />)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
+            {[0, 1, 2].map((i) => <div key={i} className="jh-card" style={{ height: 72, background: 'var(--ink-50)' }} />)}
           </div>
         ) : view === 'calendar' ? (
           <div style={{ marginTop: 16 }}>
@@ -150,36 +151,38 @@ export default function EventsMeetings() {
         ) : tab === 'events' ? (
           <>
             <MobileSection title="Upcoming" count={upcomingEvents.length}>
-              {upcomingEvents.map((e) => (
-                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
-              ))}
+              {upcomingEvents.map((e) => <MobileEventItem key={e.id} event={e} />)}
             </MobileSection>
             {tentative.length > 0 && (
               <MobileSection title="Tentative" count={tentative.length}>
-                {tentative.map((e) => (
-                  <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
-                ))}
+                {tentative.map((e) => <MobileEventItem key={e.id} event={e} />)}
               </MobileSection>
             )}
             <MobileSection title="Past" count={pastEvents.length}>
-              {pastEvents.map((e) => (
-                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
-              ))}
+              {pastEvents.map((e) => <MobileEventItem key={e.id} event={e} />)}
             </MobileSection>
           </>
         ) : (
           <>
             <MobileSection title="Upcoming" count={upcomingMeetings.length}>
-              {upcomingMeetings.map((m) => (
-                <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast={false} onChange={loadMeetings} onEdit={openEditMeeting} />
-              ))}
+              {upcomingMeetings.map((m) => <MobileMeetingItem key={m.id} meeting={m} />)}
             </MobileSection>
             <MobileSection title="Past" count={pastMeetings.length}>
-              {pastMeetings.map((m) => (
-                <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast onChange={loadMeetings} onEdit={openEditMeeting} />
-              ))}
+              {pastMeetings.map((m) => <MobileMeetingItem key={m.id} meeting={m} />)}
             </MobileSection>
           </>
+        )}
+
+        {/* Floating list ↔ calendar toggle (bottom-left, mirrors the add FAB). */}
+        {!loading && (
+          <button
+            className="jh-fab-left"
+            onClick={() => setView(view === 'list' ? 'calendar' : 'list')}
+            aria-label={view === 'list' ? 'Switch to calendar view' : 'Switch to list view'}
+            title={view === 'list' ? 'Calendar view' : 'List view'}
+          >
+            {view === 'list' ? <CalendarDays size={22} /> : <List size={22} />}
+          </button>
         )}
 
         {view !== 'calendar' && (
@@ -295,6 +298,57 @@ export default function EventsMeetings() {
 
       {modals}
     </>
+  )
+}
+
+// Compact glance card for the mobile list — title, date, time, location only.
+// Tap anywhere to open the full event view (where attendance, to-dos, etc. live).
+function DateBox({ date }) {
+  const d = date ? new Date(date + 'T00:00:00') : null
+  return (
+    <span className="jh-date">
+      <p className="jh-date-m">{d ? d.toLocaleDateString('en-US', { month: 'short' }) : 'Date'}</p>
+      <p className="jh-date-d" style={d ? undefined : { fontSize: 13, color: 'var(--ink-500)' }}>
+        {d ? d.getDate() : 'TBD'}
+      </p>
+    </span>
+  )
+}
+
+function MobileEventItem({ event }) {
+  const tentative = event.is_tentative
+  const sub = [timeRange(event.start_time, event.end_time) || (tentative ? 'Time TBD' : ''),
+    event.location || (tentative ? 'Location TBD' : '')].filter(Boolean).join(' · ')
+  return (
+    <Link to={`/events/${event.id}`} className="jh-item">
+      <DateBox date={event.date} />
+      <span className="jh-item-main">
+        <span className="jh-item-t">
+          {event.name}
+          {tentative && <span className="jh-item-tag tag-gold">Tentative</span>}
+        </span>
+        <span className="jh-item-s">{sub || 'No details yet'}</span>
+      </span>
+      <ChevronRight size={18} className="jh-item-chev" />
+    </Link>
+  )
+}
+
+function MobileMeetingItem({ meeting }) {
+  const sub = [timeRange(meeting.start_time, meeting.end_time), meeting.location].filter(Boolean).join(' · ')
+  return (
+    <Link to={`/meetings/${meeting.id}`} className={'jh-item' + (meeting.canceled ? ' is-off' : '')}>
+      <DateBox date={meeting.date} />
+      <span className="jh-item-main">
+        <span className="jh-item-t">
+          {meeting.title}
+          {meeting.canceled && <span className="jh-item-tag tag-coral">Canceled</span>}
+          {!meeting.canceled && meeting.series_id && <span className="jh-item-tag tag-blue">Weekly</span>}
+        </span>
+        <span className="jh-item-s">{sub || 'No details yet'}</span>
+      </span>
+      <ChevronRight size={18} className="jh-item-chev" />
+    </Link>
   )
 }
 

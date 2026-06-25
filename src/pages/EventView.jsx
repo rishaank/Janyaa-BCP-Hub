@@ -204,7 +204,7 @@ function EventBody({ event, isDark, copied, onShare }) {
       <div className="mt-6 grid grid-cols-3 gap-4">
         <Stat icon={Hourglass} tone="green" label="Hours each" value={event.hours} />
         <Stat icon={DollarSign} tone="gold" label="Raised" value={`$${raised.toLocaleString()}`} />
-        <Stat icon={Users} tone="blue" label={event.date && event.date < new Date().toISOString().slice(0, 10) ? 'Attended' : 'Signed up'} value={attendees.length} />
+        <Stat icon={Users} tone="blue" label={event.date && event.date < new Date().toISOString().slice(0, 10) ? 'Attendees' : 'Signed up'} value={attendees.length} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

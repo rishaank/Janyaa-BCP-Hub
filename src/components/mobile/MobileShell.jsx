@@ -5,21 +5,18 @@ import { useAuth } from '../../context/AuthContext'
 import { initials } from '../../lib/api'
 import { Avatar, roleTones } from '../ui'
 import BottomTabs from './BottomTabs'
-import MoreSheet from './MoreSheet'
 import AccountSheet from './AccountSheet'
 
-// The mobile app shell (below `lg`): app bar + scrollable page body + pill tab bar,
-// with the "More" grid sheet and the account sheet layered over it. Replaces the
-// desktop sidebar + top bar on phones.
+// The mobile app shell (below `lg`): app bar + scrollable page body + a scrollable
+// tab bar that holds every destination, with the account sheet layered over it.
+// Replaces the desktop sidebar + top bar on phones.
 export default function MobileShell() {
   const location = useLocation()
   const { session, profile, user } = useAuth()
-  const [moreOpen, setMoreOpen] = useState(false)
   const [acctOpen, setAcctOpen] = useState(false)
 
-  // Any navigation closes the open sheets.
+  // Any navigation closes the account sheet.
   useEffect(() => {
-    setMoreOpen(false)
     setAcctOpen(false)
   }, [location.pathname, location.search])
 
@@ -46,9 +43,8 @@ export default function MobileShell() {
         </div>
       </main>
 
-      <BottomTabs moreOpen={moreOpen} onMore={() => setMoreOpen((o) => !o)} />
+      <BottomTabs />
 
-      {moreOpen && <MoreSheet onClose={() => setMoreOpen(false)} />}
       {acctOpen && <AccountSheet onClose={() => setAcctOpen(false)} />}
     </div>
   )

@@ -179,11 +179,8 @@ export default function Fundraising() {
   if (!isDesktop)
     return (
       <>
-        <h1 className="jh-h1">Fundraising</h1>
-        <p className="jh-sub">Live GoFundMe total, the goal, and events over time.</p>
-
         {/* GoFundMe live hero + editable shared goal */}
-        <div className="gfm-hero" style={{ marginTop: 14 }}>
+        <div className="gfm-hero">
           <div className="gfm-top">
             <span className="gfm-live"><span className="gfm-dot" /> GoFundMe · live</span>
             <span style={{ display: 'flex', gap: 7 }}>

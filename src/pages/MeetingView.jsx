@@ -134,7 +134,7 @@ function MeetingBody({ meeting, copied, onShare }) {
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-2">
         <Stat icon={Hourglass} tone="green" label="Length" value={`${len}h`} />
-        <Stat icon={Users} tone="blue" label="Attended" value={attendees.length} />
+        <Stat icon={Users} tone="blue" label="Attendees" value={attendees.length} />
       </div>
 
       {/* Attendees */}

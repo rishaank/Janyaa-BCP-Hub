@@ -177,16 +177,21 @@
 .ic svg { width: 100%; height: 100%; }
 
 /* ============================================================
-   BOTTOM TAB BAR (pill treatment)
+   BOTTOM TAB BAR (scrollable — holds every destination)
    ============================================================ */
-.jh-tabs { flex: none; background: var(--surface); border-top: 1px solid var(--ink-200); padding: 7px 8px calc(8px + env(safe-area-inset-bottom)); }
-.jh-tabs-row { display: flex; }
-.jh-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; background: none; border: none; cursor: pointer; color: var(--ink-500); position: relative; }
+.jh-tabs { position: relative; flex: none; background: var(--surface); border-top: 1px solid var(--ink-200); padding-bottom: env(safe-area-inset-bottom); }
+.jh-tabs-scroll { display: flex; gap: 2px; overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none; padding: 7px 10px 8px; overscroll-behavior-x: contain; }
+.jh-tabs-scroll::-webkit-scrollbar { display: none; }
+.jh-tab { flex: 0 0 auto; width: 60px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 0; background: none; border: none; cursor: pointer; color: var(--ink-500); position: relative; }
 .jh-tab span { font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em; }
-.jh-tab .tb-pill-ic { width: 56px; height: 30px; display: grid; place-items: center; border-radius: 999px; transition: background 0.18s; }
+.jh-tab .tb-pill-ic { width: 50px; height: 30px; display: grid; place-items: center; border-radius: 999px; transition: background 0.18s; }
 .jh-tab .tb-pill-ic .ic { width: 22px; height: 22px; }
 .jh-tab.on .tb-pill-ic { background: var(--green-soft); }
 .jh-tab.on { color: var(--green-text); }
+/* edge arrows — shown only when the row can scroll that way; fade over the tabs */
+.jh-tabs-arrow { position: absolute; top: 0; bottom: env(safe-area-inset-bottom); width: 44px; display: grid; place-items: center; border: none; padding: 0; cursor: pointer; color: var(--ink-700); z-index: 2; }
+.jh-tabs-arrow.left { left: 0; background: linear-gradient(to right, var(--surface) 55%, transparent); }
+.jh-tabs-arrow.right { right: 0; background: linear-gradient(to left, var(--surface) 55%, transparent); }
 
 /* ============================================================
    BOTTOM SHEETS + MORE MENU
@@ -277,9 +282,35 @@
 .mem-hrs-l { font-size: 10.5px; color: var(--ink-500); }
 
 /* ============================================================
-   EVENTS & MEETINGS (toggle row)
+   EVENTS & MEETINGS (page-tab switcher + compact glance cards)
    ============================================================ */
 .seg-bar { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+/* big Events | Meetings switcher that reads as part of the page (replaces the title) */
+.jh-eventbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--ink-200); }
+.jh-pagetabs { display: flex; gap: 22px; }
+.jh-pagetab { position: relative; background: none; border: none; font: inherit; font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -0.01em; line-height: 1; color: var(--ink-400); padding: 2px 0 12px; cursor: pointer; }
+.jh-pagetab.on { color: var(--ink-900); }
+.jh-pagetab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2.5px; border-radius: 3px; background: var(--green-600); }
+.jh-eventbar .jh-action-btn { margin-bottom: 8px; }
+
+/* compact glance card — tap to open the full event/meeting view */
+.jh-item { display: flex; align-items: center; gap: 12px; padding: 11px 13px; background: var(--surface); border: 1px solid var(--ink-200); border-radius: 16px; box-shadow: var(--shadow-sm); text-decoration: none; color: inherit; }
+.jh-item:active { background: var(--ink-50); }
+.jh-item-main { flex: 1; min-width: 0; }
+.jh-item-t { display: block; font-weight: 600; font-size: 15px; color: var(--ink-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jh-item-s { display: block; margin-top: 3px; font-size: 12.5px; color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jh-item-chev { flex: none; color: var(--ink-300); }
+.jh-item-tag { display: inline-block; margin-left: 7px; vertical-align: middle; font-size: 10px; font-weight: 700; padding: 1.5px 6px; border-radius: 999px; }
+.jh-item-tag.tag-gold { background: var(--gold-soft); color: var(--gold-text); }
+.jh-item-tag.tag-blue { background: var(--blue-soft); color: var(--blue-text); }
+.jh-item-tag.tag-coral { background: var(--coral-soft); color: var(--coral-500); }
+.jh-item.is-off { opacity: 0.65; }
+.jh-item.is-off .jh-item-t { text-decoration: line-through; color: var(--ink-500); }
+
+/* floating list ↔ calendar toggle, bottom-left (mirrors the add FAB at bottom-right) */
+.jh-fab-left { position: fixed; left: 16px; bottom: calc(90px + env(safe-area-inset-bottom)); z-index: 30; height: 52px; width: 52px; border: 1px solid var(--ink-200); border-radius: 16px; background: var(--surface); color: var(--ink-700); display: grid; place-items: center; cursor: pointer; box-shadow: var(--shadow-md); }
+.jh-fab-left .ic { width: 22px; height: 22px; }
 
 /* ============================================================
    FUNDRAISING

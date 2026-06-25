@@ -71,19 +71,20 @@ export function Card({ className = '', children }) {
 }
 
 // Page title (display face) + optional subtitle, overline badge, and action slot.
-// Below `lg` (the mobile redesign's shell) the title shrinks to the mobile scale
-// so every page header matches the bottom-tab pages; lg+ is the original desktop size.
+// Below `lg` (the mobile redesign's shell) the title + subtitle are hidden — the
+// bottom tab bar already names the page — leaving just the action slot; lg+ shows
+// the full desktop header.
 export function PageHeader({ title, subtitle, badge, action }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:mb-6">
-      <div>
+    <div className="mb-0 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between lg:mb-6">
+      <div className="hidden lg:block">
         <div className="flex items-center gap-2.5">
           <h1 className="font-display text-[1.6875rem] font-bold leading-[1.1] tracking-tight text-ink-900 lg:text-h1">{title}</h1>
           {badge}
         </div>
         {subtitle && <p className="mt-1 text-sm text-ink-600 lg:text-base">{subtitle}</p>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="mb-5 shrink-0 lg:mb-0">{action}</div>}
     </div>
   )
 }
@@ -362,10 +363,11 @@ export function Modal({ open, onClose, title, children }) {
   )
 }
 
-// Labeled input/select for modal forms.
+// Labeled input/select for modal forms. `min-w-0` lets the field shrink inside
+// grid columns so native date/time/number inputs don't force horizontal overflow.
 export function FormField({ label, children }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1 block text-sm font-semibold text-ink-800">{label}</span>
       {children}
     </label>
@@ -373,4 +375,4 @@ export function FormField({ label, children }) {
 }
 
 export const inputClass =
-  'w-full rounded-md border border-ink-300 bg-surface px-3 py-2.5 text-sm text-ink-900 placeholder-ink-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100'
+  'w-full min-w-0 rounded-md border border-ink-300 bg-surface px-3 py-2.5 text-sm text-ink-900 placeholder-ink-400 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100'
