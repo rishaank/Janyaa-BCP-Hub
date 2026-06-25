@@ -1,5 +1,9 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "rewrites": [
+    { "source": "/events/:id", "destination": "/api/og?type=event&id=:id" },
+    { "source": "/meetings/:id", "destination": "/api/og?type=meeting&id=:id" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

@@ -110,6 +110,12 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     `<LinkChip>` (`linkMeta()` recognizes common sites + uses Google's favicon service).
   - **Times are PST.** All event/meeting times are displayed labelled "PST" (the club is in
     America/Los_Angeles); meeting bucketing + hours use that timezone.
+  - **Browser tab titles** are per-screen via `useDocumentTitle(suffix)` (`src/lib/useDocumentTitle.js`):
+    each page calls it to set `document.title` to `Janyaa BCP Hub | <screen>` (a static label for fixed
+    pages, the loaded record's name for detail views like `EventView` / `MeetingView` / `ProfilePage`, the
+    active tab for `EventsMeetings`). A falsy suffix (data still loading) leaves just the base. Keep the base
+    in sync with the static `<title>` in `index.html`. New routed pages should call it too. **Note:** this only
+    updates the live tab title — server-rendered link previews come from `api/og.js` (see Deployment).
   - **Access indicators:** the single `AccessChip` in `ui.jsx` is the standard — `mode="edit"` (blue
     Shield, "Admin edit"/"Admin only") and `mode="view"` (gray Lock, "Read-only"). Page-level access
     goes in the `PageHeader` `badge` slot (a node, beside the title); section-level sits inline after
@@ -351,6 +357,17 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   work on hard refresh. Don't remove it. It also sets **security headers** (nosniff, SAMEORIGIN
   frame-options, referrer policy, a minimal Permissions-Policy that keeps `geolocation=(self)` for the
   Locations map) and immutable caching for `/assets/*` (hashed build files).
+- **Dynamic link previews (`api/og.js`).** The two **public** shareable views — `/events/:id` and
+  `/meetings/:id` — are rewritten (in `vercel.json`, *before* the SPA fallback) to the `api/og.js`
+  Vercel serverless function. Because the app is a client-only SPA, link-unfurlers (iMessage, Slack,
+  Discord, WhatsApp) that fetch the URL but don't run our JS would otherwise only see the generic
+  static `index.html` tags. The function fetches the deployed `index.html`, looks up the record via the
+  public `get_public_event` / `get_public_meeting` RPC (REST, using `VITE_SUPABASE_*` env — also
+  available to functions at runtime), and injects per-record `<title>` + Open Graph / Twitter meta
+  (title = `Janyaa BCP Hub | <name>`, description = date · time · location, image = the logo). Humans
+  get that same `index.html` so the SPA still boots (and `useDocumentTitle` sets the live title); any
+  failure falls back to the untouched `index.html` so a share link never breaks. Only these two routes
+  are prerendered — everything else (incl. the noindex member pages) stays a pure SPA.
 - After deploying, the Supabase **Auth → URL Configuration** Site/Redirect URLs should include the
   Vercel domain **and `…/set-password`** (so invite/reset email links land in the app). For those
   emails to actually send, **custom SMTP** must be set (Project Settings → Auth → SMTP — the club
