@@ -188,10 +188,12 @@
 .jh-tab .tb-pill-ic .ic { width: 22px; height: 22px; }
 .jh-tab.on .tb-pill-ic { background: var(--green-soft); }
 .jh-tab.on { color: var(--green-text); }
-/* edge arrows — shown only when the row can scroll that way; fade over the tabs */
-.jh-tabs-arrow { position: absolute; top: 0; bottom: env(safe-area-inset-bottom); width: 44px; display: grid; place-items: center; border: none; padding: 0; cursor: pointer; color: var(--ink-700); z-index: 2; }
-.jh-tabs-arrow.left { left: 0; background: linear-gradient(to right, var(--surface) 55%, transparent); }
-.jh-tabs-arrow.right { right: 0; background: linear-gradient(to left, var(--surface) 55%, transparent); }
+/* edge arrows — shown only when the row can scroll that way; fade over the tabs.
+   The fade ends in a *surface-hued* transparent (via color-mix) instead of the
+   `transparent` keyword, which interpolates through grey and banded in light mode. */
+.jh-tabs-arrow { position: absolute; top: 0; bottom: env(safe-area-inset-bottom); width: 46px; display: grid; place-items: center; border: none; padding: 0; cursor: pointer; color: var(--ink-700); z-index: 2; }
+.jh-tabs-arrow.left { left: 0; justify-content: start; padding-left: 4px; background: linear-gradient(to right, var(--surface) 60%, color-mix(in srgb, var(--surface), transparent 88%)); }
+.jh-tabs-arrow.right { right: 0; justify-content: end; padding-right: 4px; background: linear-gradient(to left, var(--surface) 60%, color-mix(in srgb, var(--surface), transparent 88%)); }
 
 /* ============================================================
    BOTTOM SHEETS + MORE MENU
@@ -248,6 +250,10 @@
 
 .jh-fab { position: fixed; right: 16px; bottom: calc(90px + env(safe-area-inset-bottom)); z-index: 30; height: 56px; min-width: 56px; padding: 0 18px; border: none; border-radius: 18px; background: var(--green-600); color: #fff; display: inline-flex; align-items: center; gap: 9px; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 10px 24px color-mix(in oklch, var(--green-600) 50%, transparent), var(--shadow-md); }
 .jh-fab .ic { width: 24px; height: 24px; }
+/* secondary floating action — mirrors the primary FAB at the bottom-left, surface-toned */
+.jh-fab.left { left: 16px; right: auto; }
+.jh-fab.soft { background: var(--surface); color: var(--ink-700); border: 1px solid var(--ink-200); box-shadow: var(--shadow-md); }
+.jh-fab:disabled { opacity: 0.6; cursor: default; }
 
 /* ---- badges ---- */
 .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2.5px 8px; border-radius: 999px; line-height: 1.3; }

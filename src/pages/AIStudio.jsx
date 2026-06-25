@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Sparkles, Wand2, Lightbulb, MapPin, RefreshCw, Loader2, Instagram, Check, Copy, ArrowRight, CalendarPlus, Clock, TrendingUp,
+  Sparkles, Wand2, Lightbulb, MapPin, Loader2, Instagram, Check, Copy, ArrowRight, CalendarPlus, Clock, TrendingUp,
 } from 'lucide-react'
 import { PageHeader, Card, Button, Badge, FormField, inputClass, PinButton, timeAgo } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
-  getSettings, generateSuggestions, generateSocial, planEvent, createEvent, addTodo,
+  getSettings, planEvent, createEvent, addTodo,
   getPins, addPin, removePin,
 } from '../lib/api'
 import AIChat from '../components/AIChat'
@@ -56,10 +56,10 @@ export default function AIStudio({ embedded = false }) {
       {/* Planning + suggestions side by side; the assistant sits below them. */}
       <div className="mb-8 grid items-start gap-6 lg:grid-cols-2">
         <Planner />
-        <Suggestions settings={settings} onChange={load} {...pinProps('suggestions')} />
+        <Suggestions settings={settings} {...pinProps('suggestions')} />
       </div>
       <AIChat />
-      <Social settings={settings} onChange={load} {...pinProps('social')} />
+      <Social settings={settings} {...pinProps('social')} />
     </>
   )
 }
@@ -243,9 +243,7 @@ function PlanResult({ plan, onCreated, onDiscard }) {
 
 /* -------------------------------------------------------------- Suggestions */
 
-function Suggestions({ settings, onChange, pins, pin, unpin }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+function Suggestions({ settings, pins, pin, unpin }) {
   const sug = settings?.ai_suggestions ?? null
   const events = sug?.events ?? []
   const locations = sug?.locations ?? []
@@ -254,39 +252,20 @@ function Suggestions({ settings, onChange, pins, pin, unpin }) {
   const pinnedET = new Set(pinnedEvents.map((p) => p.payload?.title))
   const pinnedLN = new Set(pinnedLocs.map((p) => p.payload?.name))
 
-  async function generate() {
-    setBusy(true)
-    setError('')
-    const { data, error } = await generateSuggestions()
-    setBusy(false)
-    if (error || data?.ok === false) {
-      const msg = data?.error || error?.message || 'Could not generate.'
-      setError(msg.includes('GEMINI_API_KEY') ? 'AI is not set up yet — an admin needs to add the Gemini key.' : msg)
-      return
-    }
-    onChange()
-  }
-
   return (
     <section className="flex h-full flex-col">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 font-display text-h3 font-semibold text-ink-900">
           <Lightbulb size={18} className="text-gold-500" /> Event suggestions
         </h2>
-        <div className="flex flex-col items-end gap-1">
-          <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
-            {busy ? 'Thinking…' : events.length ? 'Refresh' : 'Generate'}
-          </Button>
-          {settings?.ai_suggestions_at && !busy && (
-            <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_suggestions_at)}</span>
-          )}
-        </div>
+        {settings?.ai_suggestions_at && (
+          <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_suggestions_at)}</span>
+        )}
       </div>
-      {error && <Card className="mb-3 border-coral-200 bg-coral-50 p-3 text-sm text-coral-700">{error}</Card>}
 
       {events.length === 0 && locations.length === 0 && pins.length === 0 ? (
         <Card className="flex-1 p-6 text-center text-sm text-ink-500">
-          Hit Generate to get event + location ideas pulled from what’s worked before.
+          Event + location ideas appear here — generate them anytime from Regenerate on this tab.
         </Card>
       ) : (
         <div className="grid gap-4">
@@ -355,24 +334,9 @@ function LocationIdea({ l, pin }) {
 
 /* -------------------------------------------------------------------- Social */
 
-function Social({ settings, onChange, pins, pin, unpin }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+function Social({ settings, pins, pin, unpin }) {
   const posts = Array.isArray(settings?.social_posts) ? settings.social_posts : []
   const pinnedIdeas = new Set(pins.map((p) => p.payload?.idea))
-
-  async function generate() {
-    setBusy(true)
-    setError('')
-    const { data, error } = await generateSocial(true)
-    setBusy(false)
-    if (error || data?.ok === false) {
-      const msg = data?.error || error?.message || 'Could not generate.'
-      setError(msg.includes('GEMINI_API_KEY') ? 'AI is not set up yet — an admin needs to add the Gemini key.' : msg)
-      return
-    }
-    onChange()
-  }
 
   return (
     <section className="mb-8">
@@ -380,15 +344,8 @@ function Social({ settings, onChange, pins, pin, unpin }) {
         <h2 className="flex items-center gap-2 font-display text-h3 font-semibold text-ink-900">
           <Instagram size={18} className="text-coral-500" /> Social media ideas
         </h2>
-        <div className="flex flex-col items-end gap-1">
-          <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
-            {busy ? 'Researching…' : posts.length ? 'Refresh' : 'Generate'}
-          </Button>
-          {settings?.social_posts_at && !busy && <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.social_posts_at)}</span>}
-        </div>
+        {settings?.social_posts_at && <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.social_posts_at)}</span>}
       </div>
-      {busy && <p className="mb-3 text-xs text-ink-400">Checking current trends — this takes ~20 seconds.</p>}
-      {error && <Card className="mb-3 border-coral-200 bg-coral-50 p-3 text-sm text-coral-700">{error}</Card>}
 
       <Card className="mb-4 flex items-start gap-2 border-gold-200 bg-gold-50/60 p-3 text-xs text-gold-800">
         <TrendingUp size={14} className="mt-0.5 shrink-0" />

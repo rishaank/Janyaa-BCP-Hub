@@ -7,6 +7,9 @@
     <!-- The public dashboard lists club members (mostly minors). Keep it reachable
          by anyone with the link, but out of search engines / scrapers. -->
     <meta name="robots" content="noindex, nofollow" />
+    <!-- Tints the iOS status-bar pane + Safari toolbar to the app's surface color.
+         ThemeContext refines this to the exact resolved value once React mounts. -->
+    <meta name="theme-color" content="#fffdfb" />
     <title>Janyaa BCP Hub</title>
     <script>
       // Set the theme before paint to avoid a flash of the wrong mode.
@@ -14,7 +17,11 @@
         try {
           var t = localStorage.getItem('janyaa-theme') || 'system'
           var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
-          if (dark) document.documentElement.setAttribute('data-theme', 'dark')
+          if (dark) {
+            document.documentElement.setAttribute('data-theme', 'dark')
+            var m = document.querySelector('meta[name="theme-color"]')
+            if (m) m.setAttribute('content', '#221f1c')
+          }
         } catch (e) {}
       })()
     </script>

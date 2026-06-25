@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check,
-  Sparkles, RefreshCw, ArrowUpRight, ChevronDown, ChevronUp,
+  Sparkles, ArrowUpRight, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import {
   Card,
@@ -205,7 +205,6 @@ export default function ProfilePage() {
 function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
   const ins = p.ai_insight
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
 
   // Monthly auto-refresh: quietly regenerate when missing or >30 days old.
   useEffect(() => {
@@ -224,19 +223,6 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.id])
 
-  async function refresh() {
-    setBusy(true)
-    setError('')
-    const { data, error } = await generateMemberInsight(p.id, true)
-    setBusy(false)
-    if (error || data?.ok === false) {
-      const msg = data?.error || error?.message || 'Could not refresh the insight.'
-      setError(msg.includes('GEMINI_API_KEY') ? 'AI is not set up yet — an admin needs to add the Gemini key.' : msg)
-      return
-    }
-    onChanged()
-  }
-
   const meta = toneMeta[ins?.tone] ?? toneMeta.neutral
   const Icon = meta.icon
 
@@ -247,27 +233,17 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
           {busy && !ins ? <Loader2 size={20} className="animate-spin" /> : <Icon size={20} />}
         </span>
         <div className="min-w-0 flex-1">
-          {/* Title shares a row with Refresh; the body spans the full card width below. */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              {ins ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-display text-h4 font-semibold text-ink-900">{ins.title}</h3>
-                  {ins.metric && <Badge tone={meta.chip}>{ins.metric}</Badge>}
-                  <Sparkles size={13} className="text-ink-300" aria-label="AI-generated" />
-                </div>
-              ) : (
-                <h3 className="flex items-center gap-1.5 font-display text-h4 font-semibold text-ink-900">
-                  AI insight <Sparkles size={13} className="text-ink-300" />
-                </h3>
-              )}
-            </div>
-            {canRefresh && (
-              <div className="shrink-0">
-                <Button variant="soft" icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={refresh} disabled={busy}>
-                  {busy ? 'Thinking…' : ins ? 'Refresh' : 'Generate'}
-                </Button>
+          <div className="min-w-0">
+            {ins ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-display text-h4 font-semibold text-ink-900">{ins.title}</h3>
+                {ins.metric && <Badge tone={meta.chip}>{ins.metric}</Badge>}
+                <Sparkles size={13} className="text-ink-300" aria-label="AI-generated" />
               </div>
+            ) : (
+              <h3 className="flex items-center gap-1.5 font-display text-h4 font-semibold text-ink-900">
+                AI insight <Sparkles size={13} className="text-ink-300" />
+              </h3>
             )}
           </div>
           {ins ? (
@@ -287,7 +263,6 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
                 : 'A personal look at progress and what to try next appears here once generated.'}
             </p>
           )}
-          {error && <p className="mt-2 text-xs text-coral-700">{error}</p>}
         </div>
       </div>
       {canRefresh && ins && p.ai_insight_at && !busy && (

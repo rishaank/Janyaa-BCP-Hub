@@ -10,6 +10,31 @@ function prefersDark() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
+// Tint the iOS status-bar pane + Safari bottom toolbar to match the app's top/
+// bottom bars (which are --color-surface). The surface token is authored in oklch,
+// which older iOS Safari won't parse in a theme-color meta, so rasterize it through
+// a 1px canvas to get a plain sRGB rgb(). Reads the live token so custom-image
+// themes (inline var overrides) are picked up too.
+function syncThemeColor() {
+  try {
+    const surface = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim()
+    if (!surface) return
+    const ctx = document.createElement('canvas').getContext('2d')
+    ctx.fillStyle = surface
+    ctx.fillRect(0, 0, 1, 1)
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data
+    let meta = document.querySelector('meta[name="theme-color"]')
+    if (!meta) {
+      meta = document.createElement('meta')
+      meta.setAttribute('name', 'theme-color')
+      document.head.appendChild(meta)
+    }
+    meta.setAttribute('content', `rgb(${r}, ${g}, ${b})`)
+  } catch {
+    /* no-op: theme-color is a nicety, never block rendering on it */
+  }
+}
+
 // Apply the resolved theme to the document. 'custom' applies the saved image theme
 // (falling back to system if none exists yet). Returns whether the result is dark
 // (so the map can pick a matching basemap).
@@ -22,6 +47,7 @@ function apply(theme) {
       const dark = cfg.base === 'dark'
       if (dark) el.setAttribute('data-theme', 'dark')
       else el.removeAttribute('data-theme')
+      syncThemeColor()
       return dark
     }
     theme = 'system' // no image set yet
@@ -30,6 +56,7 @@ function apply(theme) {
   const dark = theme === 'dark' || (theme === 'system' && prefersDark())
   if (dark) el.setAttribute('data-theme', 'dark')
   else el.removeAttribute('data-theme')
+  syncThemeColor()
   return dark
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Sparkles, RefreshCw, Loader2, Pin } from 'lucide-react'
-import { PageHeader, Card, Button, timeAgo } from '../components/ui'
-import { getSettings, generateInsights, getPins, addPin, removePin } from '../lib/api'
+import { Sparkles, Pin } from 'lucide-react'
+import { PageHeader, Card, timeAgo } from '../components/ui'
+import { getSettings, getPins, addPin, removePin } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { plannedInsights } from '../data/mockData'
 import InsightCard from '../components/InsightCard'
@@ -10,8 +10,6 @@ export default function Insights({ embedded = false }) {
   const { profile, user } = useAuth()
   const isAdmin = !!profile?.is_admin
   const [settings, setSettings] = useState(null)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
   const [pins, setPins] = useState([])
 
   const load = () => getSettings().then(setSettings)
@@ -32,31 +30,9 @@ export default function Insights({ embedded = false }) {
     loadPins()
   }
 
-  async function generate() {
-    setBusy(true)
-    setError('')
-    const { data, error } = await generateInsights()
-    setBusy(false)
-    if (error || data?.ok === false) {
-      const msg = data?.error || error?.message || 'Could not generate insights.'
-      setError(msg.includes('GEMINI_API_KEY') ? 'not_configured' : msg)
-      return
-    }
-    await load()
-  }
-
-  const actions = isAdmin ? (
-    <div className="flex flex-col items-end gap-1">
-      <Button icon={busy ? Loader2 : RefreshCw} loading={busy} onClick={generate} disabled={busy}>
-        {busy ? (insights.length ? 'Regenerating…' : 'Generating…') : insights.length ? 'Regenerate' : 'Generate'}
-      </Button>
-      {busy ? (
-        <span className="text-xs text-ink-400">Analyzing club data — this takes ~20 seconds.</span>
-      ) : settings?.ai_insights_at ? (
-        <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_insights_at)}</span>
-      ) : null}
-    </div>
-  ) : settings?.ai_insights_at ? (
+  // Regeneration now lives in the AI tab's master Regenerate control; this card
+  // just shows the cached insights + when they last refreshed.
+  const actions = settings?.ai_insights_at ? (
     <span className="text-xs text-ink-400">Auto-refreshes monthly · updated {timeAgo(settings.ai_insights_at)}</span>
   ) : null
 
@@ -76,14 +52,6 @@ export default function Insights({ embedded = false }) {
           action={actions}
         />
       )}
-
-      {error === 'not_configured' ? (
-        <Card className="mb-6 border-gold-200 bg-gold-50/70 p-4 text-sm text-gold-800">
-          Not set up yet — an admin needs to add the <span className="font-mono">GEMINI_API_KEY</span> in Supabase before insights can generate.
-        </Card>
-      ) : error ? (
-        <Card className="mb-6 border-coral-200 bg-coral-50 p-4 text-sm text-coral-700">{error}</Card>
-      ) : null}
 
       {!embedded && (
         <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">
@@ -120,7 +88,7 @@ export default function Insights({ embedded = false }) {
           <h3 className="mt-4 font-display text-h4 font-semibold text-ink-900">No insights yet</h3>
           <p className="mt-1 text-sm text-ink-500">
             {isAdmin
-              ? 'Hit Generate to analyze the club’s data.'
+              ? 'Insights generate automatically — or use Regenerate on the AI tab.'
               : 'Insights generate automatically as the club logs events and fundraising.'}{' '}
             Gemini will look for things like:
           </p>

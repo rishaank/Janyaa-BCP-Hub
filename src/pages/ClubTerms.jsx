@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarRange, CalendarDays, CalendarCheck, Users, DollarSign, ChevronDown,
-  Sparkles, Loader2, Pencil, Trash2, Plus,
+  Sparkles, Pencil, Trash2, Plus,
 } from 'lucide-react'
 import {
   PageHeader, Card, Button, Badge, Avatar, Modal, FormField, inputClass,
@@ -12,6 +12,7 @@ import { toneMeta } from '../components/InsightCard'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useIsDesktop } from '../lib/useMediaQuery'
 import {
   getTerms, getTermActivity, getSettings, createTerm, updateTerm, deleteTerm,
   setAutoTerming, generateTermInsights, initials,
@@ -25,6 +26,7 @@ const TODAY = new Date().toISOString().slice(0, 10)
 export default function ClubTerms() {
   const { profile } = useAuth()
   const isAdmin = !!profile?.is_admin
+  const isDesktop = useIsDesktop()
   useDocumentTitle('Terms')
 
   const [terms, setTerms] = useState(null)
@@ -34,8 +36,6 @@ export default function ClubTerms() {
   // null = the user collapsed everything — don't re-open on live reloads.
   const [expanded, setExpanded] = useState(undefined)
   const [modal, setModal] = useState(null) // 'new' | a term row
-  const [aiBusy, setAiBusy] = useState(false)
-  const [aiError, setAiError] = useState('')
 
   const load = () =>
     Promise.all([getTerms(), getTermActivity(), getSettings()]).then(([t, a, s]) => {
@@ -57,19 +57,6 @@ export default function ClubTerms() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useRealtime(['terms', 'events', 'meetings', 'club_settings'], load)
-
-  async function refreshAI() {
-    setAiBusy(true)
-    setAiError('')
-    const { data, error } = await generateTermInsights(true)
-    setAiBusy(false)
-    if (error || data?.ok === false) {
-      const msg = data?.error || error?.message || 'Could not refresh the AI breakdowns.'
-      setAiError(msg.includes('GEMINI_API_KEY') ? 'AI is not set up yet — an admin needs to add the Gemini key.' : msg)
-      return
-    }
-    getTerms().then(setTerms)
-  }
 
   // Bucket events / meetings / participants into each term.
   const membersById = useMemo(() => new Map(activity.members.map((m) => [m.id, m])), [activity.members])
@@ -102,22 +89,8 @@ export default function ClubTerms() {
       <PageHeader
         title="Terms"
         subtitle="Every club term — events, meetings, members, and money — with an AI breakdown that refreshes monthly."
-        action={
-          isAdmin ? (
-            <div className="flex flex-col items-end gap-1">
-              <div className="flex gap-2">
-                <Button variant="soft" icon={aiBusy ? Loader2 : Sparkles} loading={aiBusy} onClick={refreshAI} disabled={aiBusy}>
-                  {aiBusy ? 'Analyzing…' : 'Refresh AI'}
-                </Button>
-                <Button icon={Plus} onClick={() => setModal('new')}>Add Term</Button>
-              </div>
-              {aiBusy && <span className="text-xs text-ink-400">Summarizing every term — ~15 seconds.</span>}
-            </div>
-          ) : null
-        }
+        action={isAdmin && isDesktop ? <Button icon={Plus} onClick={() => setModal('new')}>Add Term</Button> : undefined}
       />
-
-      {aiError && <Card className="mb-4 border-coral-200 bg-coral-50 p-3 text-sm text-coral-700">{aiError}</Card>}
 
       {isAdmin && settings && (
         <Card className="mb-4 flex flex-wrap items-center justify-between gap-3 p-4">
@@ -172,6 +145,12 @@ export default function ClubTerms() {
           load()
         }}
       />
+
+      {isAdmin && !isDesktop && (
+        <button className="jh-fab" onClick={() => setModal('new')} aria-label="Add term">
+          <Plus size={24} /> Term
+        </button>
+      )}
     </>
   )
 }

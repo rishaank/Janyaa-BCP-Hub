@@ -225,12 +225,6 @@ function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="jh-action-btn" onClick={onExport} disabled={exporting}>
-          {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} {exporting ? 'Exporting…' : 'Export'}
-        </button>
-      </div>
-
       <div className="jh-statrow">
         <MemberPill icon={Users} val={members.length} lab="members" tone="green" />
         <MemberPill icon={Clock} val={`${totalTermHours}h`} lab="term hours" tone="gold" />
@@ -292,6 +286,10 @@ function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen
         )}
       </div>
 
+      {/* Export: secondary floating action, bottom-left (mirrors the Add FAB). */}
+      <button className="jh-fab soft left" onClick={onExport} disabled={exporting} aria-label="Export hours">
+        {exporting ? <Loader2 size={22} className="animate-spin" /> : <Download size={22} />} {exporting ? 'Exporting…' : 'Export'}
+      </button>
       {isAdmin && (
         <button className="jh-fab" onClick={() => setAddOpen(true)} aria-label="Add member">
           <UserPlus size={24} /> Add

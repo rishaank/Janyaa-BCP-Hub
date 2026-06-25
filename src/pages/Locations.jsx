@@ -142,11 +142,6 @@ export default function Locations() {
       <PageHeader
         title="Locations"
         subtitle="Search or drop a pin to save fundraising spots — the address fills in automatically."
-        action={
-          <Button variant="soft" icon={locating ? Loader2 : LocateFixed} onClick={locate} disabled={locating}>
-            {locating ? 'Locating…' : 'Use my location'}
-          </Button>
-        }
       />
 
       <SearchBar
@@ -162,6 +157,17 @@ export default function Locations() {
         {/* Map — full screen height on desktop */}
         <Card className="relative z-0 flex flex-col overflow-hidden lg:col-span-2 lg:h-full">
           <div className="relative z-0 h-[320px] w-full isolate sm:h-[440px] lg:h-auto lg:min-h-0 lg:flex-1">
+            {/* Locate control — floats over the map (top-right, clear of the zoom buttons). */}
+            <button
+              type="button"
+              onClick={locate}
+              disabled={locating}
+              title="Use my location"
+              aria-label="Use my location"
+              className="absolute right-3 top-3 z-[1000] grid h-10 w-10 place-items-center rounded-lg border border-ink-200 bg-surface text-ink-700 shadow-md transition-colors hover:bg-ink-50 disabled:opacity-60"
+            >
+              {locating ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} />}
+            </button>
             <MapContainer center={SAN_JOSE} zoom={10} className="h-full w-full" scrollWheelZoom>
               <TileLayer
                 key={isDark ? 'dark' : 'light'}

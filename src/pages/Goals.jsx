@@ -9,6 +9,7 @@ import {
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useIsDesktop } from '../lib/useMediaQuery'
 import Linkify from '../components/Linkify'
 
 const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
@@ -45,6 +46,7 @@ const selectClass =
 
 export default function Goals() {
   const { user, profile } = useAuth()
+  const isDesktop = useIsDesktop()
   const isAdmin = !!profile?.is_admin
   const myId = user?.id
   useDocumentTitle('Goals')
@@ -56,6 +58,8 @@ export default function Goals() {
   const [termStart, setTermStartState] = useState(currentTermStart())
   const [loading, setLoading] = useState(true)
   const [edit, setEdit] = useState(null) // { goal? , owner_id?, period? } | null
+  // Admins add a blank goal (assign anyone); members add one on their own row.
+  const openAddGoal = () => setEdit(isAdmin ? {} : { owner_id: myId })
   const [targetsOpen, setTargetsOpen] = useState(false)
   const [collapsedRows, setCollapsedRows] = useState(() => new Set()) // member ids
   const [collapsedTiers, setCollapsedTiers] = useState(() => new Set()) // tier keys
@@ -124,7 +128,7 @@ export default function Goals() {
           ? 'Set the club’s priorities for the term and track progress — one row per person, one column per month.'
           : 'The club’s priorities for the term — set your own goals on your row.'}
         badge={isAdmin ? <AccessChip mode="edit" /> : null}
-        action={<Button icon={Plus} onClick={() => setEdit(isAdmin ? {} : { owner_id: myId })}>Add Goal</Button>}
+        action={isDesktop ? <Button icon={Plus} onClick={openAddGoal}>Add Goal</Button> : undefined}
       />
 
       {/* Semester targets strip */}
@@ -213,6 +217,12 @@ export default function Goals() {
         />
       )}
       <TargetsEditorModal open={targetsOpen} targets={targets} onClose={() => setTargetsOpen(false)} onSave={saveTargets} />
+
+      {!isDesktop && (
+        <button className="jh-fab" onClick={openAddGoal} aria-label="Add goal">
+          <Plus size={24} /> Goal
+        </button>
+      )}
     </>
   )
 }
