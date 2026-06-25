@@ -14,6 +14,7 @@ import {
   Download,
 } from 'lucide-react'
 import { PageHeader, Card, Button } from '../components/ui'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const docs = [
   { icon: Presentation, title: 'Club Charter', desc: 'Our founding charter', url: 'https://docs.google.com/presentation/d/1ZctOVnMEnfyzPMYBPjRTirzRFLAFUrHfAOLsB0deDRU/edit?usp=sharing' },
@@ -187,6 +188,7 @@ function LinktreeCard() {
 }
 
 export default function ClubInfo() {
+  useDocumentTitle('Club Info')
   return (
     <>
       <PageHeader

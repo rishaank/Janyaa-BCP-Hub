@@ -5,6 +5,7 @@ import { PageHeader, Card, Button, Badge, Avatar, EmptyState, inputClass, roleTo
 import { useAuth } from '../context/AuthContext'
 import { getHoursRequests, decideHoursRequest, initials } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const fmtDateTime = (iso) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -15,6 +16,7 @@ export default function HoursRequests() {
   const isOpsLead = profile?.role === 'operations_lead'
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
+  useDocumentTitle('Hours Requests')
 
   const load = () =>
     getHoursRequests().then((d) => {

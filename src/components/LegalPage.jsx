@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Logo } from './ui'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // Public reading layout for the Privacy Policy + Terms pages. Works logged in or
 // out (these must be reachable by anyone, e.g. from the Login page).
 export default function LegalPage({ title, updated, children }) {
+  useDocumentTitle(title)
   return (
     <div className="min-h-screen bg-paper">
       <header className="sticky top-0 z-10 border-b border-ink-200 bg-surface/80 backdrop-blur">

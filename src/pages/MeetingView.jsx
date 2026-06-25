@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, Users, CalendarDays, Link2 } from 'lucide-react'
 import { Logo, Avatar, Badge, roleTones } from '../components/ui'
 import { getPublicMeeting, initials } from '../lib/api'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
 import LinkChip from '../components/LinkChip'
 
@@ -31,6 +32,8 @@ export default function MeetingView() {
   const location = useLocation()
   const [meeting, setMeeting] = useState(undefined) // undefined = loading, null = not found
   const [copied, setCopied] = useState(false)
+  // Loading → base title; not found → "Meeting not found"; loaded → the meeting title.
+  useDocumentTitle(meeting === undefined ? null : meeting?.title || 'Meeting not found')
 
   useEffect(() => {
     getPublicMeeting(id).then(setMeeting)

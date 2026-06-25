@@ -9,6 +9,7 @@ import {
 import { Logo, Avatar, Badge, roleTones } from '../components/ui'
 import { getPublicEvent, initials } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
 
 const pin = L.divIcon({
@@ -96,6 +97,8 @@ export default function EventView() {
   const { isDark } = useTheme()
   const [event, setEvent] = useState(undefined) // undefined = loading, null = not found
   const [copied, setCopied] = useState(false)
+  // Loading → base title; not found → "Event not found"; loaded → the event name.
+  useDocumentTitle(event === undefined ? null : event?.name || 'Event not found')
 
   useEffect(() => {
     getPublicEvent(id).then(setEvent)

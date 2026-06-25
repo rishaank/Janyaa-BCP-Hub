@@ -30,6 +30,7 @@ import {
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import BestDaysChart from '../components/BestDaysChart'
 
 const DAY = 86400000
@@ -76,6 +77,7 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 export default function Fundraising() {
+  useDocumentTitle('Fundraising')
   const [events, setEvents] = useState([])
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)

@@ -17,6 +17,7 @@ import {
 } from '../components/ui'
 import { getLocations, getEvents, saveLocation, updateLocation, deleteLocation, getSettings } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useTheme } from '../context/ThemeContext'
 import { locationPerformance } from '../lib/planning'
 import Linkify from '../components/Linkify'
@@ -78,6 +79,7 @@ async function reverseGeocode(lat, lng) {
 
 export default function Locations() {
   const { isDark } = useTheme()
+  useDocumentTitle('Locations')
   const [locations, setLocations] = useState([])
   const [events, setEvents] = useState([])
   const [loaded, setLoaded] = useState(false)
