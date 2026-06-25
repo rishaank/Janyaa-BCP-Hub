@@ -1,8 +1,10 @@
 import { UtensilsCrossed } from 'lucide-react'
 import { PageHeader, EmptyState } from '../components/ui'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // Intentionally blank — the restaurant affiliate (spirit-night) program is future work.
 export default function Restaurants() {
+  useDocumentTitle('Restaurant Affiliates')
   return (
     <>
       <PageHeader title="Restaurant Affiliates" subtitle="Spirit-night fundraisers and dining partnerships that give back to the club." />

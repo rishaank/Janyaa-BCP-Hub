@@ -43,6 +43,7 @@ import {
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import MemberChip from '../components/MemberChip'
 import Linkify from '../components/Linkify'
 import AvatarCropper from '../components/AvatarCropper'
@@ -78,6 +79,8 @@ export default function ProfilePage() {
   useEffect(() => {
     getMembersBrief().then((ms) => setOpsLead(ms.find((m) => m.role === 'operations_lead') ?? null))
   }, [])
+
+  useDocumentTitle(data?.profile?.name)
 
   if (loading) return <p className="text-sm text-ink-500">Loading…</p>
   if (!data?.profile) return <p className="text-sm text-ink-500">Member not found.</p>

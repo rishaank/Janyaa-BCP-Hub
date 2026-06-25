@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle2, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Logo, Button, inputClass } from '../components/ui'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // Landing page for invite + password-reset email links. The link carries a token
 // that supabase-js exchanges for a short-lived session on load; we then let the
@@ -14,6 +15,7 @@ export default function SetPassword() {
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  useDocumentTitle('Set your password')
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {

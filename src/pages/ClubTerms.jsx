@@ -11,6 +11,7 @@ import {
 import { toneMeta } from '../components/InsightCard'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import {
   getTerms, getTermActivity, getSettings, createTerm, updateTerm, deleteTerm,
   setAutoTerming, generateTermInsights, initials,
@@ -24,6 +25,7 @@ const TODAY = new Date().toISOString().slice(0, 10)
 export default function ClubTerms() {
   const { profile } = useAuth()
   const isAdmin = !!profile?.is_admin
+  useDocumentTitle('Terms')
 
   const [terms, setTerms] = useState(null)
   const [activity, setActivity] = useState({ events: [], meetings: [], members: [] })

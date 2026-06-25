@@ -11,6 +11,7 @@ import {
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import EventsCalendar from '../components/EventsCalendar'
 import { EventCard, EventFormModal, CalendarSubscribeModal } from './Events'
 import { MeetingCard, MeetingFormModal, SeriesModal } from './Meetings'
@@ -50,6 +51,7 @@ export default function EventsMeetings() {
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') === 'meetings' ? 'meetings' : 'events'
   const setTab = (t) => setParams(t === 'meetings' ? { tab: 'meetings' } : {}, { replace: true })
+  useDocumentTitle(tab === 'meetings' ? 'Meetings' : 'Events')
   const [view, setView] = useState('list') // 'list' | 'calendar' (calendar shows both)
 
   const [events, setEvents] = useState([])

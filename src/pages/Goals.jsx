@@ -8,6 +8,7 @@ import {
   getSettings, setTermTargets, getCurrentTermStart, currentTermStart,
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
 
 const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
@@ -46,6 +47,7 @@ export default function Goals() {
   const { user, profile } = useAuth()
   const isAdmin = !!profile?.is_admin
   const myId = user?.id
+  useDocumentTitle('Goals')
   // Admins edit everyone; members edit only their own row (set goals for themselves).
   const canEditMember = (id) => isAdmin || id === myId
   const [goals, setGoals] = useState([])

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Sparkles } from 'lucide-react'
 import { PageHeader } from '../components/ui'
 import { autoRefreshMonthlyAI } from '../lib/api'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Insights from './Insights'
 import AIStudio from './AIStudio'
 
@@ -9,6 +10,7 @@ import AIStudio from './AIStudio'
 // planning + suggestions, the assistant, and social studio — all from real club
 // data, stacked on a single page. Every AI block here auto-refreshes monthly.
 export default function AIPlanning() {
+  useDocumentTitle('AI Planning')
   // Monthly auto-refresh: regenerate stale (>30-day) insights + suggestions in
   // the background. Throttled by cache age, so a normal visit costs nothing.
   useEffect(() => {

@@ -3,10 +3,12 @@ import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { Users, CalendarDays, PiggyBank, Loader2 } from 'lucide-react'
 import { Logo } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export default function Login() {
   const { session, signIn } = useAuth()
   const navigate = useNavigate()
+  useDocumentTitle('Sign in')
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

@@ -4,6 +4,7 @@ import { PageHeader, Card, AccessChip, EmptyState, roleLabels } from '../compone
 import { getRoleHoursRules, updateRoleHoursRule, grantRoleMonth } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 const cadenceLabel = { monthly: 'every month', per_event: 'per new event' }
 // Stable display order, regardless of how the rows come back.
@@ -32,6 +33,7 @@ export default function AutoHours() {
   const [loading, setLoading] = useState(true)
   const period = pstNow().period
   const days = daysUntilNextGrant()
+  useDocumentTitle('Role Hours')
 
   const load = () =>
     getRoleHoursRules().then((d) => {

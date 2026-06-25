@@ -14,6 +14,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 import InsightCard from '../components/InsightCard'
 import Linkify from '../components/Linkify'
 
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [requests, setRequests] = useState([]) // my hours-request status cards
   const navigate = useNavigate()
   const isDesktop = useIsDesktop()
+  useDocumentTitle('Dashboard')
 
   useEffect(() => {
     getPublicDashboard().then((data) => {

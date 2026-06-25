@@ -18,6 +18,7 @@ import { getActivityLog } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import { useGithubCommits } from '../lib/useGithubCommits'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // action → icon + colour
 const ICONS = {
@@ -44,6 +45,7 @@ const fmtDay = (d) => {
 export default function History() {
   const { profile } = useAuth()
   const isAdmin = !!profile?.is_admin
+  useDocumentTitle('History')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const { commits } = useGithubCommits(30)

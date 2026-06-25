@@ -7,6 +7,7 @@ import { exportAllHours } from '../lib/exportHours'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // Gold / silver / bronze for the top-3 hours leaders.
 const TROPHY = ['#eab308', '#9ca3af', '#cd7f32']
@@ -21,6 +22,7 @@ export default function Members() {
   const [exporting, setExporting] = useState(false)
   const isDesktop = useIsDesktop()
   const [sortBy, setSortBy] = useState('total') // mobile list sort: 'total' | 'term'
+  useDocumentTitle('Members & Hours')
 
   async function exportAll() {
     setExporting(true)
