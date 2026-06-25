@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
@@ -45,14 +46,22 @@ export default function MoreSheet({ onClose }) {
     ...(isOpsLead ? [{ label: 'Hours Requests', to: '/requests', icon: ClipboardCheck, tone: 'gold' }] : []),
   ]
 
+  // Play the slide-down animation, then actually unmount when it ends.
+  const [closing, setClosing] = useState(false)
+  const requestClose = () => setClosing(true)
+
   return createPortal(
     <>
-      <div className="sheet-scrim" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-label="More">
-        <div className="sheet-grab" />
+      <div className={'sheet-scrim' + (closing ? ' sheet-scrim-closing' : '')} onClick={requestClose} />
+      <div
+        className={'sheet' + (closing ? ' sheet-closing' : '')}
+        role="dialog"
+        aria-label="More"
+        onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) onClose() }}
+      >
         <div className="sheet-title-row">
           <span className="sheet-title">More</span>
-          <button className="sheet-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="sheet-x" onClick={requestClose} aria-label="Close"><X size={18} /></button>
         </div>
 
         <div className="more-group"><Lock size={12} /> Members only</div>

@@ -14,6 +14,9 @@ export default function AccountSheet({ onClose }) {
   const { session, user, profile, signOut } = useAuth()
   const { theme, setTheme } = useTheme()
   const [themeModal, setThemeModal] = useState(false)
+  // Play the slide-down animation, then actually unmount when it ends.
+  const [closing, setClosing] = useState(false)
+  const requestClose = () => setClosing(true)
 
   const name = profile?.name || user?.email?.split('@')[0] || 'Member'
   const role = roleLabels[profile?.role] || 'Member'
@@ -22,12 +25,16 @@ export default function AccountSheet({ onClose }) {
 
   return createPortal(
     <>
-      <div className="sheet-scrim" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-label="Account">
-        <div className="sheet-grab" />
+      <div className={'sheet-scrim' + (closing ? ' sheet-scrim-closing' : '')} onClick={requestClose} />
+      <div
+        className={'sheet' + (closing ? ' sheet-closing' : '')}
+        role="dialog"
+        aria-label="Account"
+        onAnimationEnd={(e) => { if (closing && e.target === e.currentTarget) onClose() }}
+      >
         <div className="sheet-title-row">
           <span className="sheet-title">Account</span>
-          <button className="sheet-x" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="sheet-x" onClick={requestClose} aria-label="Close"><X size={18} /></button>
         </div>
 
         {session ? (

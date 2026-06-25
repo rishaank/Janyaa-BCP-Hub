@@ -192,14 +192,17 @@
    BOTTOM SHEETS + MORE MENU
    ============================================================ */
 .sheet-scrim { position: fixed; inset: 0; z-index: 60; background: oklch(0.12 0.008 70 / 0.55); backdrop-filter: blur(1.5px); animation: jh-veil 0.18s ease-out both; }
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; background: var(--surface); border-radius: 26px 26px 0 0; box-shadow: var(--shadow-xl); padding: 10px 18px calc(18px + env(safe-area-inset-bottom)); border-top: 1px solid var(--ink-200); max-height: 86dvh; overflow-y: auto; animation: jh-sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
-.sheet-grab { width: 40px; height: 5px; border-radius: 999px; background: var(--ink-300); margin: 0 auto 6px; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; background: var(--surface); border-radius: 26px 26px 0 0; box-shadow: var(--shadow-xl); padding: 16px 18px calc(18px + env(safe-area-inset-bottom)); border-top: 1px solid var(--ink-200); max-height: 86dvh; overflow-y: auto; animation: jh-sheet-up 0.26s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sheet-closing { animation: jh-sheet-down 0.24s cubic-bezier(0.4, 0, 1, 1) both; }
+.sheet-scrim-closing { animation: jh-veil-out 0.2s ease-out both; }
 .sheet-title-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 12px; }
 .sheet-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -0.01em; color: var(--ink-900); }
 .sheet-x { width: 34px; height: 34px; border: none; border-radius: 999px; background: var(--ink-100); color: var(--ink-600); display: grid; place-items: center; cursor: pointer; }
 @keyframes jh-veil { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jh-veil-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes jh-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .sheet, .sheet-scrim { animation: none; } }
+@keyframes jh-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@media (prefers-reduced-motion: reduce) { .sheet, .sheet-closing, .sheet-scrim, .sheet-scrim-closing { animation: none; } }
 
 .more-group { font-family: var(--font-mono); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-500); padding: 6px 2px 10px; display: flex; align-items: center; gap: 6px; }
 
