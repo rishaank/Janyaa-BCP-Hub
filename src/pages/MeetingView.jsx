@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
-import { ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, Users, CalendarDays, Link2 } from 'lucide-react'
-import { Logo, Avatar, Badge, roleTones } from '../components/ui'
-import { getPublicMeeting, initials } from '../lib/api'
+import {
+  ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, Users, CalendarDays, Link2,
+  Pencil, Trash2, UserCog, Ban, RotateCcw, LogIn,
+} from 'lucide-react'
+import { Logo, Avatar, Badge, Button, roleTones } from '../components/ui'
+import {
+  getPublicMeeting, registerMeeting, unmarkAttendance, deleteMeeting, setMeetingCanceled, initials,
+} from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
 import LinkChip from '../components/LinkChip'
+import ManageAttendeesModal from '../components/ManageAttendeesModal'
+import { MeetingFormModal } from './Meetings'
 
 const fmtTime = (t) => {
   if (!t) return ''
@@ -30,14 +38,29 @@ export default function MeetingView() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { session, user, profile } = useAuth()
+  const isAdmin = !!profile?.is_admin
   const [meeting, setMeeting] = useState(undefined) // undefined = loading, null = not found
   const [copied, setCopied] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
   // Loading → base title; not found → "Meeting not found"; loaded → the meeting title.
   useDocumentTitle(meeting === undefined ? null : meeting?.title || 'Meeting not found')
 
+  const reload = useCallback(() => getPublicMeeting(id).then(setMeeting), [id])
   useEffect(() => {
-    getPublicMeeting(id).then(setMeeting)
-  }, [id])
+    reload()
+  }, [reload])
+
+  async function toggleCancel() {
+    await setMeetingCanceled(id, !meeting.canceled)
+    await reload()
+  }
+  async function removeMeeting() {
+    if (!window.confirm(`Delete "${meeting?.title}"? This can't be undone.`)) return
+    await deleteMeeting(id)
+    goBack()
+  }
 
   async function share() {
     const url = window.location.href
@@ -83,14 +106,47 @@ export default function MeetingView() {
             <Link to="/" className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-700">← Back to the dashboard</Link>
           </div>
         ) : (
-          <MeetingBody meeting={meeting} copied={copied} onShare={share} />
+          <MeetingBody
+            meeting={meeting}
+            copied={copied}
+            onShare={share}
+            session={session}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            reload={reload}
+            onEdit={() => setEditOpen(true)}
+            onCancel={toggleCancel}
+            onDelete={removeMeeting}
+            onManage={() => setManageOpen(true)}
+          />
         )}
       </main>
+
+      {isAdmin && meeting && (
+        <>
+          <MeetingFormModal
+            open={editOpen}
+            meeting={meeting}
+            onClose={() => setEditOpen(false)}
+            onSaved={() => { setEditOpen(false); reload() }}
+          />
+          <ManageAttendeesModal
+            open={manageOpen}
+            onClose={() => setManageOpen(false)}
+            title={meeting.title}
+            withRoles
+            current={(meeting.attendees ?? []).map((a) => ({ member_id: a.id, role: a.attend_role, profiles: { name: a.name, role: a.role } }))}
+            onAdd={async (mid, role) => { await registerMeeting(id, mid, role); await reload() }}
+            onRemove={async (mid) => { await unmarkAttendance(id, mid); await reload() }}
+            onSetRole={async (mid, role) => { await registerMeeting(id, mid, role); await reload() }}
+          />
+        </>
+      )}
     </div>
   )
 }
 
-function MeetingBody({ meeting, copied, onShare }) {
+function MeetingBody({ meeting, copied, onShare, session, userId, isAdmin, reload, onEdit, onCancel, onDelete, onManage }) {
   const attendees = meeting.attendees ?? []
   const links = meeting.links ?? []
   const timeRange = meeting.start_time
@@ -125,13 +181,24 @@ function MeetingBody({ meeting, copied, onShare }) {
             )}
           </div>
         </div>
-        <button
-          onClick={onShare}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
-        >
-          {copied ? <Check size={16} /> : <Share2 size={16} />}
-          {copied ? 'Link copied' : 'Share'}
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isAdmin && (
+            <>
+              <Button variant="soft" icon={Pencil} onClick={onEdit}>Edit</Button>
+              <Button variant="soft" icon={meeting.canceled ? RotateCcw : Ban} onClick={onCancel}>
+                {meeting.canceled ? 'Restore' : 'Cancel'}
+              </Button>
+              <Button variant="danger" icon={Trash2} onClick={onDelete}>Delete</Button>
+            </>
+          )}
+          <button
+            onClick={onShare}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+          >
+            {copied ? <Check size={16} /> : <Share2 size={16} />}
+            {copied ? 'Link copied' : 'Share'}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -140,27 +207,17 @@ function MeetingBody({ meeting, copied, onShare }) {
         <Stat icon={Users} tone="blue" label="Attendees" value={attendees.length} />
       </div>
 
-      {/* Attendees */}
-      <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5">
-        <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink-900">
-          <Users size={16} className="text-ink-400" /> Attendees · {attendees.length}
-        </h2>
-        {attendees.length === 0 ? (
-          <p className="text-sm text-ink-400">No one listed yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-x-4 gap-y-3">
-            {attendees.map((a) => (
-              <div key={a.id} className="flex items-center gap-2">
-                <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />
-                <span className="text-sm text-ink-700">{a.name}</span>
-                {a.attend_role === 'contributor' && (
-                  <span className="rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700" title="Contributor (+1 hr)">+1</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Attendees — interactive: attend / contribute / switch / leave, admin manage. */}
+      <AttendCard
+        meeting={meeting}
+        attendees={attendees}
+        len={len}
+        session={session}
+        userId={userId}
+        isAdmin={isAdmin}
+        reload={reload}
+        onManage={onManage}
+      />
 
       {/* Notes */}
       {meeting.notes && (
@@ -204,6 +261,118 @@ function Stat({ icon: Icon, label, value, tone }) {
       </span>
       <p className="mt-3 font-display text-2xl font-bold tabular-nums text-ink-900">{value}</p>
       <p className="text-xs text-ink-500">{label}</p>
+    </div>
+  )
+}
+
+// Attendees + the interactive controls: attend / contribute (with hours), switch
+// role, leave; plus the admin Manage button. Hidden for canceled meetings.
+function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload, onManage }) {
+  const canceled = meeting.canceled
+  const myReg = attendees.find((a) => a.id === userId)
+  const [busy, setBusy] = useState(false)
+
+  async function register(role) {
+    setBusy(true)
+    await registerMeeting(meeting.id, userId, role)
+    await reload()
+    setBusy(false)
+  }
+  async function leave() {
+    setBusy(true)
+    await unmarkAttendance(meeting.id, userId)
+    await reload()
+    setBusy(false)
+  }
+
+  return (
+    <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 font-semibold text-ink-900">
+          <Users size={16} className="text-ink-400" /> Attendees · {attendees.length}
+        </h2>
+        {isAdmin && (
+          <button
+            onClick={onManage}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
+          >
+            <UserCog size={14} /> Manage
+          </button>
+        )}
+      </div>
+
+      {attendees.length === 0 ? (
+        <p className="text-sm text-ink-400">No one listed yet.</p>
+      ) : (
+        <div className="flex flex-wrap gap-x-4 gap-y-3">
+          {attendees.map((a) => (
+            <div key={a.id} className="flex items-center gap-2">
+              <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />
+              <span className="text-sm text-ink-700">{a.name}</span>
+              {a.attend_role === 'contributor' && (
+                <span className="rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700" title="Contributor (+1 hr)">+1</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!canceled && (
+        session ? (
+          myReg ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-ink-700">
+                You&rsquo;re {myReg.attend_role === 'contributor' ? 'contributing' : 'attending'} ·{' '}
+                {myReg.attend_role === 'contributor' ? len + 1 : len}h
+              </span>
+              <button
+                onClick={() => register(myReg.attend_role === 'contributor' ? 'attendee' : 'contributor')}
+                disabled={busy}
+                className="rounded-md bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-200 disabled:opacity-50"
+              >
+                Switch to {myReg.attend_role === 'contributor' ? 'attendee' : 'contributor'}
+              </button>
+              <button
+                onClick={leave}
+                disabled={busy}
+                className="rounded-md px-2.5 py-1 text-xs font-medium text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-50"
+              >
+                Leave
+              </button>
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => register('attendee')}
+                disabled={busy}
+                className="rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              >
+                Attend · {len}h
+              </button>
+              <button
+                onClick={() => register('contributor')}
+                disabled={busy}
+                className="rounded-lg border border-blue-300 bg-surface py-2.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50"
+              >
+                Contribute · {len + 1}h
+              </button>
+            </div>
+          )
+        ) : (
+          <Link
+            to="/login"
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+          >
+            <LogIn size={15} /> Sign in to attend
+          </Link>
+        )
+      )}
+
+      {!canceled && (
+        <p className="mt-3 text-xs text-ink-400">
+          Contributors earn the meeting length + 1 hr; attendees earn the length. Hours are added automatically once the meeting ends (PST).
+        </p>
+      )}
     </div>
   )
 }

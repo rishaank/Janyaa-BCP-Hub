@@ -2,11 +2,11 @@
 // the meeting card, the create/edit form modal, and the recurring-series modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Clock, MapPin, Users, Pencil, Trash2, Ban, RotateCcw, Check, UserCog, Maximize2, X, Link2 } from 'lucide-react'
+import { Plus, Clock, MapPin, Users, Trash2, Check, UserCog, X, Link2 } from 'lucide-react'
 import { Card, Button, Badge, Modal, FormField, inputClass } from '../components/ui'
 import {
   getMeetingSeries, ensureUpcomingMeetings,
-  createMeeting, updateMeeting, deleteMeeting, setMeetingCanceled,
+  createMeeting, updateMeeting,
   createMeetingSeries, updateMeetingSeries, deleteMeetingSeries, deleteSeriesUpcomingMeetings,
   registerMeeting, unmarkAttendance,
 } from '../lib/api'
@@ -38,7 +38,7 @@ function meetingLength(m) {
   return 1
 }
 
-export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp, onChange, onEdit }) {
+export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp, onChange }) {
   const isPast = isPastProp ?? meeting.date < TODAY
   const canceled = meeting.canceled
   const attendees = meeting.meeting_attendees ?? []
@@ -60,18 +60,9 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
     await onChange()
     setBusy(false)
   }
-  async function toggleCancel() {
-    await setMeetingCanceled(meeting.id, !canceled)
-    await onChange()
-  }
-  async function remove() {
-    if (!window.confirm(`Delete "${meeting.title}"? This can't be undone.`)) return
-    await deleteMeeting(meeting.id)
-    await onChange()
-  }
 
   return (
-    <Card className={`flex min-w-0 flex-col p-5 transition-shadow hover:shadow-card ${canceled ? 'opacity-60' : ''}`}>
+    <Card className={`flex min-w-0 flex-col p-5 transition-shadow hover:shadow-card sm:p-6 ${canceled ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -84,7 +75,7 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
             {meeting.series_id && <Badge tone="blue">Weekly</Badge>}
             {canceled && <Badge tone="coral">Canceled</Badge>}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
             {timeRange && (
               <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {timeRange}</span>
             )}
@@ -96,52 +87,23 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
             )}
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <div className="rounded-xl bg-ink-50 px-3 py-1.5 text-center">
-            <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
-              {new Date(meeting.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
-            </p>
-            <p className="font-display text-lg font-bold leading-tight text-ink-900">
-              {new Date(meeting.date + 'T00:00:00').getDate()}
-            </p>
-          </div>
-          <div className="flex gap-1">
-            <Link
-              to={`/meetings/${meeting.id}`}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
-              aria-label="Open full view"
-              title="Open shareable view"
-            >
-              <Maximize2 size={14} />
-            </Link>
-            <button
-              onClick={() => onEdit(meeting)}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
-              aria-label="Edit meeting"
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              onClick={toggleCancel}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-gold-100 hover:text-gold-700"
-              aria-label={canceled ? 'Restore meeting' : 'Cancel meeting'}
-              title={canceled ? 'Restore' : 'Cancel'}
-            >
-              {canceled ? <RotateCcw size={14} /> : <Ban size={14} />}
-            </button>
-            <button
-              onClick={remove}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-coral-50 hover:text-coral-600"
-              aria-label="Delete meeting"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
+        {/* Edit / cancel / delete now live on the full-screen view (open via the title). */}
+        <Link
+          to={`/meetings/${meeting.id}`}
+          className="shrink-0 rounded-xl bg-ink-50 px-3 py-1.5 text-center transition-colors hover:bg-ink-100"
+          aria-label="Open full view"
+        >
+          <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
+            {new Date(meeting.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
+          </p>
+          <p className="font-display text-lg font-bold leading-tight text-ink-900">
+            {new Date(meeting.date + 'T00:00:00').getDate()}
+          </p>
+        </Link>
       </div>
 
       {meeting.notes && (
-        <p className="mt-3 whitespace-pre-wrap break-words text-sm text-ink-600">
+        <p className="mt-4 whitespace-pre-wrap break-words text-sm text-ink-600">
           <Linkify>{meeting.notes}</Linkify>
         </p>
       )}
@@ -154,9 +116,9 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
         </div>
       )}
 
-      <div className="mt-auto pt-4">
-       <div className="rounded-xl bg-ink-50 p-3">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="mt-auto pt-5">
+       <div className="rounded-xl bg-ink-50 p-4">
+        <div className="mb-2.5 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
             <Users size={15} className="text-ink-400" />
             {isPast ? 'Attended' : 'Attending'}

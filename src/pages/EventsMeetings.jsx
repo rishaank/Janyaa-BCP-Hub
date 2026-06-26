@@ -267,19 +267,19 @@ export default function EventsMeetings() {
         <>
           <Section title="Upcoming" count={upcomingEvents.length}>
             {upcomingEvents.map((e) => (
-              <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
+              <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} />
             ))}
           </Section>
           {tentative.length > 0 && (
             <Section title="Tentative" count={tentative.length}>
               {tentative.map((e) => (
-                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
+                <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} />
               ))}
             </Section>
           )}
           <Section title="Past" count={pastEvents.length}>
             {pastEvents.map((e) => (
-              <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} onEdit={openEditEvent} />
+              <EventCard key={e.id} event={e} myId={user?.id} isAdmin={isAdmin} onChange={loadEvents} />
             ))}
           </Section>
         </>
@@ -287,12 +287,12 @@ export default function EventsMeetings() {
         <>
           <Section title="Upcoming" count={upcomingMeetings.length}>
             {upcomingMeetings.map((m) => (
-              <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast={false} onChange={loadMeetings} onEdit={openEditMeeting} />
+              <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast={false} onChange={loadMeetings} />
             ))}
           </Section>
           <Section title="Past" count={pastMeetings.length}>
             {pastMeetings.map((m) => (
-              <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast onChange={loadMeetings} onEdit={openEditMeeting} />
+              <MeetingCard key={m.id} meeting={m} myId={user?.id} isAdmin={isAdmin} isPast onChange={loadMeetings} />
             ))}
           </Section>
         </>

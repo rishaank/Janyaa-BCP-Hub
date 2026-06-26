@@ -1,16 +1,22 @@
-import { useEffect, useState, memo } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, DollarSign, Users, ExternalLink, Instagram, CalendarDays,
+  Pencil, Trash2, UserCog, LogIn,
 } from 'lucide-react'
-import { Logo, Avatar, Badge, roleTones } from '../components/ui'
-import { getPublicEvent, initials } from '../lib/api'
+import { Logo, Avatar, Badge, Button, roleTones } from '../components/ui'
+import { getPublicEvent, getEvent, signUpForEvent, leaveEvent, deleteEvent, initials } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
+import ManageAttendeesModal from '../components/ManageAttendeesModal'
+import { EventFormModal } from './Events'
+
+const TODAY = new Date().toISOString().slice(0, 10)
 
 const pin = L.divIcon({
   className: '',
@@ -95,14 +101,33 @@ export default function EventView() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isDark } = useTheme()
+  const { session, user, profile } = useAuth()
+  const isAdmin = !!profile?.is_admin
   const [event, setEvent] = useState(undefined) // undefined = loading, null = not found
   const [copied, setCopied] = useState(false)
+  // Admin edit/manage modal state.
+  const [editEvent, setEditEvent] = useState(null) // full row for the form, or null
+  const [editOpen, setEditOpen] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
   // Loading → base title; not found → "Event not found"; loaded → the event name.
   useDocumentTitle(event === undefined ? null : event?.name || 'Event not found')
 
+  const reload = useCallback(() => getPublicEvent(id).then(setEvent), [id])
   useEffect(() => {
-    getPublicEvent(id).then(setEvent)
-  }, [id])
+    reload()
+  }, [reload])
+
+  // The public RPC omits min/max-people, so pull the full row for the edit form.
+  async function openEdit() {
+    const full = await getEvent(id)
+    setEditEvent(full)
+    setEditOpen(true)
+  }
+  async function removeEvent() {
+    if (!window.confirm(`Delete "${event?.name}"? This can't be undone.`)) return
+    await deleteEvent(id)
+    goBack()
+  }
 
   async function share() {
     const url = window.location.href
@@ -150,14 +175,46 @@ export default function EventView() {
             <Link to="/" className="mt-4 inline-block text-sm font-medium text-blue-600 hover:text-blue-700">← Back to the dashboard</Link>
           </div>
         ) : (
-          <EventBody event={event} isDark={isDark} copied={copied} onShare={share} />
+          <EventBody
+            event={event}
+            isDark={isDark}
+            copied={copied}
+            onShare={share}
+            session={session}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            reload={reload}
+            onEdit={openEdit}
+            onDelete={removeEvent}
+            onManage={() => setManageOpen(true)}
+          />
         )}
       </main>
+
+      {/* Admin edit + manage (loaded from the full row so min/max-people survive). */}
+      {isAdmin && event && (
+        <>
+          <EventFormModal
+            open={editOpen}
+            event={editEvent}
+            onClose={() => setEditOpen(false)}
+            onSaved={() => { setEditOpen(false); reload() }}
+          />
+          <ManageAttendeesModal
+            open={manageOpen}
+            onClose={() => setManageOpen(false)}
+            title={event.name}
+            current={(event.attendees ?? []).map((a) => ({ member_id: a.id, profiles: { name: a.name, role: a.role } }))}
+            onAdd={async (mid) => { await signUpForEvent(id, mid); await reload() }}
+            onRemove={async (mid) => { await leaveEvent(id, mid); await reload() }}
+          />
+        </>
+      )}
     </div>
   )
 }
 
-function EventBody({ event, isDark, copied, onShare }) {
+function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, reload, onEdit, onDelete, onManage }) {
   const attendees = event.attendees ?? []
   const igUrls = (event.instagram_urls ?? []).filter((u) => cleanIg(u))
   const timeRange = event.start_time
@@ -194,13 +251,21 @@ function EventBody({ event, isDark, copied, onShare }) {
             )}
           </div>
         </div>
-        <button
-          onClick={onShare}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
-        >
-          {copied ? <Check size={16} /> : <Share2 size={16} />}
-          {copied ? 'Link copied' : 'Share'}
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {isAdmin && (
+            <>
+              <Button variant="soft" icon={Pencil} onClick={onEdit}>Edit</Button>
+              <Button variant="danger" icon={Trash2} onClick={onDelete}>Delete</Button>
+            </>
+          )}
+          <button
+            onClick={onShare}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+          >
+            {copied ? <Check size={16} /> : <Share2 size={16} />}
+            {copied ? 'Link copied' : 'Share'}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -230,24 +295,16 @@ function EventBody({ event, isDark, copied, onShare }) {
           </div>
         )}
 
-        {/* Attendees */}
-        <div className="rounded-xl border border-ink-200 bg-surface p-5">
-          <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink-900">
-            <Users size={16} className="text-ink-400" /> Crew · {attendees.length}
-          </h2>
-          {attendees.length === 0 ? (
-            <p className="text-sm text-ink-400">No one listed yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-x-4 gap-y-3">
-              {attendees.map((a) => (
-                <div key={a.id} className="flex items-center gap-2">
-                  <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />
-                  <span className="text-sm text-ink-700">{a.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Crew — interactive: sign up / leave, hours note, admin manage. */}
+        <CrewCard
+          event={event}
+          attendees={attendees}
+          session={session}
+          userId={userId}
+          isAdmin={isAdmin}
+          reload={reload}
+          onManage={onManage}
+        />
       </div>
 
       {/* Notes / timeline */}
@@ -288,6 +345,82 @@ function Stat({ icon: Icon, label, value, tone }) {
       </span>
       <p className="mt-3 font-display text-2xl font-bold tabular-nums text-ink-900">{value}</p>
       <p className="text-xs text-ink-500">{label}</p>
+    </div>
+  )
+}
+
+// Crew list + the interactive bits: sign up / leave (upcoming, non-tentative),
+// the hours explanation, and the admin Manage button. Guests get a sign-in CTA.
+function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage }) {
+  const isPast = event.date && event.date < TODAY
+  const isSignedUp = attendees.some((a) => a.id === userId)
+  const [busy, setBusy] = useState(false)
+
+  async function toggle() {
+    setBusy(true)
+    if (isSignedUp) await leaveEvent(event.id, userId)
+    else await signUpForEvent(event.id, userId)
+    await reload()
+    setBusy(false)
+  }
+
+  return (
+    <div className="flex flex-col rounded-xl border border-ink-200 bg-surface p-5">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-1.5 font-semibold text-ink-900">
+          <Users size={16} className="text-ink-400" /> {isPast ? 'Attendees' : 'Crew'} · {attendees.length}
+        </h2>
+        {isAdmin && (
+          <button
+            onClick={onManage}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
+          >
+            <UserCog size={14} /> Manage
+          </button>
+        )}
+      </div>
+
+      {attendees.length === 0 ? (
+        <p className="text-sm text-ink-400">{isPast ? 'No attendance recorded.' : 'Nobody signed up yet.'}</p>
+      ) : (
+        <div className="flex flex-wrap gap-x-4 gap-y-3">
+          {attendees.map((a) => (
+            <div key={a.id} className="flex items-center gap-2">
+              <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />
+              <span className="text-sm text-ink-700">{a.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isPast && !event.is_tentative && (
+        session ? (
+          <button
+            onClick={toggle}
+            disabled={busy}
+            className={`mt-4 w-full rounded-lg py-2.5 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              isSignedUp ? 'bg-surface text-ink-700 ring-1 ring-ink-200 hover:bg-ink-50' : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {isSignedUp ? 'Leave event' : 'Sign up'}
+          </button>
+        ) : (
+          <Link
+            to="/login"
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700"
+          >
+            <LogIn size={15} /> Sign in to sign up
+          </Link>
+        )
+      )}
+
+      {!event.is_tentative && (
+        <p className="mt-3 text-xs text-ink-400">
+          {isPast
+            ? `${event.hours} hrs counted automatically for everyone who attended.`
+            : `Everyone who signs up earns ${event.hours} hrs — added automatically once the event has taken place.`}
+        </p>
+      )}
     </div>
   )
 }

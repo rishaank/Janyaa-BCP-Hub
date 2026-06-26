@@ -2,7 +2,7 @@
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, Pencil, Trash2, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Maximize2, UserCog } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, UserCog } from 'lucide-react'
 import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import {
   getLocations,
@@ -10,7 +10,6 @@ import {
   leaveEvent,
   createEvent,
   updateEvent,
-  deleteEvent,
   addTodo,
   setTodoAssignee,
   deleteTodo,
@@ -83,7 +82,7 @@ export function CalendarSubscribeModal({ open, onClose }) {
   )
 }
 
-export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
+export function EventCard({ event, myId, isAdmin = false, onChange }) {
   const isPast = event.date < TODAY
   const signups = event.event_signups ?? []
   const todos = event.event_todos ?? []
@@ -121,14 +120,8 @@ export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
     await onChange()
   }
 
-  async function removeEvent() {
-    if (!window.confirm(`Delete "${event.name}"? This can't be undone.`)) return
-    await deleteEvent(event.id)
-    await onChange()
-  }
-
   return (
-    <Card className="flex min-w-0 flex-col p-5 transition-shadow hover:shadow-card">
+    <Card className="flex min-w-0 flex-col p-5 transition-shadow hover:shadow-card sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -181,52 +174,31 @@ export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
             </>
           )}
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <div className="rounded-xl bg-ink-50 px-3 py-1.5 text-center">
-            {event.date ? (
-              <>
-                <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
-                  {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
-                </p>
-                <p className="font-display text-lg font-bold leading-tight text-ink-900">
-                  {new Date(event.date + 'T00:00:00').getDate()}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="font-mono text-2xs font-semibold uppercase text-ink-500">Date</p>
-                <p className="font-display text-sm font-bold leading-tight text-ink-500">TBD</p>
-              </>
-            )}
-          </div>
-          <div className="flex gap-1">
-            <Link
-              to={`/events/${event.id}`}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
-              aria-label="Open full view"
-              title="Open shareable view"
-            >
-              <Maximize2 size={14} />
-            </Link>
-            <button
-              onClick={() => onEdit(event)}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
-              aria-label="Edit event"
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              onClick={removeEvent}
-              className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-coral-50 hover:text-coral-600"
-              aria-label="Delete event"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-        </div>
+        {/* Edit / delete now live on the full-screen view (open via the title). */}
+        <Link
+          to={`/events/${event.id}`}
+          className="shrink-0 rounded-xl bg-ink-50 px-3 py-1.5 text-center transition-colors hover:bg-ink-100"
+          aria-label="Open full view"
+        >
+          {event.date ? (
+            <>
+              <p className="font-mono text-2xs font-semibold uppercase text-ink-500">
+                {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
+              </p>
+              <p className="font-display text-lg font-bold leading-tight text-ink-900">
+                {new Date(event.date + 'T00:00:00').getDate()}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-mono text-2xs font-semibold uppercase text-ink-500">Date</p>
+              <p className="font-display text-sm font-bold leading-tight text-ink-500">TBD</p>
+            </>
+          )}
+        </Link>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-500">
         {timeRange ? (
           <span className="flex items-center gap-1.5"><Clock size={14} className="text-ink-400" /> {timeRange}</span>
         ) : event.is_tentative ? (
@@ -257,8 +229,8 @@ export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
       {/* Spacer pushes the crew box to the card bottom on past events while keeping a gap above. */}
       {isPast && <div aria-hidden className="flex-1" />}
       {/* Crew / capacity */}
-      <div className="mt-4 rounded-xl bg-ink-50 p-3">
-        <div className="mb-2 flex items-center justify-between">
+      <div className="mt-5 rounded-xl bg-ink-50 p-4">
+        <div className="mb-2.5 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
             <Users size={15} className="text-ink-400" />
             {isPast ? 'Attended' : 'Crew'}
@@ -323,7 +295,7 @@ export function EventCard({ event, myId, isAdmin = false, onChange, onEdit }) {
 
       {/* To-dos (upcoming only) */}
       {!isPast && (
-        <div className="mt-4">
+        <div className="mt-5">
           <p className="mb-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
             To-dos · who brings what
           </p>

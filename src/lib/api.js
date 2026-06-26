@@ -245,6 +245,21 @@ export async function getEvents() {
   return data ?? []
 }
 
+// One event with its sign-ups + to-dos — for the full-screen EventView's admin
+// edit (the public get_public_event RPC omits min/max-people). Members-only RLS.
+export async function getEvent(id) {
+  const { data } = await supabase
+    .from('events')
+    .select(
+      `*,
+       event_signups ( member_id, profiles ( id, name, role ) ),
+       event_todos ( id, item, done, assignee_id, profiles ( id, name, role ) )`,
+    )
+    .eq('id', id)
+    .single()
+  return data ?? null
+}
+
 export function signUpForEvent(eventId, memberId) {
   return supabase.from('event_signups').insert({ event_id: eventId, member_id: memberId })
 }
