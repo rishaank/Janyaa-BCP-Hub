@@ -1,7 +1,7 @@
 // Excel export of the hours breakdown (Feature 3). SheetJS is loaded lazily so it
 // stays out of the main bundle until someone actually exports.
 
-const SITE = 'https://janyaa-bcp-hub.vercel.app'
+const SITE = 'https://hub.janyaabcp.org'
 
 const kindLabel = {
   event: 'Event',

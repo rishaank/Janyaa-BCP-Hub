@@ -351,7 +351,13 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 
 ## Deployment (Vercel)
 
-- Push to `main` → Vercel auto-builds & deploys. Production URL: `janyaa-bcp-hub.vercel.app`.
+- Push to `main` → Vercel auto-builds & deploys. Production URL: **`hub.janyaabcp.org`** (the
+  club's own domain, bought through Squarespace Domains; the `hub` subdomain is a **CNAME** pointing
+  at the per-project target Vercel shows in Settings → Domains, e.g. `<id>.vercel-dns-017.com`).
+  The old `janyaa-bcp-hub.vercel.app` is kept as a **redirect** to it in the Vercel project's Domains
+  tab, so every previously shared link still works. Code should never hardcode the host — the only
+  place that does is `src/lib/exportHours.js` (`SITE`, used for event links inside the .xlsx export);
+  everything else uses `window.location.origin` or, in `api/og.js`, the incoming request's `Host`.
 - Vercel **Environment Variables** must hold `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (not in repo).
 - `vercel.json` has the **SPA fallback rewrite** (`/(.*) → /index.html`) so deep links like `/events`
   work on hard refresh. Don't remove it. It also sets **security headers** (nosniff, SAMEORIGIN
