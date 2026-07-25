@@ -160,11 +160,14 @@ export default function ProfilePage() {
         onChange={load}
       />
 
-      {/* Upcoming + attended events + claimed to-dos, side by side at equal height */}
+      {/* Upcoming + attended events + claimed to-dos, side by side at equal height.
+          `min-w-0`: grid items floor at min-content, and these cards' rows are
+          `truncate` (white-space: nowrap), so without it the single mobile column
+          is sized to the longest untruncated row and the page scrolls sideways. */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3 lg:items-stretch">
-        <EventList title="Upcoming Events" events={upcoming} empty="Not signed up for anything upcoming." className="h-full" />
-        <EventList title="Attended Events" events={past} empty="No past events yet." className="h-full" />
-        <ToDosCard todos={data.todos} className="h-full" />
+        <EventList title="Upcoming Events" events={upcoming} empty="Not signed up for anything upcoming." className="h-full min-w-0" />
+        <EventList title="Attended Events" events={past} empty="No past events yet." className="h-full min-w-0" />
+        <ToDosCard todos={data.todos} className="h-full min-w-0" />
       </div>
 
       {data.goals?.length > 0 && (
