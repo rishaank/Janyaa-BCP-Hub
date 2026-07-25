@@ -18,8 +18,7 @@ import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { bestDays, topDay } from '../lib/planning'
-
-const TODAY = new Date().toISOString().slice(0, 10)
+import { hasEnded } from '../lib/time'
 
 // "15:00:00" → "3:00 PM"
 function fmtTime(t) {
@@ -83,7 +82,7 @@ export function CalendarSubscribeModal({ open, onClose }) {
 }
 
 export function EventCard({ event, myId, isAdmin = false, onChange }) {
-  const isPast = event.date < TODAY
+  const isPast = hasEnded(event)
   const signups = event.event_signups ?? []
   const todos = event.event_todos ?? []
   const isSignedUp = signups.some((s) => s.member_id === myId)

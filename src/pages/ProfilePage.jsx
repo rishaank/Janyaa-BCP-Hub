@@ -48,8 +48,7 @@ import MemberChip from '../components/MemberChip'
 import Linkify from '../components/Linkify'
 import AvatarCropper from '../components/AvatarCropper'
 import { exportMemberHours } from '../lib/exportHours'
-
-const TODAY = new Date().toISOString().slice(0, 10)
+import { laNow, hasEnded } from '../lib/time'
 
 export default function ProfilePage() {
   const { id } = useParams()
@@ -86,8 +85,9 @@ export default function ProfilePage() {
   if (!data?.profile) return <p className="text-sm text-ink-500">Member not found.</p>
 
   const p = data.profile
-  const upcoming = data.events.filter((e) => e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date))
-  const past = data.events.filter((e) => e.date < TODAY).sort((a, b) => b.date.localeCompare(a.date))
+  const now = laNow()
+  const upcoming = data.events.filter((e) => !hasEnded(e, now)).sort((a, b) => a.date.localeCompare(b.date))
+  const past = data.events.filter((e) => hasEnded(e, now)).sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <>

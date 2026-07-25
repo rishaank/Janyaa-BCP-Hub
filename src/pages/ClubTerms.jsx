@@ -17,8 +17,9 @@ import {
   getTerms, getTermActivity, getSettings, createTerm, updateTerm, deleteTerm,
   setAutoTerming, generateTermInsights, initials,
 } from '../lib/api'
+import { laToday } from '../lib/time'
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = laToday()
 
 // Every club term — what happened, who took part, and what it earned — with a
 // per-term AI breakdown. Terms auto-materialize seasonally (ensure_terms);

@@ -12,29 +12,10 @@ import {
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { laNow, hasEnded } from '../lib/time'
 import EventsCalendar from '../components/EventsCalendar'
 import { EventCard, EventFormModal, CalendarSubscribeModal } from './Events'
 import { MeetingCard, MeetingFormModal, SeriesModal } from './Meetings'
-
-const TODAY = new Date().toISOString().slice(0, 10)
-
-// "now" in PST/PDT as naive parts — compare to stored LA-local times without DST math.
-function laNow() {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(new Date()).map((x) => [x.type, x.value]),
-  )
-  return { date: `${p.year}-${p.month}-${p.day}`, time: `${(p.hour === '24' ? '00' : p.hour)}:${p.minute}` }
-}
-// A meeting becomes "past" once its end time (or end of day if untimed) passes in PST.
-function meetingEnded(m, now) {
-  if (m.date < now.date) return true
-  if (m.date > now.date) return false
-  const end = (m.end_time || '').slice(0, 5) || '23:59'
-  return end <= now.time
-}
 
 // "15:00" → "3:00 PM"; "9:00 AM–10:00 AM PST" for a range. Used by the compact
 // mobile glance cards.
@@ -91,14 +72,14 @@ export default function EventsMeetings() {
   useRealtime(['events', 'event_signups', 'event_todos'], loadEvents)
   useRealtime(['meetings', 'meeting_series', 'meeting_attendees'], loadMeetings)
 
-  // Event buckets
-  const tentative = events.filter((e) => e.is_tentative)
-  const upcomingEvents = events.filter((e) => !e.is_tentative && e.date && e.date >= TODAY)
-  const pastEvents = events.filter((e) => !e.is_tentative && e.date && e.date < TODAY).reverse()
-  // Meeting buckets — end-time aware (a meeting moves to Past when it ends, PST)
+  // Buckets — end-time aware (an event/meeting moves to Past when it ends, PST,
+  // the same instant the server credits its hours).
   const now = laNow()
-  const upcomingMeetings = meetings.filter((m) => !meetingEnded(m, now))
-  const pastMeetings = meetings.filter((m) => meetingEnded(m, now)).reverse()
+  const tentative = events.filter((e) => e.is_tentative)
+  const upcomingEvents = events.filter((e) => !e.is_tentative && e.date && !hasEnded(e, now))
+  const pastEvents = events.filter((e) => !e.is_tentative && e.date && hasEnded(e, now)).reverse()
+  const upcomingMeetings = meetings.filter((m) => !hasEnded(m, now))
+  const pastMeetings = meetings.filter((m) => hasEnded(m, now)).reverse()
 
   const openCreateEvent = () => { setEditEvent(null); setEventForm(true) }
   const openEditEvent = (ev) => { setEditEvent(ev); setEventForm(true) }

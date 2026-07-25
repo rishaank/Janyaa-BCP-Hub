@@ -14,8 +14,8 @@ import MemberChip from '../components/MemberChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import Linkify from '../components/Linkify'
 import LinkChip from '../components/LinkChip'
+import { hasEnded } from '../lib/time'
 
-const TODAY = new Date().toISOString().slice(0, 10)
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 function fmtTime(t) {
@@ -39,7 +39,7 @@ function meetingLength(m) {
 }
 
 export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp, onChange }) {
-  const isPast = isPastProp ?? meeting.date < TODAY
+  const isPast = isPastProp ?? hasEnded(meeting)
   const canceled = meeting.canceled
   const attendees = meeting.meeting_attendees ?? []
   const myReg = attendees.find((a) => a.member_id === myId)

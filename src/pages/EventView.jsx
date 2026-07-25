@@ -15,8 +15,7 @@ import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { EventFormModal } from './Events'
-
-const TODAY = new Date().toISOString().slice(0, 10)
+import { hasEnded } from '../lib/time'
 
 const pin = L.divIcon({
   className: '',
@@ -272,7 +271,7 @@ function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, r
       <div className="mt-6 grid grid-cols-3 gap-4">
         <Stat icon={Hourglass} tone="green" label="Hours each" value={event.hours} />
         <Stat icon={DollarSign} tone="gold" label="Raised" value={`$${raised.toLocaleString()}`} />
-        <Stat icon={Users} tone="blue" label={event.date && event.date < new Date().toISOString().slice(0, 10) ? 'Attendees' : 'Signed up'} value={attendees.length} />
+        <Stat icon={Users} tone="blue" label={hasEnded(event) ? 'Attendees' : 'Signed up'} value={attendees.length} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -352,7 +351,7 @@ function Stat({ icon: Icon, label, value, tone }) {
 // Crew list + the interactive bits: sign up / leave (upcoming, non-tentative),
 // the hours explanation, and the admin Manage button. Guests get a sign-in CTA.
 function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage }) {
-  const isPast = event.date && event.date < TODAY
+  const isPast = hasEnded(event)
   const isSignedUp = attendees.some((a) => a.id === userId)
   const [busy, setBusy] = useState(false)
 

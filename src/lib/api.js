@@ -1,7 +1,5 @@
 import { supabase } from './supabase'
 
-const TODAY = () => new Date().toISOString().slice(0, 10)
-
 // ---- Members -------------------------------------------------------------
 
 // All profiles plus hours earned. Hours = sum of `hours` for every PAST event
@@ -168,7 +166,7 @@ export function adminUpdateProfile(id, fields) {
 export async function getProfileDetails(id) {
   const [{ data: profile }, { data: signups }, { data: todos }, { data: bd }, { data: goals }] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', id).single(),
-    supabase.from('event_signups').select('events ( id, name, date, location, raised, hours )').eq('member_id', id),
+    supabase.from('event_signups').select('events ( id, name, date, end_time, location, raised, hours )').eq('member_id', id),
     supabase.from('event_todos').select('id, item, done, events ( id, name, date )').eq('assignee_id', id),
     supabase.rpc('get_hours_breakdowns', { p_member: id }),
     supabase.from('goals').select('id, title, detail, progress, status, period').eq('owner_id', id).order('created_at', { ascending: false }),
