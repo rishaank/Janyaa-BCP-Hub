@@ -62,6 +62,16 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   own account + data** from their profile (`deleteOwnAccount` → admin-users `deleteSelf`, the California
   SB 568 "eraser" right). Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI; admin-only pages (e.g. `/history`) are gated
   in the sidebar nav **and** by RLS.
+- **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose
+  tenant quarantines/badly delays our mail — so reset links do **not** go there by default. Each member
+  can save a personal **recovery email** (`member_recovery`, migration 0033; own-row + admin RLS, its own
+  table so it isn't exposed by the all-members-read `profiles` policy) on their profile, and every reset
+  link goes there instead. The Login screen has a **Forgot password?** modal → `requestPasswordReset()`,
+  which accepts *either* the login or the recovery address and always answers with the same generic
+  message (no account enumeration). Admins get three options in the profile's Account section: set the
+  member's recovery email, **Email reset link** (says which masked inbox it went to), and **Copy reset
+  link** — a one-use link to hand over by text/in person, which skips email entirely and is the fix when
+  a mailbox is swallowing everything. All three run through the `password-recovery` Edge Function.
 - **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > ErrorBoundary > AuthProvider >
   BrowserRouter`. The `<Layout>` shell wraps **both** the public `/` and the `<ProtectedRoute>`-gated
   children. Pages live in `src/pages/`, shared primitives in `src/components/ui.jsx`. **Routes are
@@ -197,6 +207,11 @@ Migration 0032 gives **events** the same end-time rule 0030 gave meetings: `get_
 end of day if untimed — passes in `America/Los_Angeles`, instead of the old `date < current_date`, which
 fired at UTC midnight = **5 PM PDT the same day** and so paid out before evening events ended. It also
 stops tentative events from ever earning hours (`not is_tentative`, previously only enforced by convention).
+Migration 0033 adds **recovery emails**: `member_recovery` (member_id → personal email; RLS = own row or
+admin, deliberately a separate table so the all-members-read `profiles` policy doesn't expose everyone's
+personal address) plus `password_reset_log` + `check_password_reset_rate(email)` (SECURITY DEFINER,
+service-role only) throttling the public Forgot-password endpoint to 3/hour per address and 30/hour
+club-wide. The log stores the address **hashed** — strangers can hit that endpoint.
 Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
@@ -348,10 +363,25 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   >7 days old; `force` (admin Refresh on `/club-terms`) regenerates everything. Calls `ensure_terms()`
   first so seasonal rows exist.
 - **`admin-users`** (`verify_jwt: true`) — admin-only account management needing the service role:
-  create (with a set password OR an emailed invite), set password, send reset email, delete. Confirms
+  create (with a set password OR an emailed invite), set password, change login email, delete. Confirms
   the caller is an admin (`profiles.is_admin`) before acting. Called via `src/lib/api.js`
-  (`adminCreateUser` / `adminInviteUser` / `adminSetPassword` / `adminSendReset` / `adminDeleteUser`),
-  surfaced in the Members "Add member" modal + the profile page's admin Account section.
+  (`adminCreateUser` / `adminInviteUser` / `adminSetPassword` / `adminSetEmail` / `adminDeleteUser`),
+  surfaced in the Members "Add member" modal + the profile page's admin Account section. Password
+  **resets** are not here — they live in `password-recovery` (below), which routes them off the school
+  mailbox.
+- **`password-recovery`** (`verify_jwt: false`) — all password resets. Supabase's own
+  `resetPasswordForEmail()` can only mail the **login** address (a school Microsoft mailbox that
+  quarantines us), so this generates the link itself with `auth.admin.generateLink({ type: 'recovery' })`
+  — which returns the link instead of sending it — and delivers it over the club Gmail SMTP to the
+  member's `member_recovery` address when they have one. Actions: `request` (public, from the Login
+  screen's Forgot-password modal — matches the typed address against login **and** recovery emails with
+  an exact `eq`, never `ilike`, so a typed `%` can't wildcard-match a member; rate-limited via
+  `check_password_reset_rate`; always returns the same generic message), `adminSend` (admin JWT →
+  emails the link, returns the masked destination), `adminLink` (admin JWT → returns the raw link to
+  copy). `verify_jwt: false` is required for the signed-out `request`; the two admin actions verify the
+  JWT + `profiles.is_admin` in-function, same pattern as `send-reminders`. Shares the `SMTP_*` /
+  `FROM_EMAIL` secrets with `send-reminders`. The redirect target (`…/set-password`) must be in
+  Supabase **Auth → URL Configuration**, or `generateLink` silently falls back to the Site URL.
 - **`send-reminders`** (`verify_jwt: false`) — emails each member the to-do items they claimed for
   events happening **tomorrow**, via the club Gmail over SMTP. Runs **automatically** on a daily
   **pg_cron schedule (15:00 UTC ≈ 8 AM PT, migration 0010)**. (The manual "Email reminders" button was

@@ -1,7 +1,8 @@
 // Supabase Edge Function: admin-users
 // Admin-only account management that needs the service role (impossible from the
 // browser): create accounts (with a set password OR an invite email), set a new
-// password, send a reset email, and delete accounts.
+// password, change the login email, and delete accounts. Password RESETS live in
+// the `password-recovery` function (they need the recovery-address routing).
 // verify_jwt = true -> caller must be signed in; we then confirm they're an admin
 // (profiles.is_admin) before doing anything. Never trust the client's word for it.
 
@@ -97,15 +98,9 @@ Deno.serve(async (req) => {
       return json({ ok: true })
     }
 
-    if (action === 'sendReset') {
-      const email = (body.email ?? '').trim()
-      if (!email) return json({ error: 'Email required' }, 400)
-      // Anon client -> Supabase sends the recovery email via the configured SMTP.
-      const anon = createClient(url, anonKey)
-      const { error } = await anon.auth.resetPasswordForEmail(email, { redirectTo })
-      if (error) throw error
-      return json({ ok: true })
-    }
+    // Note: password resets moved to the `password-recovery` function, which
+    // generates the link itself and delivers it to the member's recovery
+    // address (Supabase's own reset mail can only go to the login email).
 
     if (action === 'delete') {
       const { id } = body

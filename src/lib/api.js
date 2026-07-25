@@ -732,16 +732,62 @@ export const adminSetPassword = (id, password) =>
 export const adminSetEmail = (id, email) =>
   callAdminUsers({ action: 'setEmail', id, email })
 
-// Email a member a password-reset link.
-export const adminSendReset = (email) =>
-  callAdminUsers({ action: 'sendReset', email, redirectTo: setPwRedirect() })
-
 // Permanently delete a member's account (auth user + profile).
 export const adminDeleteUser = (id) => callAdminUsers({ action: 'delete', id })
 
 // Self-service: the signed-in member deletes THEIR OWN account + data (the
 // California SB 568 "eraser" right). No admin needed; sign out after it returns.
 export const deleteOwnAccount = () => callAdminUsers({ action: 'deleteSelf' })
+
+// ---- Password recovery (Edge Function: password-recovery) ----------------
+// School Microsoft mailboxes quarantine our reset mail, so links go to a
+// member's personal "recovery email" when they've set one. See the function.
+
+async function callRecovery(payload) {
+  const { data, error } = await supabase.functions.invoke('password-recovery', {
+    body: { ...payload, redirectTo: setPwRedirect() },
+  })
+  if (error) {
+    let msg = error.message
+    try {
+      const body = await error.context.json()
+      if (body?.error) msg = body.error
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: msg }
+  }
+  return { ok: true, data }
+}
+
+// Public "Forgot password" — accepts a login OR recovery address. Always
+// resolves with the same generic message, matched or not.
+export const requestPasswordReset = (email) => callRecovery({ action: 'request', email })
+
+// Admin: email the member their reset link (goes to their recovery address if set).
+export const adminSendReset = (id) => callRecovery({ action: 'adminSend', id })
+
+// Admin: get the raw reset link to hand over by text/DM — no email at all.
+export const adminResetLink = (id) => callRecovery({ action: 'adminLink', id })
+
+// A member's recovery address. RLS: readable/writable by that member + admins.
+export async function getRecoveryEmail(memberId) {
+  const { data } = await supabase
+    .from('member_recovery')
+    .select('email')
+    .eq('member_id', memberId)
+    .maybeSingle()
+  return data?.email ?? ''
+}
+
+// Save (or clear, when `email` is blank) a member's recovery address.
+export async function setRecoveryEmail(memberId, email) {
+  const clean = (email ?? '').trim().toLowerCase()
+  if (!clean) return supabase.from('member_recovery').delete().eq('member_id', memberId)
+  return supabase
+    .from('member_recovery')
+    .upsert({ member_id: memberId, email: clean, updated_at: new Date().toISOString() })
+}
 
 // Note: the manual "Email reminders" button was removed from the Events tab.
 // The send-reminders Edge Function still runs automatically on its daily pg_cron.

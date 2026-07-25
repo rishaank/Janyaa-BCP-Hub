@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, Link } from 'react-router-dom'
-import { Users, CalendarDays, PiggyBank, Loader2 } from 'lucide-react'
-import { Logo } from '../components/ui'
+import { Users, CalendarDays, PiggyBank, Loader2, MailCheck } from 'lucide-react'
+import { Logo, Modal, Button, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
+import { requestPasswordReset } from '../lib/api'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 export default function Login() {
@@ -14,6 +15,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
 
   // Already signed in? Skip the form.
   if (session) return <Navigate to="/" replace />
@@ -89,6 +91,16 @@ export default function Login() {
               required
             />
 
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             {error && (
               <p className="rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{error}</p>
             )}
@@ -121,7 +133,72 @@ export default function Login() {
           </p>
         </div>
       </div>
+
+      {/* Mounted only while open, so it always opens fresh with whatever's typed. */}
+      {forgotOpen && (
+        <ForgotPasswordModal onClose={() => setForgotOpen(false)} initialEmail={email} />
+      )}
     </div>
+  )
+}
+
+// Self-service reset. The address can be the member's school login OR the
+// personal "recovery email" they saved on their profile — school mailboxes
+// quarantine our mail, so most members will want the link sent elsewhere.
+// The server answers identically whether or not the address matched an account.
+function ForgotPasswordModal({ onClose, initialEmail }) {
+  const [email, setEmail] = useState(initialEmail ?? '')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState('')
+
+  async function submit(e) {
+    e.preventDefault()
+    setBusy(true)
+    const res = await requestPasswordReset(email.trim())
+    setBusy(false)
+    setSent(res.data?.message || 'If that address belongs to a Hub account, a reset link is on its way.')
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Reset your password">
+      {sent ? (
+        <div className="text-center">
+          <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-green-50 text-green-600">
+            <MailCheck size={20} />
+          </span>
+          <p className="text-sm text-ink-600">{sent}</p>
+          <Button variant="soft" className="mt-4 w-full justify-center" onClick={onClose}>
+            Done
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-3">
+          <p className="text-sm text-ink-600">
+            Enter your school email — or the recovery email you saved on your profile — and we'll
+            send a link to choose a new password.
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold text-ink-800">Email</span>
+            <input
+              type="email"
+              className={inputClass}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@bcp.org"
+              required
+              autoFocus
+            />
+          </label>
+          <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-ink-600">
+            School inboxes often hold our mail for a while. If you haven't set a recovery email yet,
+            ask a club lead — they can send you a link directly.
+          </p>
+          <Button type="submit" disabled={busy} className="w-full justify-center">
+            {busy ? 'Sending…' : 'Send reset link'}
+          </Button>
+        </form>
+      )}
+    </Modal>
   )
 }
 
