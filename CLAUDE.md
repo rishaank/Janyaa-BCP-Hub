@@ -191,7 +191,13 @@ Term cell), and makes **meeting hours end-time aware** — `get_hours_breakdowns
 count a meeting (and flip it to "past") once `(date + end_time)` passes in `America/Los_Angeles`.
 Migration 0031 adds **per-role monthly granting** for the Role Hours page: `role_hours_rules.last_granted_month`
 ('YYYY-MM', stamped when granted, PST) + `grant_role_month(role)` (admin-only); `ensure_monthly_role_hours()`
-now stamps every monthly rule it grants. Tables: `profiles`, `events`, `event_signups`,
+now stamps every monthly rule it grants.
+Migration 0032 gives **events** the same end-time rule 0030 gave meetings: `get_hours_breakdowns()` +
+`get_public_dashboard()` credit an event's sign-ups (and flip it to "past") once `(date + end_time)` — or
+end of day if untimed — passes in `America/Los_Angeles`, instead of the old `date < current_date`, which
+fired at UTC midnight = **5 PM PDT the same day** and so paid out before evening events ended. It also
+stops tentative events from ever earning hours (`not is_tentative`, previously only enforced by convention).
+Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
 `locations`, `club_settings` (single shared row, `id = true`),
@@ -251,9 +257,16 @@ cutoff-filtered event sign-ups + meeting attendance + `hours_adjustment`**, all 
 import date) makes derived event/meeting hours count only **on/after** the cutoff, so the imported history
 (below) doesn't double-count old sign-ups; sign-ups stay for attendance display. **Meetings grant hours**
 (0017): `meeting_attendees.role` — *attendee* earns the meeting length, *contributor* earns length + 1.
-Meeting hours land the moment the meeting **ends in PST** — `(date + end_time)` (or end of day if untimed)
-`at time zone 'America/Los_Angeles' <= now()`, in `get_hours_breakdowns()` + `get_public_dashboard()`
-(0030) — so a meeting flips upcoming→past and credits attendees the same instant. Events stay date-based.
+**Events and meetings both land the moment they end in PST** — `(date + end_time)` (or end of day if
+untimed) `at time zone 'America/Los_Angeles' <= now()`, in `get_hours_breakdowns()` +
+`get_public_dashboard()` (meetings 0030, events 0032) — so an item flips upcoming→past and credits its
+people the same instant. **Nothing is materialized**: hours are re-derived on every read, so moving an
+event/meeting to a later date/time (e.g. it got rescheduled because nobody showed) **removes those hours
+again** until the new end passes, with sign-ups/attendance left intact. The client mirrors the same rule
+via `hasEnded()` in `src/lib/time.js` — always use it (and `laToday()`) for upcoming/past splits; a UTC
+`new Date().toISOString().slice(0,10)` is already tomorrow after 5 PM PDT and will disagree with the server.
+The one thing a reschedule does **not** claw back is a `role_event` grant, which is credited on event
+**creation** (for organizing it), not attendance.
 Role hours also accrue per role (`role_hours_rules` / `hours_grants`, source `role_monthly`/`role_event`);
 the monthly cron + the per-role **Grant Now** button (`grant_role_month`, 0031) materialize the current
 month's grants idempotently.
