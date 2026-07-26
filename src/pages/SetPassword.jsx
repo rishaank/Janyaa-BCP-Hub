@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, CheckCircle2, KeyRound } from 'lucide-react'
+import { Loader2, CheckCircle2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Logo, Button, inputClass } from '../components/ui'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
@@ -46,9 +46,9 @@ export default function SetPassword() {
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-paper px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-ink-200 bg-surface p-7 shadow-sm">
-        <div className="mb-5 flex justify-center">
+    <div className="grid min-h-screen place-items-center bg-ink-50 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm">
+        <div className="mb-6 flex justify-center">
           <Logo />
         </div>
 
@@ -77,36 +77,37 @@ export default function SetPassword() {
         )}
 
         {status === 'ready' && (
-          <form onSubmit={submit} className="space-y-3">
-            <div className="mb-1 text-center">
-              <span className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-green-50 text-green-600">
-                <KeyRound size={18} />
-              </span>
-              <h1 className="font-display text-h4 font-bold text-ink-900">Set your password</h1>
-              <p className="mt-1 text-sm text-ink-500">Choose a password to finish setting up your account.</p>
+          <form onSubmit={submit} className="space-y-4">
+            <h1 className="text-center text-2xl font-bold tracking-tight text-ink-900">
+              Set your password
+            </h1>
+            <div className="space-y-3">
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-ink-700">New password</span>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  autoFocus
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-ink-700">Confirm password</span>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </label>
             </div>
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-ink-800">New password</span>
-              <input
-                type="password"
-                className={inputClass}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                autoFocus
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-ink-800">Confirm password</span>
-              <input
-                type="password"
-                className={inputClass}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-              />
-            </label>
-            {error && <p className="text-sm text-coral-700">{error}</p>}
-            <Button type="submit" disabled={busy} className="w-full justify-center">
+            {error && (
+              <p className="rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{error}</p>
+            )}
+            <Button type="submit" disabled={busy} className="w-full justify-center py-3">
               {busy ? 'Saving…' : 'Set password & continue'}
             </Button>
           </form>

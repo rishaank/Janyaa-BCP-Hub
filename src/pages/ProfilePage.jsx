@@ -96,6 +96,7 @@ export default function ProfilePage() {
     <>
       <button
         onClick={() => navigate(-1)}
+        data-nav-guard
         className="mb-4 -ml-2.5 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800"
       >
         <ArrowLeft size={16} /> Back
@@ -193,7 +194,8 @@ export default function ProfilePage() {
         />
       )}
 
-      {isOwn && <RecoveryEmailCard memberId={p.id} />}
+      {/* Admins edit their recovery email inside Admin Controls instead. */}
+      {isOwn && !isAdmin && <RecoveryEmailCard memberId={p.id} />}
 
       {isOwn && (
         <SelfDangerZone
@@ -321,9 +323,8 @@ function RecoveryEmailCard({ memberId }) {
         <h3 className="font-display text-h4 font-semibold text-ink-900">Recovery Email</h3>
       </div>
       <p className="text-sm text-ink-600">
-        School inboxes hold or delay our password-reset mail. Add a personal address and reset links
-        will go there instead. You still sign in with your school email — this is only for recovery,
-        and only you and club admins can see it.
+        Add an optional recovery email to be used when resetting your password. Your school email is
+        still used when logging in.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
@@ -865,6 +866,40 @@ function ProfileGoalCard({ goal }) {
   )
 }
 
+// Warn before unsaved Admin Controls edits are lost. `beforeunload` covers tab
+// close / reload / leaving the site; the capture-phase click handler covers
+// in-app navigation — every `<Link>`/`<NavLink>` renders an anchor, and the two
+// nav controls that are plain buttons (this page's Back, the mobile tab bar)
+// carry `data-nav-guard`. The app mounts `BrowserRouter`, not a data router, so
+// React Router's `useBlocker` isn't available here.
+function useUnsavedGuard(dirty) {
+  useEffect(() => {
+    if (!dirty) return
+    const onUnload = (e) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    const onClick = (e) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const el = e.target.closest?.('a[href], [data-nav-guard]')
+      if (!el || el.target === '_blank') return
+      // Not navigation: the .xlsx export on this very page downloads through a
+      // synthetic anchor, and in-page/scheme links never leave the route.
+      const href = el.getAttribute?.('href') ?? ''
+      if (el.hasAttribute?.('download') || /^(#|blob:|data:|mailto:|tel:)/.test(href)) return
+      if (window.confirm('You have unsaved changes. Leave without saving?')) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    window.addEventListener('beforeunload', onUnload)
+    document.addEventListener('click', onClick, true)
+    return () => {
+      window.removeEventListener('beforeunload', onUnload)
+      document.removeEventListener('click', onClick, true)
+    }
+  }, [dirty])
+}
+
 function AdminControls({ member, isSelf, onSaved, onDeleted }) {
   const [name, setName] = useState(member.name ?? '')
   const [role, setRole] = useState(member.role ?? 'member')
@@ -874,111 +909,107 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
   const [pw, setPw] = useState('')
   const [email, setEmail] = useState(member.email ?? '')
   const [recovery, setRecovery] = useState('')
-  const [savedRecovery, setSavedRecovery] = useState('')
   const [resetLink, setResetLink] = useState('')
   const [copied, setCopied] = useState(false)
+  const [linkSent, setLinkSent] = useState(false)
   const [acctBusy, setAcctBusy] = useState('')
-  const [acctMsg, setAcctMsg] = useState('')
   const [acctErr, setAcctErr] = useState('')
+  // What's currently in the database — everything else on this card is a draft
+  // until "Save changes" is pressed.
+  const [base, setBase] = useState({ name: member.name ?? '', role: member.role ?? 'member', admin: !!member.is_admin, email: member.email ?? '', recovery: '' })
 
   useEffect(() => {
     setName(member.name ?? '')
     setRole(member.role ?? 'member')
     setAdmin(!!member.is_admin)
     setEmail(member.email ?? '')
+    setPw('')
     setResetLink('')
+    setLinkSent(false)
     getRecoveryEmail(member.id).then((e) => {
       setRecovery(e)
-      setSavedRecovery(e)
+      setBase({ name: member.name ?? '', role: member.role ?? 'member', admin: !!member.is_admin, email: member.email ?? '', recovery: e })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [member.id])
 
+  const dirty =
+    name !== base.name ||
+    role !== base.role ||
+    admin !== base.admin ||
+    email.trim() !== base.email ||
+    recovery.trim() !== base.recovery ||
+    pw.length > 0
+  useUnsavedGuard(dirty)
+
+  // One button commits the whole card: profile fields, login email, recovery
+  // address, and a new password — each only when it actually changed.
   async function save() {
+    setAcctErr('')
+    setLinkSent(false)
+    const nextEmail = email.trim().toLowerCase()
+    const nextRecovery = recovery.trim().toLowerCase()
+    if (nextEmail !== base.email && !nextEmail.includes('@')) return setAcctErr('Enter a valid email address.')
+    if (nextRecovery && !nextRecovery.includes('@')) return setAcctErr('Enter a valid recovery email.')
+    if (pw && pw.length < 8) return setAcctErr('Password must be at least 8 characters.')
+
     setBusy(true)
-    await adminUpdateProfile(member.id, {
-      name,
-      role,
-      is_admin: admin,
-    })
+    if (name !== base.name || role !== base.role || admin !== base.admin) {
+      await adminUpdateProfile(member.id, { name, role, is_admin: admin })
+    }
+    if (nextEmail !== base.email) {
+      const res = await adminSetEmail(member.id, nextEmail)
+      if (!res.ok) return finish(res.error || 'Could not change the email.')
+    }
+    if (nextRecovery !== base.recovery) {
+      const { error } = await setRecoveryEmail(member.id, nextRecovery)
+      if (error) return finish(error.message)
+    }
+    if (pw) {
+      const res = await adminSetPassword(member.id, pw)
+      if (!res.ok) return finish(res.error || 'Could not set the password.')
+    }
     setBusy(false)
+    setEmail(nextEmail)
+    setRecovery(nextRecovery)
+    setPw('')
+    setBase({ name, role, admin, email: nextEmail, recovery: nextRecovery })
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
     onSaved()
   }
-
-  async function doSetPassword() {
-    setAcctErr('')
-    setAcctMsg('')
-    if (pw.length < 8) return setAcctErr('Password must be at least 8 characters.')
-    setAcctBusy('pw')
-    const res = await adminSetPassword(member.id, pw)
-    setAcctBusy('')
-    if (!res.ok) return setAcctErr(res.error || 'Could not set the password.')
-    setPw('')
-    setAcctMsg('Password updated.')
+  function finish(message) {
+    setBusy(false)
+    setAcctErr(message)
   }
+
   async function doSendReset() {
     setAcctErr('')
-    setAcctMsg('')
     setAcctBusy('reset')
     const res = await adminSendReset(member.id)
     setAcctBusy('')
     if (!res.ok) return setAcctErr(res.error || 'Could not send the reset email.')
-    setAcctMsg(
-      res.data?.viaRecovery
-        ? `Reset link sent to their recovery email (${res.data.sentTo}).`
-        : `Reset link sent to ${res.data?.sentTo ?? 'their login email'}. School inboxes can be slow — consider copying the link instead.`,
-    )
+    setLinkSent(true)
   }
   // No email at all: hand the link over by text/DM/in person. Fastest fix when
   // the member's school mailbox is swallowing our mail.
   async function doCopyLink() {
     setAcctErr('')
-    setAcctMsg('')
     setAcctBusy('link')
     const res = await adminResetLink(member.id)
     setAcctBusy('')
     if (!res.ok) return setAcctErr(res.error || 'Could not generate a reset link.')
-    setResetLink(res.data.link)
     try {
       await navigator.clipboard.writeText(res.data.link)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      /* clipboard blocked — the link is shown below to copy by hand */
+      setResetLink(res.data.link) // clipboard blocked — show it to copy by hand
     }
-  }
-  async function doSaveRecovery() {
-    const next = recovery.trim()
-    setAcctErr('')
-    setAcctMsg('')
-    if (next && !next.includes('@')) return setAcctErr('Enter a valid recovery email.')
-    setAcctBusy('recovery')
-    const { error } = await setRecoveryEmail(member.id, next)
-    setAcctBusy('')
-    if (error) return setAcctErr(error.message)
-    setSavedRecovery(next.toLowerCase())
-    setRecovery(next.toLowerCase())
-    setAcctMsg(next ? 'Recovery email saved.' : 'Recovery email removed.')
-  }
-  async function doSetEmail() {
-    setAcctErr('')
-    setAcctMsg('')
-    if (!email.includes('@') || email.trim() === (member.email ?? '')) {
-      return setAcctErr(email.trim() === (member.email ?? '') ? 'That is already the email.' : 'Enter a valid email address.')
-    }
-    setAcctBusy('email')
-    const res = await adminSetEmail(member.id, email.trim())
-    setAcctBusy('')
-    if (!res.ok) return setAcctErr(res.error || 'Could not change the email.')
-    setAcctMsg('Email updated.')
-    onSaved()
   }
   async function doDelete() {
     if (!window.confirm(`Permanently delete ${member.name || 'this member'}'s account? This can't be undone.`)) return
     setAcctErr('')
-    setAcctMsg('')
     setAcctBusy('delete')
     const res = await adminDeleteUser(member.id)
     setAcctBusy('')
@@ -1025,66 +1056,50 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
 
         {/* Account */}
         <div className="border-t border-ink-200 pt-4">
-          <p className="mb-2 text-sm font-semibold text-ink-800">Account</p>
-          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="member@bcp.org"
-              className={`${inputClass} sm:flex-1`}
-            />
-            <Button variant="soft" type="button" onClick={doSetEmail} disabled={acctBusy === 'email'}>
-              {acctBusy === 'email' ? 'Updating…' : 'Change email'}
-            </Button>
+          <p className="mb-3 text-sm font-semibold text-ink-800">Account</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FormField label="Login email">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="member@bcp.org"
+                className={inputClass}
+              />
+            </FormField>
+            {/* Personal inbox for reset links — school mailboxes quarantine ours. */}
+            <FormField label="Recovery email">
+              <input
+                type="email"
+                value={recovery}
+                onChange={(e) => setRecovery(e.target.value)}
+                placeholder="Optional"
+                className={inputClass}
+              />
+            </FormField>
+            <FormField label="New password">
+              <input
+                type="text"
+                value={pw}
+                onChange={(e) => setPw(e.target.value)}
+                placeholder="Leave blank to keep"
+                className={inputClass}
+              />
+            </FormField>
           </div>
-          {/* Personal inbox for reset links — school mailboxes quarantine ours. */}
-          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              type="email"
-              value={recovery}
-              onChange={(e) => setRecovery(e.target.value)}
-              placeholder="Recovery email (personal, optional)"
-              className={`${inputClass} sm:flex-1`}
-            />
-            <Button
-              variant="soft"
-              type="button"
-              onClick={doSaveRecovery}
-              disabled={acctBusy === 'recovery' || recovery.trim() === savedRecovery}
-            >
-              {acctBusy === 'recovery' ? 'Saving…' : 'Save recovery'}
-            </Button>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <input
-              type="text"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              placeholder="New password (min 8)"
-              className={`${inputClass} sm:flex-1`}
-            />
-            <Button variant="soft" type="button" onClick={doSetPassword} disabled={acctBusy === 'pw'}>
-              {acctBusy === 'pw' ? 'Setting…' : 'Set password'}
-            </Button>
-          </div>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Button variant="soft" type="button" onClick={doSendReset} disabled={acctBusy === 'reset'}>
               {acctBusy === 'reset' ? 'Sending…' : 'Email reset link'}
             </Button>
             <Button variant="soft" type="button" onClick={doCopyLink} disabled={acctBusy === 'link'}>
               {acctBusy === 'link' ? 'Generating…' : copied ? 'Copied!' : 'Copy reset link'}
             </Button>
-            <span className="text-xs text-ink-500">
-              Copying skips email entirely — send it over text or in person.
-            </span>
           </div>
           {resetLink && (
             <p className="mt-2 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">
               {resetLink}
             </p>
           )}
-          {acctMsg && <p className="mt-2 text-xs font-medium text-green-700">{acctMsg}</p>}
           {acctErr && <p className="mt-2 text-xs text-coral-700">{acctErr}</p>}
           {!isSelf && (
             <button
@@ -1099,7 +1114,9 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
         </div>
       </div>
       <div className="mt-4 flex items-center justify-end gap-3">
+        {linkSent && <span className="text-sm font-medium text-green-700">Link sent</span>}
         {saved && <span className="text-sm font-medium text-green-700">Saved</span>}
+        {dirty && !saved && <span className="text-sm text-ink-500">Unsaved changes</span>}
         <Button onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
       </div>
     </Card>

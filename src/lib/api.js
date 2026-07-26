@@ -760,8 +760,9 @@ async function callRecovery(payload) {
   return { ok: true, data }
 }
 
-// Public "Forgot password" — accepts a login OR recovery address. Always
-// resolves with the same generic message, matched or not.
+// Public "Forgot password" — accepts a login OR recovery address. Resolves with
+// `sentTo` (masked) only when the link went to a saved recovery inbox instead of
+// the address that was typed; every other outcome resolves empty.
 export const requestPasswordReset = (email) => callRecovery({ action: 'request', email })
 
 // Admin: email the member their reset link (goes to their recovery address if set).

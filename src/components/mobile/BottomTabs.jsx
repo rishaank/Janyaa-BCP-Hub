@@ -94,6 +94,7 @@ export default function BottomTabs() {
               key={to}
               type="button"
               data-on={on}
+              data-nav-guard
               className={'jh-tab' + (on ? ' on' : '')}
               aria-current={on ? 'page' : undefined}
               onClick={() => navigate(isGuest && !isPublic ? '/login' : to)}

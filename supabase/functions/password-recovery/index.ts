@@ -10,11 +10,11 @@
 //
 // Actions:
 //   request   — public "Forgot password" from the login screen. Accepts either
-//               the login OR the recovery address, is rate-limited, and always
-//               answers the same way so it can't be used to test who has an
-//               account.
-//   adminSend — an admin mails a member their reset link (no rate limit; returns
-//               the masked destination so the admin can tell them where to look).
+//               the login OR the recovery address, and is rate-limited. It names
+//               a destination back to the caller only when the link went to a
+//               saved recovery inbox (masked); every other outcome answers the
+//               same, so it can't be used to test who has an account.
+//   adminSend — an admin mails a member their reset link (no rate limit).
 //   adminLink — an admin gets the raw link to copy and hand over out-of-band
 //               (text, DM, in person) — no email involved at all.
 //
@@ -31,10 +31,6 @@ const CORS = {
 }
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: CORS })
 
-// Same wording whether or not the address matched an account.
-const GENERIC =
-  "If that address belongs to a Hub account, a reset link is on its way. Check your recovery inbox if you've set one — otherwise your school email (it can take a few minutes to arrive)."
-
 // r••••n@gmail.com — enough for "which inbox do I open?", not enough to leak it.
 function mask(email: string) {
   const [user, domain] = email.split('@')
@@ -44,16 +40,32 @@ function mask(email: string) {
   return `${head}${'•'.repeat(Math.max(user.length - 2, 1))}${tail}@${domain}`
 }
 
-function resetHtml(name: string, link: string, viaRecovery: boolean) {
-  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#374151">
-    <h2 style="color:#15803d;margin:0 0 4px">Reset your Hub password</h2>
-    <p style="margin:0 0 16px;color:#6b7280">Hi ${name}, use the button below to choose a new password for the Janyaa BCP Hub. The link is good for one use and expires in about an hour.</p>
-    <p style="margin:0 0 18px"><a href="${link}" style="display:inline-block;background:#15803d;color:#fff;text-decoration:none;padding:11px 20px;border-radius:12px;font-weight:600">Set a new password</a></p>
-    <p style="margin:0 0 6px;font-size:13px;color:#6b7280">Or paste this into your browser:</p>
-    <p style="margin:0 0 18px;font-size:12px;word-break:break-all;color:#9ca3af">${link}</p>
-    ${viaRecovery ? '<p style="margin:0 0 6px;font-size:13px;color:#6b7280">You\'re getting this at your recovery address. You still sign in with your school email.</p>' : ''}
-    <p style="margin:18px 0 0;font-size:13px;color:#9ca3af">Didn't ask for this? Ignore this email — your password won't change. — Janyaa BCP Hub</p>
-  </div>`
+// The app's own origin, taken from the redirect the client asked for, so the
+// logo URL isn't a hardcoded host. `redirectTo` is `<origin>/set-password`.
+function siteOrigin(redirectTo: string | undefined) {
+  try {
+    return new URL(redirectTo!).origin
+  } catch {
+    return 'https://hub.janyaabcp.org'
+  }
+}
+
+// NOTE: every line is emitted without trailing whitespace. denomailer encodes
+// the body as quoted-printable, where a space before a line break becomes a
+// literal "=20" in the delivered mail — which is exactly what a blank
+// indentation-only line in a template literal produces.
+function resetHtml(link: string, origin: string) {
+  return [
+    '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:8px 0;color:#374151;text-align:center">',
+    `<p style="margin:0 0 22px"><img src="${origin}/janyaa-logo.png" width="34" height="34" alt="" style="vertical-align:middle;border:0"><span style="vertical-align:middle;margin-left:9px;font-size:18px;font-weight:700;color:#1f2937">Janyaa BCP Hub</span></p>`,
+    '<h2 style="margin:0 0 20px;font-size:21px;color:#15803d">Reset your Hub password</h2>',
+    `<p style="margin:0 0 22px"><a href="${link}" style="display:inline-block;background:#15803d;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:600">Set a new password</a></p>`,
+    '<p style="margin:0 0 6px;font-size:13px;color:#6b7280">Or paste this into your browser:</p>',
+    `<p style="margin:0 0 24px;font-size:12px;word-break:break-all;color:#9ca3af">${link}</p>`,
+    '<p style="margin:0 0 4px;font-size:13px;color:#9ca3af">If you didn\'t request this, you can safely ignore this email.</p>',
+    '<p style="margin:0;font-size:13px;color:#9ca3af">This link is single use and expires in 1 hour.</p>',
+    '</div>',
+  ].join('\n')
 }
 
 Deno.serve(async (req) => {
@@ -79,7 +91,7 @@ Deno.serve(async (req) => {
     return data?.properties?.action_link as string
   }
 
-  async function deliver(to: string, name: string, link: string, viaRecovery: boolean) {
+  async function deliver(to: string, link: string) {
     const smtpUser = Deno.env.get('SMTP_USER')
     const smtpPass = Deno.env.get('SMTP_PASS')
     const from = Deno.env.get('FROM_EMAIL') ?? smtpUser
@@ -98,8 +110,8 @@ Deno.serve(async (req) => {
         from: from!,
         to,
         subject: 'Reset your Janyaa BCP Hub password',
-        content: `Hi ${name}, set a new password here (expires in about an hour):\n\n${link}\n\nDidn't ask for this? Ignore this email.`,
-        html: resetHtml(name, link, viaRecovery),
+        content: `Janyaa BCP Hub — reset your password:\n\n${link}\n\nIf you didn't request this, you can safely ignore this email.\nThis link is single use and expires in 1 hour.`,
+        html: resetHtml(link, siteOrigin(redirectTo)),
       })
     } finally {
       await client.close()
@@ -113,19 +125,23 @@ Deno.serve(async (req) => {
       .select('email')
       .eq('member_id', memberId)
       .maybeSingle()
-    const to = data?.email ?? loginEmail
-    return { to, viaRecovery: !!data?.email }
+    return data?.email ?? loginEmail
   }
 
   try {
     // ---- public: forgot password from the login screen ----------------------
     if (action === 'request') {
       const typed = (body.email ?? '').trim().toLowerCase()
-      if (!typed.includes('@')) return json({ ok: true, message: GENERIC })
+      // `sentTo` is returned ONLY when the link went somewhere other than the
+      // address that was typed (i.e. a saved recovery inbox), and is masked.
+      // Every other outcome — no account, or delivered to the typed address —
+      // returns nothing, so the client shows what the member typed and the
+      // three cases stay indistinguishable.
+      if (!typed.includes('@')) return json({ ok: true })
 
       // Throttle before doing any work — this endpoint is public.
       const { data: allowed } = await admin.rpc('check_password_reset_rate', { p_email: typed })
-      if (!allowed) return json({ ok: true, message: GENERIC })
+      if (!allowed) return json({ ok: true })
 
       // The typed address may be either the login email or a recovery email.
       // Exact match on the lowercased input, never `ilike` — a typed `%` in a
@@ -144,13 +160,13 @@ Deno.serve(async (req) => {
           .maybeSingle()
         member = data
       }
-      // No match — same answer as a match, so this can't enumerate accounts.
-      if (!member?.email) return json({ ok: true, message: GENERIC })
+      // No match — same answer as a match delivered to the typed address.
+      if (!member?.email) return json({ ok: true })
 
       const link = await buildLink(member.email)
-      const { to, viaRecovery } = await destinationFor(member.id, member.email)
-      await deliver(to, member.name ?? 'there', link, viaRecovery)
-      return json({ ok: true, message: GENERIC })
+      const to = await destinationFor(member.id, member.email)
+      await deliver(to, link)
+      return json({ ok: true, sentTo: to === typed ? undefined : mask(to) })
     }
 
     // ---- everything below is admin-only -------------------------------------
@@ -175,9 +191,9 @@ Deno.serve(async (req) => {
     if (action === 'adminLink') return json({ ok: true, link })
 
     if (action === 'adminSend') {
-      const { to, viaRecovery } = await destinationFor(member.id, member.email)
-      await deliver(to, member.name ?? 'there', link, viaRecovery)
-      return json({ ok: true, sentTo: mask(to), viaRecovery })
+      const to = await destinationFor(member.id, member.email)
+      await deliver(to, link)
+      return json({ ok: true })
     }
 
     return json({ error: 'Unknown action' }, 400)

@@ -46,10 +46,10 @@ export default function Login() {
           }}
         />
         <div className="relative flex items-center gap-2.5">
-          <img src="/janyaa-logo.png" alt="" className="h-11 w-11 rounded-lg bg-white p-0.5" />
+          <img src="/janyaa-logo.png" alt="" className="h-11 w-11" />
           <span className="font-display text-lg font-bold">Janyaa BCP Hub</span>
         </div>
-        <div className="relative">
+        <div className="relative my-auto">
           <h1 className="max-w-md text-3xl font-bold leading-tight">The operational home for Janyaa BCP.</h1>
           <p className="mt-3 max-w-md text-white/75">
             Members, events, and fundraising in one place — so the club can scale its STEM impact
@@ -61,7 +61,6 @@ export default function Login() {
             <span className="flex items-center gap-2"><PiggyBank size={16} /> Fundraising</span>
           </div>
         </div>
-        <p className="relative text-xs text-white/60">A Janyaa Foundation chapter · BCP</p>
       </div>
 
       {/* Auth form */}
@@ -71,7 +70,6 @@ export default function Login() {
             <Logo />
           </div>
           <h2 className="text-2xl font-bold tracking-tight text-ink-900">Sign In</h2>
-          <p className="mt-1 text-sm text-ink-500">Welcome back to the Janyaa Hub.</p>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-3">
             <Field
@@ -91,28 +89,27 @@ export default function Login() {
               required
             />
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setForgotOpen(true)}
-                className="text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-              >
-                Forgot password?
-              </button>
-            </div>
-
             {error && (
               <p className="rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{error}</p>
             )}
 
-            <button
-              type="submit"
-              disabled={busy}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-500 disabled:opacity-60"
-            >
-              {busy && <Loader2 size={16} className="animate-spin" />}
-              Sign In
-            </button>
+            <div className="space-y-2 pt-1">
+              <button
+                type="submit"
+                disabled={busy}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-green-500 disabled:opacity-60"
+              >
+                {busy && <Loader2 size={16} className="animate-spin" />}
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="w-full rounded-xl border border-ink-200 bg-surface py-3 text-sm font-semibold text-ink-700 transition-colors hover:bg-ink-100"
+              >
+                Forgot password?
+              </button>
+            </div>
           </form>
 
           <p className="mt-4 text-center text-sm text-ink-500">
@@ -124,12 +121,6 @@ export default function Login() {
             <Link to="/terms" className="font-medium text-ink-500 hover:text-ink-700">Terms</Link>{' '}
             and{' '}
             <Link to="/privacy" className="font-medium text-ink-500 hover:text-ink-700">Privacy Policy</Link>.
-          </p>
-
-          <p className="mt-4 text-center text-sm">
-            <Link to="/" className="text-ink-400 transition-colors hover:text-ink-600">
-              ← Back to the dashboard
-            </Link>
           </p>
         </div>
       </div>
@@ -145,40 +136,39 @@ export default function Login() {
 // Self-service reset. The address can be the member's school login OR the
 // personal "recovery email" they saved on their profile — school mailboxes
 // quarantine our mail, so most members will want the link sent elsewhere.
-// The server answers identically whether or not the address matched an account.
 function ForgotPasswordModal({ onClose, initialEmail }) {
   const [email, setEmail] = useState(initialEmail ?? '')
   const [busy, setBusy] = useState(false)
-  const [sent, setSent] = useState('')
+  const [sentTo, setSentTo] = useState('')
 
   async function submit(e) {
     e.preventDefault()
+    const typed = email.trim()
     setBusy(true)
-    const res = await requestPasswordReset(email.trim())
+    const res = await requestPasswordReset(typed)
     setBusy(false)
-    setSent(res.data?.message || 'If that address belongs to a Hub account, a reset link is on its way.')
+    // The server only names a destination when it differs from what was typed
+    // (i.e. the link went to a saved recovery address), and masks it there.
+    setSentTo(res.data?.sentTo || typed)
   }
 
   return (
     <Modal open onClose={onClose} title="Reset your password">
-      {sent ? (
+      {sentTo ? (
         <div className="text-center">
           <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-green-50 text-green-600">
             <MailCheck size={20} />
           </span>
-          <p className="text-sm text-ink-600">{sent}</p>
-          <Button variant="soft" className="mt-4 w-full justify-center" onClick={onClose}>
-            Done
-          </Button>
+          <p className="text-sm text-ink-600">
+            If you have an account, a reset link has been sent to{' '}
+            <span className="font-medium text-ink-900">{sentTo}</span>. If you don&rsquo;t receive an
+            email soon, ask an Admin for help.
+          </p>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-3">
-          <p className="text-sm text-ink-600">
-            Enter your school email — or the recovery email you saved on your profile — and we'll
-            send a link to choose a new password.
-          </p>
           <label className="block">
-            <span className="mb-1 block text-sm font-semibold text-ink-800">Email</span>
+            <span className="mb-1 block text-sm font-medium text-ink-700">School / Recovery Email</span>
             <input
               type="email"
               className={inputClass}
@@ -189,11 +179,7 @@ function ForgotPasswordModal({ onClose, initialEmail }) {
               autoFocus
             />
           </label>
-          <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-ink-600">
-            School inboxes often hold our mail for a while. If you haven't set a recovery email yet,
-            ask a club lead — they can send you a link directly.
-          </p>
-          <Button type="submit" disabled={busy} className="w-full justify-center">
+          <Button type="submit" disabled={busy} className="w-full justify-center py-3">
             {busy ? 'Sending…' : 'Send reset link'}
           </Button>
         </form>

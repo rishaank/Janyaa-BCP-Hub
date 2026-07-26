@@ -67,11 +67,17 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   can save a personal **recovery email** (`member_recovery`, migration 0033; own-row + admin RLS, its own
   table so it isn't exposed by the all-members-read `profiles` policy) on their profile, and every reset
   link goes there instead. The Login screen has a **Forgot password?** modal → `requestPasswordReset()`,
-  which accepts *either* the login or the recovery address and always answers with the same generic
-  message (no account enumeration). Admins get three options in the profile's Account section: set the
-  member's recovery email, **Email reset link** (says which masked inbox it went to), and **Copy reset
-  link** — a one-use link to hand over by text/in person, which skips email entirely and is the fix when
-  a mailbox is swallowing everything. All three run through the `password-recovery` Edge Function.
+  which accepts *either* the login or the recovery address; it reports a masked destination **only** when
+  the link went somewhere other than what was typed, so a non-existent account and a plain send look
+  identical. Members edit their recovery email on their own profile — **except admins**, who edit theirs
+  inside Admin Controls (the standalone card is hidden for them). The profile's admin **Account** section
+  is a single form: login email, recovery email, and a new password are all drafts committed by **Save
+  changes** (which also saves name/role/admin), with an unsaved-changes prompt on tab close and on in-app
+  navigation. Beside it, **Email reset link** and **Copy reset link** — the latter a one-use link to hand
+  over by text/in person, skipping email entirely, which is the fix when a mailbox is swallowing
+  everything. All of it runs through the `password-recovery` Edge Function. Reset links are **single-use**
+  and expire per Supabase's **Auth → Providers → Email → Email OTP Expiration** (the reset email states
+  1 hour, so keep that setting at 3600s).
 - **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > ErrorBoundary > AuthProvider >
   BrowserRouter`. The `<Layout>` shell wraps **both** the public `/` and the `<ProtectedRoute>`-gated
   children. Pages live in `src/pages/`, shared primitives in `src/components/ui.jsx`. **Routes are
@@ -376,12 +382,15 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   member's `member_recovery` address when they have one. Actions: `request` (public, from the Login
   screen's Forgot-password modal — matches the typed address against login **and** recovery emails with
   an exact `eq`, never `ilike`, so a typed `%` can't wildcard-match a member; rate-limited via
-  `check_password_reset_rate`; always returns the same generic message), `adminSend` (admin JWT →
-  emails the link, returns the masked destination), `adminLink` (admin JWT → returns the raw link to
-  copy). `verify_jwt: false` is required for the signed-out `request`; the two admin actions verify the
-  JWT + `profiles.is_admin` in-function, same pattern as `send-reminders`. Shares the `SMTP_*` /
-  `FROM_EMAIL` secrets with `send-reminders`. The redirect target (`…/set-password`) must be in
-  Supabase **Auth → URL Configuration**, or `generateLink` silently falls back to the Site URL.
+  `check_password_reset_rate`; returns a masked `sentTo` **only** when delivery went somewhere other than
+  the typed address), `adminSend` (admin JWT → emails the link), `adminLink` (admin JWT → returns the raw
+  link to copy). `verify_jwt: false` is required for the signed-out `request`; the two admin actions
+  verify the JWT + `profiles.is_admin` in-function, same pattern as `send-reminders`. Shares the `SMTP_*`
+  / `FROM_EMAIL` secrets with `send-reminders`. The redirect target (`…/set-password`) must be in
+  Supabase **Auth → URL Configuration**, or `generateLink` silently falls back to the Site URL. The mail
+  body is assembled line-by-line with **no trailing whitespace** — denomailer sends quoted-printable,
+  where a space before a newline is delivered as a literal `=20`, which is what an indentation-only line
+  in a template literal produces. Its logo URL comes from `redirectTo`'s origin, not a hardcoded host.
 - **`send-reminders`** (`verify_jwt: false`) — emails each member the to-do items they claimed for
   events happening **tomorrow**, via the club Gmail over SMTP. Runs **automatically** on a daily
   **pg_cron schedule (15:00 UTC ≈ 8 AM PT, migration 0010)**. (The manual "Email reminders" button was
