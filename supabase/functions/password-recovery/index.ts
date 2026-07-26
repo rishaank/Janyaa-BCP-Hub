@@ -1,22 +1,29 @@
 // Supabase Edge Function: password-recovery
-// Password resets that don't depend on the member's school mailbox.
+// Password resets that never touch the member's school mailbox.
 //
 // Supabase's built-in resetPasswordForEmail() always mails the account's login
 // address — for us that's a school Microsoft mailbox, which quarantines or badly
 // delays our mail. So we generate the recovery link ourselves
 // (auth.admin.generateLink, which returns the link instead of sending it) and
-// deliver it over the club Gmail SMTP to the member's RECOVERY address when they
-// have one (member_recovery), falling back to the login address.
+// deliver it over the club Gmail SMTP to the member's RECOVERY address.
+//
+// Reset mail is sent ONLY to a saved `member_recovery` address — there is no
+// fallback to the school login address, because a link sent there usually never
+// arrives and the member is left assuming the reset itself failed. A member with
+// no recovery address on file cannot receive a reset email at all; an admin
+// hands them a copied link (adminLink) instead.
 //
 // Actions:
 //   request   — public "Forgot password" from the login screen. Accepts either
 //               the login OR the recovery address, and is rate-limited. It names
-//               a destination back to the caller only when the link went to a
-//               saved recovery inbox (masked); every other outcome answers the
-//               same, so it can't be used to test who has an account.
-//   adminSend — an admin mails a member their reset link (no rate limit).
+//               the masked destination only when mail actually went out; "no
+//               account" and "no recovery address" answer identically, so it
+//               can't be used to test who has an account.
+//   adminSend — an admin mails a member their reset link (no rate limit). Fails
+//               with a 400 when that member has no recovery address.
 //   adminLink — an admin gets the raw link to copy and hand over out-of-band
-//               (text, DM, in person) — no email involved at all.
+//               (text, DM, in person) — no email involved at all, so this is the
+//               path for anyone without a recovery address.
 //
 // verify_jwt = false so the signed-OUT login screen can call `request`; the two
 // admin actions verify the caller's JWT + profiles.is_admin in-function.
@@ -118,25 +125,27 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Where should this member's reset link go? Recovery address if set.
-  async function destinationFor(memberId: string, loginEmail: string) {
+  // Where this member's reset link goes. Reset mail is ONLY ever sent to a
+  // saved recovery address — never to the school login address, which the
+  // district's mail tenant quarantines, so a link sent there mostly never
+  // arrives and the member is left thinking the reset silently failed. No
+  // recovery address on file => no email; the admin hands over a copied link.
+  async function recoveryAddressFor(memberId: string) {
     const { data } = await admin
       .from('member_recovery')
       .select('email')
       .eq('member_id', memberId)
       .maybeSingle()
-    return data?.email ?? loginEmail
+    return data?.email ?? null
   }
 
   try {
     // ---- public: forgot password from the login screen ----------------------
     if (action === 'request') {
       const typed = (body.email ?? '').trim().toLowerCase()
-      // `sentTo` is returned ONLY when the link went somewhere other than the
-      // address that was typed (i.e. a saved recovery inbox), and is masked.
-      // Every other outcome — no account, or delivered to the typed address —
-      // returns nothing, so the client shows what the member typed and the
-      // three cases stay indistinguishable.
+      // A masked `sentTo` comes back only when mail actually went out, which
+      // requires a saved recovery address. "No account" and "account without a
+      // recovery address" both return nothing and are indistinguishable.
       if (!typed.includes('@')) return json({ ok: true })
 
       // Throttle before doing any work — this endpoint is public.
@@ -160,13 +169,13 @@ Deno.serve(async (req) => {
           .maybeSingle()
         member = data
       }
-      // No match — same answer as a match delivered to the typed address.
+      // No account, or no recovery address to send to — answer identically.
       if (!member?.email) return json({ ok: true })
+      const to = await recoveryAddressFor(member.id)
+      if (!to) return json({ ok: true })
 
-      const link = await buildLink(member.email)
-      const to = await destinationFor(member.id, member.email)
-      await deliver(to, link)
-      return json({ ok: true, sentTo: to === typed ? undefined : mask(to) })
+      await deliver(to, await buildLink(member.email))
+      return json({ ok: true, sentTo: mask(to) })
     }
 
     // ---- everything below is admin-only -------------------------------------
@@ -186,14 +195,18 @@ Deno.serve(async (req) => {
       .single()
     if (!member?.email) return json({ error: 'That member has no email on file.' }, 400)
 
-    const link = await buildLink(member.email)
-
-    if (action === 'adminLink') return json({ ok: true, link })
+    if (action === 'adminLink') return json({ ok: true, link: await buildLink(member.email) })
 
     if (action === 'adminSend') {
-      const to = await destinationFor(member.id, member.email)
-      await deliver(to, link)
-      return json({ ok: true })
+      const to = await recoveryAddressFor(member.id)
+      if (!to) {
+        return json(
+          { error: 'That member has no recovery email set, and reset links are never emailed to school addresses. Add one above, or use Copy reset link.' },
+          400,
+        )
+      }
+      await deliver(to, await buildLink(member.email))
+      return json({ ok: true, sentTo: mask(to) })
     }
 
     return json({ error: 'Unknown action' }, 400)

@@ -323,8 +323,8 @@ function RecoveryEmailCard({ memberId }) {
         <h3 className="font-display text-h4 font-semibold text-ink-900">Recovery Email</h3>
       </div>
       <p className="text-sm text-ink-600">
-        Add an optional recovery email to be used when resetting your password. Your school email is
-        still used when logging in.
+        Password reset links are only sent to a recovery email — never to your school email. Add one
+        so you can reset your own password. Your school email is still used when logging in.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
@@ -341,8 +341,8 @@ function RecoveryEmailCard({ memberId }) {
       {msg && <p className="mt-2 text-xs font-medium text-green-700">{msg}</p>}
       {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
       {!saved && !msg && (
-        <p className="mt-2 text-xs text-ink-500">
-          No recovery email set — resets will go to your school inbox.
+        <p className="mt-2 text-xs text-gold-700">
+          No recovery email set — you can&rsquo;t reset your own password yet.
         </p>
       )}
     </Card>
@@ -1067,13 +1067,14 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
                 className={inputClass}
               />
             </FormField>
-            {/* Personal inbox for reset links — school mailboxes quarantine ours. */}
+            {/* The only inbox reset links are ever sent to — school mailboxes
+                quarantine ours, so there's deliberately no fallback to one. */}
             <FormField label="Recovery email">
               <input
                 type="email"
                 value={recovery}
                 onChange={(e) => setRecovery(e.target.value)}
-                placeholder="Optional"
+                placeholder="Needed to email reset links"
                 className={inputClass}
               />
             </FormField>
@@ -1087,13 +1088,26 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
               />
             </FormField>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="soft" type="button" onClick={doSendReset} disabled={acctBusy === 'reset'}>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {/* Reset mail only ever goes to a SAVED recovery address, so this is
+                off until one exists in the database (a typed-but-unsaved one
+                won't do). Copying the link always works. */}
+            <Button
+              variant="soft"
+              type="button"
+              onClick={doSendReset}
+              disabled={acctBusy === 'reset' || !base.recovery}
+            >
               {acctBusy === 'reset' ? 'Sending…' : 'Email reset link'}
             </Button>
             <Button variant="soft" type="button" onClick={doCopyLink} disabled={acctBusy === 'link'}>
               {acctBusy === 'link' ? 'Generating…' : copied ? 'Copied!' : 'Copy reset link'}
             </Button>
+            {!base.recovery && (
+              <span className="text-xs text-ink-500">
+                Save a recovery email to enable emailing — reset links never go to school addresses.
+              </span>
+            )}
           </div>
           {resetLink && (
             <p className="mt-2 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">

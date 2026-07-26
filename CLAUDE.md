@@ -65,11 +65,15 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
 - **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose
   tenant quarantines/badly delays our mail — so reset links do **not** go there by default. Each member
   can save a personal **recovery email** (`member_recovery`, migration 0033; own-row + admin RLS, its own
-  table so it isn't exposed by the all-members-read `profiles` policy) on their profile, and every reset
-  link goes there instead. The Login screen has a **Forgot password?** modal → `requestPasswordReset()`,
-  which accepts *either* the login or the recovery address; it reports a masked destination **only** when
-  the link went somewhere other than what was typed, so a non-existent account and a plain send look
-  identical. Members edit their recovery email on their own profile — **except admins**, who edit theirs
+  table so it isn't exposed by the all-members-read `profiles` policy) on their profile. **Reset mail is
+  only ever sent to a recovery address — there is deliberately no fallback to the school login address**,
+  since a link sent there usually never arrives and the member is left assuming the reset itself failed.
+  A member with no recovery address on file therefore can't receive a reset email at all: an admin uses
+  **Copy reset link** instead. The Dashboard shows a gold **"Set a recovery email"** chip (desktop stat-pill
+  row + mobile chip row) linking to the member's own profile whenever they haven't set one. The Login
+  screen has a **Forgot password?** modal → `requestPasswordReset()`, which accepts *either* the login or
+  the recovery address to identify the member; it reports a masked destination **only** when mail actually
+  went out, so "no account" and "no recovery address" are indistinguishable. Members edit their recovery email on their own profile — **except admins**, who edit theirs
   inside Admin Controls (the standalone card is hidden for them). The profile's admin **Account** section
   is a single form: login email, recovery email, and a new password are all drafts committed by **Save
   changes** (which also saves name/role/admin), with an unsaved-changes prompt on tab close and on in-app
@@ -382,9 +386,10 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   member's `member_recovery` address when they have one. Actions: `request` (public, from the Login
   screen's Forgot-password modal — matches the typed address against login **and** recovery emails with
   an exact `eq`, never `ilike`, so a typed `%` can't wildcard-match a member; rate-limited via
-  `check_password_reset_rate`; returns a masked `sentTo` **only** when delivery went somewhere other than
-  the typed address), `adminSend` (admin JWT → emails the link), `adminLink` (admin JWT → returns the raw
-  link to copy). `verify_jwt: false` is required for the signed-out `request`; the two admin actions
+  `check_password_reset_rate`; returns a masked `sentTo` **only** when mail actually went out), `adminSend`
+  (admin JWT → emails the link; **400s when that member has no recovery address**, which is why the
+  profile's "Email reset link" button is disabled until one is saved), `adminLink` (admin JWT → returns the
+  raw link to copy — the only path for a member without a recovery address). `verify_jwt: false` is required for the signed-out `request`; the two admin actions
   verify the JWT + `profiles.is_admin` in-function, same pattern as `send-reminders`. Shares the `SMTP_*`
   / `FROM_EMAIL` secrets with `send-reminders`. The redirect target (`…/set-password`) must be in
   Supabase **Auth → URL Configuration**, or `generateLink` silently falls back to the Site URL. The mail

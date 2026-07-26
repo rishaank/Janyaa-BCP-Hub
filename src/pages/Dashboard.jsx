@@ -8,7 +8,7 @@ import {
   StatPill, Card, PageHeader, Avatar, ProgressBar, Button, Skeleton, roleTones,
 } from '../components/ui'
 import {
-  getPublicDashboard, initials, getPins, addPin, removePin,
+  getPublicDashboard, initials, getPins, addPin, removePin, getRecoveryEmail,
   getMyHoursRequests, dismissHoursRequest, currentTerm, periodLabel,
 } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
@@ -44,6 +44,14 @@ export default function Dashboard() {
       setLoading(false)
     })
   }, [])
+
+  // Nudge signed-in members who can't reset their own password yet — reset
+  // links are only ever emailed to a recovery address.
+  const [needsRecovery, setNeedsRecovery] = useState(false)
+  useEffect(() => {
+    if (!user?.id) return setNeedsRecovery(false)
+    getRecoveryEmail(user.id).then((e) => setNeedsRecovery(!e))
+  }, [user?.id])
 
   const loadPins = () => (session ? getPins('dashboard').then(setPins) : setPins([]))
   useEffect(() => {
@@ -133,6 +141,8 @@ export default function Dashboard() {
         pinnedTitles={pinnedTitles}
         onPin={pinIns}
         onUnpin={unpinIns}
+        needsRecovery={needsRecovery}
+        userId={user?.id}
       />
     )
 
@@ -233,6 +243,17 @@ export default function Dashboard() {
           tone="blue"
         />
         <FundraisingPill raised={fundRaised} target={fundTarget} />
+        {needsRecovery && (
+          <Link
+            to={`/members/${user.id}`}
+            className="inline-flex items-center gap-2.5 rounded-full border border-gold-200 bg-gold-50 py-1.5 pl-1.5 pr-4 shadow-sm transition-colors hover:bg-gold-100"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gold-100 text-gold-700">
+              <AlertTriangle size={16} />
+            </span>
+            <span className="text-sm font-medium text-gold-700">Set a recovery email</span>
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
@@ -530,7 +551,7 @@ function MobileDashSkeleton() {
   )
 }
 
-function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, onDismiss, pins, insights, pinnedTitles, onPin, onUnpin }) {
+function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, onDismiss, pins, insights, pinnedTitles, onPin, onUnpin, needsRecovery, userId }) {
   const navigate = useNavigate()
   const [lbView, setLbView] = useState('term')
 
@@ -556,6 +577,14 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
             You’re viewing the public dashboard. Sign in to sign up for events, log hours, and more.
           </p>
           <Link to="/login" className="jh-btn-primary"><LogIn size={16} /> Sign in</Link>
+        </div>
+      )}
+
+      {needsRecovery && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
+          <Link to={`/members/${userId}`} className="badge badge-gold" style={{ padding: '6px 11px', fontSize: 12 }}>
+            <AlertTriangle size={13} /> Set a recovery email
+          </Link>
         </div>
       )}
 

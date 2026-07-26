@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, Link } from 'react-router-dom'
-import { Users, CalendarDays, PiggyBank, Loader2, MailCheck } from 'lucide-react'
+import { Users, CalendarDays, PiggyBank, Loader2, MailCheck, AlertTriangle } from 'lucide-react'
 import { Logo, Modal, Button, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { requestPasswordReset } from '../lib/api'
@@ -133,36 +133,47 @@ export default function Login() {
   )
 }
 
-// Self-service reset. The address can be the member's school login OR the
-// personal "recovery email" they saved on their profile — school mailboxes
-// quarantine our mail, so most members will want the link sent elsewhere.
+// Self-service reset. Either address identifies the member, but the link is
+// only ever emailed to the recovery address saved on their profile — school
+// mailboxes quarantine our mail. No recovery address, no email.
 function ForgotPasswordModal({ onClose, initialEmail }) {
   const [email, setEmail] = useState(initialEmail ?? '')
   const [busy, setBusy] = useState(false)
-  const [sentTo, setSentTo] = useState('')
+  const [result, setResult] = useState(null) // { sentTo } — sentTo empty = nothing sent
 
   async function submit(e) {
     e.preventDefault()
-    const typed = email.trim()
     setBusy(true)
-    const res = await requestPasswordReset(typed)
+    const res = await requestPasswordReset(email.trim())
     setBusy(false)
-    // The server only names a destination when it differs from what was typed
-    // (i.e. the link went to a saved recovery address), and masks it there.
-    setSentTo(res.data?.sentTo || typed)
+    // A destination comes back only when mail actually went out.
+    setResult({ sentTo: res.data?.sentTo ?? '' })
   }
 
   return (
     <Modal open onClose={onClose} title="Reset your password">
-      {sentTo ? (
+      {result ? (
         <div className="text-center">
-          <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-green-50 text-green-600">
-            <MailCheck size={20} />
+          <span
+            className={`mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full ${
+              result.sentTo ? 'bg-green-50 text-green-600' : 'bg-gold-100 text-gold-700'
+            }`}
+          >
+            {result.sentTo ? <MailCheck size={20} /> : <AlertTriangle size={20} />}
           </span>
           <p className="text-sm text-ink-600">
-            If you have an account, a reset link has been sent to{' '}
-            <span className="font-medium text-ink-900">{sentTo}</span>. If you don&rsquo;t receive an
-            email soon, ask an Admin for help.
+            {result.sentTo ? (
+              <>
+                If you have an account, a reset link has been sent to{' '}
+                <span className="font-medium text-ink-900">{result.sentTo}</span>. If you don&rsquo;t
+                receive an email soon, ask an Admin for help.
+              </>
+            ) : (
+              <>
+                Reset links are only sent to recovery emails, never to school emails. If you
+                haven&rsquo;t set one on your profile, ask an Admin to reset your password for you.
+              </>
+            )}
           </p>
         </div>
       ) : (
@@ -179,6 +190,9 @@ function ForgotPasswordModal({ onClose, initialEmail }) {
               autoFocus
             />
           </label>
+          <p className="text-xs text-ink-500">
+            The link goes to the recovery email saved on your profile.
+          </p>
           <Button type="submit" disabled={busy} className="w-full justify-center py-3">
             {busy ? 'Sending…' : 'Send reset link'}
           </Button>
