@@ -231,6 +231,27 @@ admin, deliberately a separate table so the all-members-read `profiles` policy d
 personal address) plus `password_reset_log` + `check_password_reset_rate(email)` (SECURITY DEFINER,
 service-role only) throttling the public Forgot-password endpoint to 3/hour per address and 30/hour
 club-wide. The log stores the address **hashed** — strangers can hit that endpoint.
+Migration 0034 makes **event hours self-consistent** — attendee list ⇔ ledger ⇔ `events.hours`. Adding a
+member to an event dated **before `hours_cutoff_date`** used to grant nothing: derived sign-up hours are
+suppressed there (so the 0019 import isn't double-counted) and nothing wrote the ledger, so the member
+showed on the event but the event was absent from their hours history. `sync_event_hours_ledger(event)`
+(SECURITY DEFINER) now reconciles one event and is fired by triggers on `event_signups`
+(insert → write a `source = 'signup'` ledger row at `events.hours`; delete → remove **only** that row, never
+an `import`/`manual` one) and on `events` (update of `hours`/`date`/`is_tentative` → every event-linked row
+bar `role_*` follows the new figure, and rows are added/dropped when an event moves across the cutoff or is
+flagged tentative). The migration also backfilled: `events.hours` was set to the imported per-attendee
+figure where they disagreed (EVSFM 2026-03-29 + 2025-11-30 `3 → 4`, St. Andrew's 2025-03-20 `1 → 6`),
+four uncredited attendees got rows, and one member with imported event hours but no sign-up was added to
+that event's attendee list. **Imported hours are the precedent when history disagrees; a later admin edit
+of `events.hours` overrides them.**
+Migration 0035 closes the matching hole: the own-row `event_signups` policies checked *who* but never
+*when*, so a member could self-sign-up for a finished event through the API (the UI has always hidden
+Sign up / Leave once an event ends) and mint their own hours for it. Both self policies now require the
+event to be unfinished by the same PST end instant `hasEnded()` uses; **leaving** is restricted too, so
+nobody can drop off a past event and erase the hours they earned. Admins still add/remove anyone via
+`signups_admin_all`. **Meetings are deliberately exempt** — members self-report attendance there *after*
+the meeting ("I attended" on the card), so the same rule would break that flow. 0035 also adds
+`hours_grants` to the realtime publication for the now-live `ProfilePage`.
 Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
@@ -264,7 +285,8 @@ needs auth) or by pasting the SQL into the Supabase dashboard SQL editor. After 
 
 **RLS model (deliberate — small trusted club):** any signed-in member can read everything and manage
 shared data (events / todos / meetings / `meeting_series` / goals / locations / `club_settings`).
-Sign-ups and meeting attendance are own-row only. Profiles are **admin-only to edit** (`is_admin()`
+Sign-ups and meeting attendance are own-row only — and event sign-ups are additionally **time-gated**: a
+member can only add or remove *themselves* while the event hasn't ended (migration 0035). Profiles are **admin-only to edit** (`is_admin()`
 SECURITY DEFINER helper + admin override policies); the prior self-update policy was dropped
 (migration 0005). First member was bootstrapped as admin. (The dashboard's anonymous read path is the
 `get_public_dashboard()` RPC, not table-level `anon` grants.)
@@ -285,7 +307,8 @@ fold into **both** total + term hours everywhere they're computed (`get_public_d
 member's accurate baseline via the profile hours stepper. Role `pr_lead` is labelled "PR and Tech Lead".
 
 **Unified hours ledger (migrations 0017–0019):** `hours_grants` is now the general ledger (added
-`entry_date`, `meeting_id`; sources `import` / `role_*` / `manual`). A member's **total = ledger +
+`entry_date`, `meeting_id`; sources `import` / `role_*` / `manual` / `signup` — the last one trigger-managed,
+see migration 0034). A member's **total = ledger +
 cutoff-filtered event sign-ups + meeting attendance + `hours_adjustment`**, all computed in
 `get_public_dashboard()` and `get_hours_breakdowns(member)`. `club_settings.hours_cutoff_date` (set to the
 import date) makes derived event/meeting hours count only **on/after** the cutoff, so the imported history

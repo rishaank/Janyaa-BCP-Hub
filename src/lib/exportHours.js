@@ -5,6 +5,7 @@ const SITE = 'https://hub.janyaabcp.org'
 
 const kindLabel = {
   event: 'Event',
+  signup: 'Event', // pre-cutoff event attendance, written to the ledger (migration 0034)
   meeting: 'Meeting',
   role_monthly: 'Role (monthly)',
   role_event: 'Role (per event)',

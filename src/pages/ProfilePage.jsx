@@ -47,6 +47,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { useIsDesktop } from '../lib/useMediaQuery'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { useRealtime } from '../lib/useRealtime'
 import MemberChip from '../components/MemberChip'
 import Linkify from '../components/Linkify'
 import AvatarCropper from '../components/AvatarCropper'
@@ -81,6 +82,11 @@ export default function ProfilePage() {
   useEffect(() => {
     getMembersBrief().then((ms) => setOpsLead(ms.find((m) => m.role === 'operations_lead') ?? null))
   }, [])
+
+  // Every card on this page is downstream of one of these. Without it an admin
+  // adding this member to an event (or logging hours for them) left the profile
+  // showing stale totals until a manual reload.
+  useRealtime(['profiles', 'event_signups', 'event_todos', 'hours_grants', 'goals'], load)
 
   useDocumentTitle(data?.profile?.name)
 
@@ -454,6 +460,9 @@ function ProfilePhoto({ profile, canEdit, onChange }) {
 
 const kindMeta = {
   event: { label: 'Event', tone: 'green' },
+  // A ledger row written for attending an event dated before the hours cutoff
+  // (migration 0034) — same thing to the member as a derived `event` row.
+  signup: { label: 'Event', tone: 'green' },
   meeting: { label: 'Meeting', tone: 'blue' },
   role_monthly: { label: 'Role · monthly', tone: 'gold' },
   role_event: { label: 'Role · per event', tone: 'gold' },
