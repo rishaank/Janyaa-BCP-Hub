@@ -401,6 +401,15 @@ function AddMemberModal({ open, onClose, onAdded }) {
     const res = await adminCreateUserLink({ email: email.trim(), name: name.trim() })
     setBusy('')
     if (!res.ok) return setError(res.error || 'Could not generate an invite link.')
+    // An admin-users function older than this feature ignores `link` and falls
+    // through to the emailed-invite path, so the account exists but no link came
+    // back. Say so rather than opening a panel around an undefined link.
+    if (!res.data?.link) {
+      onAdded()
+      return setError(
+        'No link came back — the account was probably still created and sent an invite email instead. Check the members list, and ask for the admin-users function to be redeployed.',
+      )
+    }
     onAdded()
     setInvite({ link: res.data.link, copied: await copyToClipboard(res.data.link) })
   }
