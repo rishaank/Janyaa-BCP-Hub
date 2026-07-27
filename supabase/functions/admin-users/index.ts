@@ -1,8 +1,9 @@
 // Supabase Edge Function: admin-users
 // Admin-only account management that needs the service role (impossible from the
-// browser): create accounts (with a set password OR an invite email), set a new
-// password, change the login email, and delete accounts. Password RESETS live in
-// the `password-recovery` function (they need the recovery-address routing).
+// browser): create accounts (with a set password, an emailed invite, OR a copied
+// invite link), set a new password, change the login email, and delete accounts.
+// Password RESETS live in the `password-recovery` function (they need the
+// recovery-address routing).
 // verify_jwt = true -> caller must be signed in; we then confirm they're an admin
 // (profiles.is_admin) before doing anything. Never trust the client's word for it.
 
@@ -69,6 +70,24 @@ Deno.serve(async (req) => {
         if (name) await admin.from('profiles').update({ name }).eq('id', data.user.id)
         return json({ ok: true, id: data.user.id })
       }
+
+      // `link: true` -> create the account but hand the set-password link BACK
+      // instead of emailing it, so the admin can pass it on by text/DM/in person.
+      // generateLink('invite') creates the user exactly like inviteUserByEmail
+      // does, minus the send. Same escape hatch as "Copy reset link" on the
+      // profile page, and the one that works when a school mailbox eats our mail.
+      if (body.link) {
+        const { data, error } = await admin.auth.admin.generateLink({
+          type: 'invite',
+          email,
+          options: { data: { name }, redirectTo },
+        })
+        if (error) throw error
+        const id = data?.user?.id
+        if (name && id) await admin.from('profiles').update({ name }).eq('id', id)
+        return json({ ok: true, id, link: data?.properties?.action_link })
+      }
+
       // No password -> email them an invite with a set-password link.
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
         data: { name },

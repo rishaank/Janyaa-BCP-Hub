@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Clock, Trophy, Shield, UserPlus, Crown, Download, Loader2 } from 'lucide-react'
 import { PageHeader, Card, StatPill, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
-import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUser } from '../lib/api'
+import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUser, adminCreateUserLink } from '../lib/api'
 import { exportAllHours } from '../lib/exportHours'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -328,6 +328,17 @@ function AccessCard({ icon: Icon, title, tone, active, items }) {
   )
 }
 
+// Clipboard writes are blocked in some browsers/contexts — resolves false so the
+// caller can fall back to showing the link for the admin to copy by hand.
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}
+
 const tab = (active) =>
   `rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
     active ? 'border-green-500 bg-green-50 text-green-700' : 'border-ink-200 text-ink-600 hover:bg-ink-50'
@@ -338,9 +349,12 @@ function AddMemberModal({ open, onClose, onAdded }) {
   const [email, setEmail] = useState('')
   const [mode, setMode] = useState('invite') // 'invite' | 'password'
   const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState('') // '' | 'submit' | 'link'
   const [error, setError] = useState('')
   const [okMsg, setOkMsg] = useState('')
+  // Set once the account was created via "Copy invite link" — the modal then
+  // shows the link instead of the form, since the account can't be made twice.
+  const [invite, setInvite] = useState(null) // { link, copied }
 
   function reset() {
     setName('')
@@ -349,6 +363,11 @@ function AddMemberModal({ open, onClose, onAdded }) {
     setMode('invite')
     setError('')
     setOkMsg('')
+    setInvite(null)
+  }
+  function close() {
+    reset()
+    onClose()
   }
 
   async function submit(e) {
@@ -357,23 +376,66 @@ function AddMemberModal({ open, onClose, onAdded }) {
     setOkMsg('')
     if (!email.trim()) return setError('Email is required.')
     if (mode === 'password' && password.length < 8) return setError('Password must be at least 8 characters.')
-    setBusy(true)
+    setBusy('submit')
     const res =
       mode === 'password'
         ? await adminCreateUser({ email: email.trim(), name: name.trim(), password })
         : await adminInviteUser({ email: email.trim(), name: name.trim() })
-    setBusy(false)
+    setBusy('')
     if (!res.ok) return setError(res.error || 'Something went wrong.')
     setOkMsg(mode === 'password' ? 'Account created.' : 'Invite email sent.')
     onAdded()
-    setTimeout(() => {
-      reset()
-      onClose()
-    }, 1200)
+    setTimeout(close, 1200)
+  }
+
+  // No email at all: create the account and hand the invite link over by
+  // text/DM/in person — same escape hatch as "Copy reset link" on a profile,
+  // and the fix when the member's school mailbox swallows our mail.
+  async function createLink() {
+    setError('')
+    setOkMsg('')
+    // This button sits outside the form's submit, so the <input type="email">
+    // validation never runs — check it here.
+    if (!email.trim().includes('@')) return setError('Enter a valid email address.')
+    setBusy('link')
+    const res = await adminCreateUserLink({ email: email.trim(), name: name.trim() })
+    setBusy('')
+    if (!res.ok) return setError(res.error || 'Could not generate an invite link.')
+    onAdded()
+    setInvite({ link: res.data.link, copied: await copyToClipboard(res.data.link) })
+  }
+
+  if (invite) {
+    return (
+      <Modal open={open} onClose={close} title="Invite link ready">
+        <p className="text-sm text-ink-700">
+          {name.trim() || email.trim()}’s account is created. Send them this link — it lets them set their own
+          password and sign in.
+        </p>
+        <p className="mt-3 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">
+          {invite.link}
+        </p>
+        <p className="mt-2 text-xs text-ink-500">
+          Single use. If it stops working, open their profile → Admin Controls → Copy reset link for a fresh one.
+        </p>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button
+            variant="soft"
+            type="button"
+            onClick={async () => setInvite({ ...invite, copied: await copyToClipboard(invite.link) })}
+          >
+            {invite.copied ? 'Copied!' : 'Copy link'}
+          </Button>
+          <Button type="button" onClick={close}>
+            Done
+          </Button>
+        </div>
+      </Modal>
+    )
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Add a member">
+    <Modal open={open} onClose={close} title="Add a member">
       <form onSubmit={submit} className="space-y-3">
         <FormField label="Name">
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" />
@@ -393,7 +455,7 @@ function AddMemberModal({ open, onClose, onAdded }) {
           <span className="mb-1 block text-sm font-semibold text-ink-800">How should they get in?</span>
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setMode('invite')} className={tab(mode === 'invite')}>
-              Send invite email
+              Invite link
             </button>
             <button type="button" onClick={() => setMode('password')} className={tab(mode === 'password')}>
               Set a password
@@ -414,19 +476,25 @@ function AddMemberModal({ open, onClose, onAdded }) {
           </FormField>
         ) : (
           <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            We’ll email them a link to set their own password. (Requires SMTP to be configured.)
+            They get a link to set their own password. Email it (needs SMTP configured), or copy it and hand it over
+            by text or in person — useful when a school mailbox is swallowing our mail.
           </p>
         )}
 
         {error && <p className="text-sm text-coral-700">{error}</p>}
         {okMsg && <p className="text-sm font-medium text-green-700">{okMsg}</p>}
 
-        <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
+          <Button variant="soft" type="button" onClick={close}>
             Cancel
           </Button>
-          <Button type="submit" disabled={busy}>
-            {busy ? 'Working…' : mode === 'password' ? 'Create account' : 'Send invite'}
+          {mode === 'invite' && (
+            <Button variant="soft" type="button" onClick={createLink} disabled={!!busy}>
+              {busy === 'link' ? 'Generating…' : 'Copy invite link'}
+            </Button>
+          )}
+          <Button type="submit" disabled={!!busy}>
+            {busy === 'submit' ? 'Working…' : mode === 'password' ? 'Create account' : 'Send invite'}
           </Button>
         </div>
       </form>

@@ -724,6 +724,11 @@ export const adminCreateUser = ({ email, name, password }) =>
 export const adminInviteUser = ({ email, name }) =>
   callAdminUsers({ action: 'create', email, name, redirectTo: setPwRedirect() })
 
+// Create an account and get its invite link back to hand over by text/DM/in
+// person — no email at all. Resolves with `data.link` (mirrors adminResetLink).
+export const adminCreateUserLink = ({ email, name }) =>
+  callAdminUsers({ action: 'create', email, name, link: true, redirectTo: setPwRedirect() })
+
 // Set a new password directly for a member.
 export const adminSetPassword = (id, password) =>
   callAdminUsers({ action: 'setPassword', id, password })

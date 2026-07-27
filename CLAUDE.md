@@ -373,12 +373,17 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   >7 days old; `force` (admin Refresh on `/club-terms`) regenerates everything. Calls `ensure_terms()`
   first so seasonal rows exist.
 - **`admin-users`** (`verify_jwt: true`) — admin-only account management needing the service role:
-  create (with a set password OR an emailed invite), set password, change login email, delete. Confirms
-  the caller is an admin (`profiles.is_admin`) before acting. Called via `src/lib/api.js`
-  (`adminCreateUser` / `adminInviteUser` / `adminSetPassword` / `adminSetEmail` / `adminDeleteUser`),
-  surfaced in the Members "Add member" modal + the profile page's admin Account section. Password
-  **resets** are not here — they live in `password-recovery` (below), which routes them off the school
-  mailbox.
+  create (with a set password, an emailed invite, OR a **copied invite link**), set password, change
+  login email, delete. Confirms the caller is an admin (`profiles.is_admin`) before acting. Called via
+  `src/lib/api.js` (`adminCreateUser` / `adminInviteUser` / `adminCreateUserLink` / `adminSetPassword` /
+  `adminSetEmail` / `adminDeleteUser`), surfaced in the Members "Add member" modal + the profile page's
+  admin Account section. The **Copy invite link** button (`link: true` → `generateLink({type:'invite'})`,
+  which creates the account exactly like `inviteUserByEmail` minus the send) mirrors the profile page's
+  **Copy reset link**: it returns the set-password link for the admin to hand over by text/DM/in person,
+  the path that works when the member's school mailbox swallows our mail. The modal then swaps to a
+  link panel (the account can't be created twice); a stale link is re-issued from that member's profile
+  via Copy reset link. Password **resets** are not here — they live in `password-recovery` (below),
+  which routes them off the school mailbox.
 - **`password-recovery`** (`verify_jwt: false`) — all password resets. Supabase's own
   `resetPasswordForEmail()` can only mail the **login** address (a school Microsoft mailbox that
   quarantines us), so this generates the link itself with `auth.admin.generateLink({ type: 'recovery' })`
