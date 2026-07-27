@@ -95,7 +95,12 @@ export default function ProfilePage() {
 
   const p = data.profile
   const now = laNow()
-  const upcoming = data.events.filter((e) => !hasEnded(e, now)).sort((a, b) => a.date.localeCompare(b.date))
+  // A tentative event has no date yet, so it sorts last rather than being
+  // dereferenced — `hasEnded` puts undated events in `upcoming`, and reading
+  // `.date` off one of them used to crash the whole page.
+  const upcoming = data.events
+    .filter((e) => !hasEnded(e, now))
+    .sort((a, b) => (a.date ?? '9999-12-31').localeCompare(b.date ?? '9999-12-31'))
   const past = data.events.filter((e) => hasEnded(e, now)).sort((a, b) => b.date.localeCompare(a.date))
 
   return (
@@ -464,6 +469,8 @@ const kindMeta = {
   // (migration 0034) — same thing to the member as a derived `event` row.
   signup: { label: 'Event', tone: 'green' },
   meeting: { label: 'Meeting', tone: 'blue' },
+  // The meeting counterpart of `signup` (migration 0036).
+  attendance: { label: 'Meeting', tone: 'blue' },
   role_monthly: { label: 'Role · monthly', tone: 'gold' },
   role_event: { label: 'Role · per event', tone: 'gold' },
   manual: { label: 'Manual', tone: 'ink' },
@@ -807,7 +814,7 @@ function EventList({ title, events, empty, className = '' }) {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-ink-800 transition-colors group-hover:text-green-700">{e.name}</p>
                     <p className="truncate text-xs text-ink-400">
-                      {formatDate(e.date)}
+                      {e.date ? formatDate(e.date) : 'Date TBD'}
                       {e.location ? ` · ${e.location}` : ''}
                     </p>
                   </div>

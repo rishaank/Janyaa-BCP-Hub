@@ -352,8 +352,10 @@ function Stat({ icon: Icon, label, value, tone }) {
   )
 }
 
-// Crew list + the interactive bits: sign up / leave (upcoming, non-tentative),
-// the hours explanation, and the admin Manage button. Guests get a sign-in CTA.
+// Crew list + the interactive bits: sign up / leave (any event that hasn't
+// happened yet, tentative ones included — signing up for a maybe-event is how
+// the club gauges interest before confirming it), the hours explanation, and the
+// admin Manage button. Guests get a sign-in CTA.
 function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage }) {
   const isPast = hasEnded(event)
   const isSignedUp = attendees.some((a) => a.id === userId)
@@ -396,7 +398,7 @@ function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage
         </div>
       )}
 
-      {!isPast && !event.is_tentative && (
+      {!isPast && (
         session ? (
           <button
             onClick={toggle}
@@ -417,13 +419,13 @@ function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage
         )
       )}
 
-      {!event.is_tentative && (
-        <p className="mt-3 text-xs text-ink-400">
-          {isPast
+      <p className="mt-3 text-xs text-ink-400">
+        {event.is_tentative
+          ? 'Sign up to say you’re interested. Hours start counting once this event is confirmed.'
+          : isPast
             ? `${event.hours} hrs counted automatically for everyone who attended.`
             : `Everyone who signs up earns ${event.hours} hrs — added automatically once the event has taken place.`}
-        </p>
-      )}
+      </p>
     </div>
   )
 }

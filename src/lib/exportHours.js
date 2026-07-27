@@ -7,6 +7,7 @@ const kindLabel = {
   event: 'Event',
   signup: 'Event', // pre-cutoff event attendance, written to the ledger (migration 0034)
   meeting: 'Meeting',
+  attendance: 'Meeting', // pre-cutoff meeting attendance, written to the ledger (migration 0036)
   role_monthly: 'Role (monthly)',
   role_event: 'Role (per event)',
   manual: 'Manual',

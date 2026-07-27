@@ -95,7 +95,10 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   toggle, active goals, top AI-insight chips), `Members` / `ProfilePage` (**Founder** + **Admin** badges,
   avatar cropping, admin Account controls), `Events` (**List ↔ Calendar** toggle via `EventsCalendar.jsx`;
   times, Maps link, linked Instagram posts, to-dos; **Tentative events** — a `Tentative` flag + “TBD”
-  date/time/location; click any event for a **public, shareable full-screen view** at `/events/:id`
+  date/time/location, and members **can sign up for one** (it's how the club gauges interest before
+  confirming); the two event screens used to disagree on that, and `EventView` was the one that blocked
+  it. An undated event sorts last wherever events are ordered — never dereference `e.date`;
+  click any event for a **public, shareable full-screen view** at `/events/:id`
   (`EventView.jsx` — Leaflet map, full Instagram-post embeds, profits/hours/attendees; viewable
   logged-out via the `get_public_event` RPC), `Meetings` (`/meetings` — leaner cards: title/date/time/attendance/notes;
   **recurring schedules** in `meeting_series` auto-materialize occurrences you can cancel or edit
@@ -249,9 +252,19 @@ Migration 0035 closes the matching hole: the own-row `event_signups` policies ch
 Sign up / Leave once an event ends) and mint their own hours for it. Both self policies now require the
 event to be unfinished by the same PST end instant `hasEnded()` uses; **leaving** is restricted too, so
 nobody can drop off a past event and erase the hours they earned. Admins still add/remove anyone via
-`signups_admin_all`. **Meetings are deliberately exempt** — members self-report attendance there *after*
-the meeting ("I attended" on the card), so the same rule would break that flow. 0035 also adds
-`hours_grants` to the realtime publication for the now-live `ProfilePage`.
+`signups_admin_all`. 0035 also adds `hours_grants` to the realtime publication for the now-live
+`ProfilePage`.
+Migration 0036 carries all of that onto **meetings**, which had the same three holes: (1) members could
+self-report attendance on *any* past meeting, however old, and the hours landed unreviewed — attendance
+is now **final once a meeting ends** (same PST instant), members register while it's upcoming and an
+admin fixes it afterwards, so the "I attended" button is gone from past meeting cards; (2) `registerMeeting()`
+**upserts**, so "Switch to contributor/attendee" runs `INSERT … ON CONFLICT DO UPDATE` and needs an
+UPDATE policy — 0013 never shipped one, so that button had always failed RLS silently for non-admins
+(the first Attend/Contribute click worked: no conflicting row yet, so a plain insert). The new own-row
+UPDATE policy repeats the meeting test in **`with check` as well as `using`**, or a member could
+re-point an upcoming row at a finished meeting; (3) `sync_meeting_hours_ledger()` + triggers mirror 0034
+so a **pre-cutoff** meeting credits its attendees (source `attendance`, the meeting counterpart of
+`signup`) — no meeting predates the cutoff today, so there was nothing to backfill.
 Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
@@ -285,8 +298,9 @@ needs auth) or by pasting the SQL into the Supabase dashboard SQL editor. After 
 
 **RLS model (deliberate — small trusted club):** any signed-in member can read everything and manage
 shared data (events / todos / meetings / `meeting_series` / goals / locations / `club_settings`).
-Sign-ups and meeting attendance are own-row only — and event sign-ups are additionally **time-gated**: a
-member can only add or remove *themselves* while the event hasn't ended (migration 0035). Profiles are **admin-only to edit** (`is_admin()`
+Sign-ups and meeting attendance are own-row only — and both are **time-gated**: a member can only add,
+change or remove *their own* row while the event/meeting hasn't ended (migrations 0035 + 0036); after
+that it's an admin record via `ManageAttendeesModal`. Profiles are **admin-only to edit** (`is_admin()`
 SECURITY DEFINER helper + admin override policies); the prior self-update policy was dropped
 (migration 0005). First member was bootstrapped as admin. (The dashboard's anonymous read path is the
 `get_public_dashboard()` RPC, not table-level `anon` grants.)
