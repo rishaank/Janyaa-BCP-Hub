@@ -415,8 +415,12 @@ function AddMemberModal({ open, onClose, onAdded }) {
         <p className="mt-3 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">
           {invite.link}
         </p>
+        {/* Invite links expire per the same Auth → Providers → Email → Email OTP
+            Expiration setting as reset links (keep it at 3600s = the 1 hour both
+            this line and the reset email promise). */}
         <p className="mt-2 text-xs text-ink-500">
-          Single use. If it stops working, open their profile → Admin Controls → Copy reset link for a fresh one.
+          Single use, and expires in 1 hour. After that, open their profile → Admin Controls → Copy reset link for a
+          fresh one.
         </p>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button

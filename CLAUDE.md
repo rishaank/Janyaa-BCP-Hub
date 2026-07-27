@@ -382,8 +382,10 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   **Copy reset link**: it returns the set-password link for the admin to hand over by text/DM/in person,
   the path that works when the member's school mailbox swallows our mail. The modal then swaps to a
   link panel (the account can't be created twice); a stale link is re-issued from that member's profile
-  via Copy reset link. Password **resets** are not here — they live in `password-recovery` (below),
-  which routes them off the school mailbox.
+  via Copy reset link. Invite links are single-use and expire per the same **Auth → Providers → Email →
+  Email OTP Expiration** setting as reset links (keep it at 3600s — the modal says 1 hour). Password
+  **resets** are not here — they live in `password-recovery` (below), which routes them off the school
+  mailbox.
 - **`password-recovery`** (`verify_jwt: false`) — all password resets. Supabase's own
   `resetPasswordForEmail()` can only mail the **login** address (a school Microsoft mailbox that
   quarantines us), so this generates the link itself with `auth.admin.generateLink({ type: 'recovery' })`
