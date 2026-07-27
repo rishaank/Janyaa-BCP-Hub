@@ -5,6 +5,7 @@ import { X, ChevronRight, LogOut, LogIn, Sun, Moon, Monitor, Palette } from 'luc
 import { useAuth } from '../../context/AuthContext'
 import { useTheme } from '../../context/ThemeContext'
 import { initials } from '../../lib/api'
+import useScrollLock from '../../lib/useScrollLock'
 import { Avatar, roleLabels, roleTones } from '../ui'
 import CustomThemeModal from '../CustomThemeModal'
 
@@ -16,6 +17,9 @@ export default function AccountSheet({ onClose }) {
   const [themeModal, setThemeModal] = useState(false)
   // Play the slide-down animation, then actually unmount when it ends.
   const [closing, setClosing] = useState(false)
+  // Mounted only while open, so the page behind stays frozen the whole time
+  // (including the slide-out) — the sheet does its own scrolling.
+  useScrollLock()
   const requestClose = () => setClosing(true)
 
   const name = profile?.name || user?.email?.split('@')[0] || 'Member'

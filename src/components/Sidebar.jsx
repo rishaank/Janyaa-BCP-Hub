@@ -32,6 +32,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { initials, getPendingRequestCount } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
+import useScrollLock from '../lib/useScrollLock'
 import WhatsNew from './WhatsNew'
 import CustomThemeModal from './CustomThemeModal'
 
@@ -114,6 +115,10 @@ export default function Sidebar({ open, onClose }) {
   const isAdmin = !!profile?.is_admin
   const isOpsLead = profile?.role === 'operations_lead'
   const location = useLocation()
+
+  // Below lg the sidebar is a scrimmed drawer, so freeze the page behind it.
+  // On lg+ it's always-visible chrome and `open` stays false.
+  useScrollLock(open)
 
   // Unanswered hours-request count → red badge for the operations lead.
   const [pending, setPending] = useState(0)

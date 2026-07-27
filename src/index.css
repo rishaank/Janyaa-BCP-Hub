@@ -119,6 +119,28 @@
 }
 
 /* ============================================================
+   Scroll lock — while a modal or sheet is open, the content behind
+   it must not scroll. Toggled on <html> by src/lib/useScrollLock.js,
+   which also measures the hidden scrollbar into --ja-scrollbar-gap so
+   the page doesn't shift sideways under the veil.
+
+   Both <html> and <body> are set: iOS Safari ignores overflow:hidden
+   on <body> alone. And the mobile shell's scroller is .jh-body (the
+   document itself never scrolls there — .jh-app is a 100dvh flex box),
+   so that pane needs locking too.
+   ============================================================ */
+html.ja-scroll-locked,
+html.ja-scroll-locked body {
+  overflow: hidden;
+}
+html.ja-scroll-locked body {
+  padding-right: var(--ja-scrollbar-gap, 0px);
+}
+html.ja-scroll-locked .jh-body {
+  overflow: hidden;
+}
+
+/* ============================================================
    Custom image theme — a per-user photo behind the app with a
    readability veil over it. Inert unless --ja-bg-image is set
    (driven by src/lib/customTheme.js).

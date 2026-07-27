@@ -3,6 +3,7 @@
 // palette names are remapped to the brand in src/index.css.
 import { createPortal } from 'react-dom'
 import { X, Pin, Shield, Lock } from 'lucide-react'
+import useScrollLock from '../lib/useScrollLock'
 
 // The single access indicator used across the site, for consistent style + placement.
 //   mode="edit"  → blue Shield pill ("Admin edit" / "Admin only") — you can change / it's restricted.
@@ -344,10 +345,17 @@ export function timeAgo(iso) {
 }
 
 // Centered modal dialog. Renders nothing when `open` is false.
+//
+// Layer scale (keep new overlays inside it): page content 0 · sticky page
+// headers 30 · desktop sidebar 40 · mobile bottom sheet 60/61 (mobile.css) ·
+// modals 200. Modals sit on top of everything, so nothing outside one may
+// exceed z-30 — the event/meeting full-screen headers were at z-[500] and
+// painted straight through this veil.
 export function Modal({ open, onClose, title, children }) {
+  useScrollLock(open)
   if (!open) return null
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <div className="ja-veil-in absolute inset-0 bg-ink-950/50 backdrop-blur-sm" onClick={onClose} />
       <div className="ja-pop relative z-10 w-full max-w-md rounded-2xl bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-ink-200 px-5 py-4">

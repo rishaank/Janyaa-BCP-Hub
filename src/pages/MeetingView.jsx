@@ -84,7 +84,9 @@ export default function MeetingView() {
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="sticky top-0 z-[500] border-b border-ink-200 bg-surface/80 backdrop-blur">
+      {/* z-30 = the app's sticky-header layer (see the scale on Modal in ui.jsx);
+          it must stay under modals like Manage attendees. */}
+      <header className="sticky top-0 z-30 border-b border-ink-200 bg-surface/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-4 sm:px-6">
           <Link to="/" aria-label="Janyaa BCP Hub"><Logo /></Link>
           <button onClick={goBack} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800">

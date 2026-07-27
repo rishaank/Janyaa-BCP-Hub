@@ -144,6 +144,15 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   - **Admins can edit attendees** on any event or meeting via `ManageAttendeesModal.jsx` (add/remove
     anyone; meetings also toggle attendee↔contributor) — backed by the admin-all RLS on
     `event_signups` / `meeting_attendees`.
+  - **Popups: one z-layer scale, and they always lock the page.** Layers are page content `0` ·
+    sticky page headers `z-30` · desktop sidebar `z-40` · mobile bottom sheet `60/61` (`mobile.css`) ·
+    modals `z-[200]`. **Nothing outside a modal may exceed `z-30`** — a `z-[500]` header on the
+    event/meeting full-screen views used to paint over the modal veil. Leaflet maps don't need a high
+    header: wrap the map in `relative z-0 … isolate` (as `EventView` / `Locations` do) and its internal
+    panes stay contained. Every overlay calls `useScrollLock()` (`src/lib/useScrollLock.js`), which
+    refcounts a `ja-scroll-locked` class on `<html>`; the CSS in `index.css` freezes **both** the
+    document scroller *and* the mobile shell's `.jh-body` pane, and pads out the hidden scrollbar so
+    the background doesn't shift. The shared `Modal` does this for you — new popups should use it.
 
 ## Design system — READ THIS BEFORE TOUCHING UI
 
