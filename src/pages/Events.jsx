@@ -132,10 +132,12 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
             </Link>
             {event.is_tentative && <Badge tone="gold">Tentative</Badge>}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
-            <MapPin size={14} className="text-ink-400" />{' '}
-            {event.location || (event.is_tentative ? <span className="text-ink-400">Location TBD</span> : '')}
-          </p>
+          {(event.location || event.is_tentative) && (
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
+              <MapPin size={14} className="text-ink-400" />{' '}
+              {event.location || <span className="text-ink-400">Location TBD</span>}
+            </p>
+          )}
           {event.address && (
             <>
               <button
@@ -231,8 +233,8 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
       <div className="mt-5 rounded-xl bg-ink-50 p-4">
         <div className="mb-2.5 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
-            <Users size={15} className="text-ink-400" />
-            {isPast ? 'Attended' : 'Crew'}
+            {isSignedUp ? <Check size={15} className="text-green-600" /> : <Users size={15} className="text-ink-400" />}
+            Attendees
           </span>
           <span className="flex items-center gap-2">
             {isAdmin && (
@@ -281,14 +283,6 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
           >
             {isSignedUp ? 'Leave event' : atCapacity ? 'Event full' : 'Sign up'}
           </button>
-        )}
-
-        {!event.is_tentative && (
-          <p className="mt-2 text-2xs text-ink-400">
-            {isPast
-              ? `${event.hours} hrs counted automatically for everyone on the crew.`
-              : `Everyone who signs up earns ${event.hours} hrs — added automatically once the event has taken place.`}
-          </p>
         )}
       </div>
 

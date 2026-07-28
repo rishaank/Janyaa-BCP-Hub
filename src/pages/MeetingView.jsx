@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import {
-  ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, Users, CalendarDays, Link2,
+  ArrowLeft, Share2, Check, MapPin, Clock, Users, CalendarDays, Link2,
   Pencil, Trash2, UserCog, Ban, RotateCcw, LogIn,
 } from 'lucide-react'
 import { Logo, Avatar, Badge, Button, roleTones } from '../components/ui'
@@ -14,6 +14,7 @@ import Linkify from '../components/Linkify'
 import LinkChip from '../components/LinkChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { MeetingFormModal } from './Meetings'
+import { hasEnded } from '../lib/time'
 
 const fmtTime = (t) => {
   if (!t) return ''
@@ -203,12 +204,6 @@ function MeetingBody({ meeting, copied, onShare, session, userId, isAdmin, reloa
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-2">
-        <Stat icon={Hourglass} tone="green" label="Length" value={`${len}h`} />
-        <Stat icon={Users} tone="blue" label="Attendees" value={attendees.length} />
-      </div>
-
       {/* Attendees — interactive: attend / contribute / switch / leave, admin manage. */}
       <AttendCard
         meeting={meeting}
@@ -254,23 +249,14 @@ function MeetingBody({ meeting, copied, onShare, session, userId, isAdmin, reloa
   )
 }
 
-function Stat({ icon: Icon, label, value, tone }) {
-  const tones = { green: 'bg-green-50 text-green-600', gold: 'bg-gold-100 text-gold-700', blue: 'bg-blue-50 text-blue-500' }
-  return (
-    <div className="rounded-xl border border-ink-200 bg-surface p-4">
-      <span className={`grid h-9 w-9 place-items-center rounded-md ${tones[tone] ?? tones.green}`}>
-        <Icon size={18} />
-      </span>
-      <p className="mt-3 font-display text-2xl font-bold tabular-nums text-ink-900">{value}</p>
-      <p className="text-xs text-ink-500">{label}</p>
-    </div>
-  )
-}
-
 // Attendees + the interactive controls: attend / contribute (with hours), switch
 // role, leave; plus the admin Manage button. Hidden for canceled meetings.
 function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload, onManage }) {
   const canceled = meeting.canceled
+  // Attendance is a member's own call only while the meeting is still to come,
+  // and an admin's record afterwards (RLS enforces the same split, migration
+  // 0036) — so a past meeting loses the buttons, like the meeting card.
+  const isPast = hasEnded(meeting)
   const myReg = attendees.find((a) => a.id === userId)
   const [busy, setBusy] = useState(false)
 
@@ -291,7 +277,8 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
     <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 font-semibold text-ink-900">
-          <Users size={16} className="text-ink-400" /> Attendees · {attendees.length}
+          {myReg ? <Check size={16} className="text-green-600" /> : <Users size={16} className="text-ink-400" />}
+          {attendees.length} Attendees
         </h2>
         {isAdmin && (
           <button
@@ -319,25 +306,22 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
         </div>
       )}
 
-      {!canceled && (
+      {!canceled && !isPast && (
         session ? (
           myReg ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-ink-700">
-                You&rsquo;re {myReg.attend_role === 'contributor' ? 'contributing' : 'attending'} ·{' '}
-                {myReg.attend_role === 'contributor' ? len + 1 : len}h
-              </span>
+            <div className="mt-4 grid grid-cols-2 gap-2">
               <button
                 onClick={() => register(myReg.attend_role === 'contributor' ? 'attendee' : 'contributor')}
                 disabled={busy}
-                className="rounded-md bg-ink-100 px-2.5 py-1 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-200 disabled:opacity-50"
+                className="rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
               >
-                Switch to {myReg.attend_role === 'contributor' ? 'attendee' : 'contributor'}
+                Switch to {myReg.attend_role === 'contributor' ? 'attendee' : 'contributor'} ·{' '}
+                {myReg.attend_role === 'contributor' ? len : len + 1}h
               </button>
               <button
                 onClick={leave}
                 disabled={busy}
-                className="rounded-md px-2.5 py-1 text-xs font-medium text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-50"
+                className="rounded-lg border border-coral-200 bg-surface py-2.5 text-sm font-semibold text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-50"
               >
                 Leave
               </button>
@@ -370,11 +354,6 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
         )
       )}
 
-      {!canceled && (
-        <p className="mt-3 text-xs text-ink-400">
-          Contributors earn the meeting length + 1 hr; attendees earn the length. Hours are added automatically once the meeting ends (PST).
-        </p>
-      )}
     </div>
   )
 }

@@ -120,8 +120,8 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
        <div className="rounded-xl bg-ink-50 p-4">
         <div className="mb-2.5 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
-            <Users size={15} className="text-ink-400" />
-            {isPast ? 'Attended' : 'Attending'}
+            {myReg ? <Check size={15} className="text-green-600" /> : <Users size={15} className="text-ink-400" />}
+            Attendees
           </span>
           <span className="flex items-center gap-2">
             {isAdmin && (
@@ -153,61 +153,45 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
 
         {/* Attendance is a member's own call while the meeting is still to come,
             and an admin's record afterwards (RLS enforces the same split,
-            migration 0036) — so a past meeting keeps the "you attended" line but
-            loses the buttons. */}
-        {!canceled &&
-          (myReg ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-ink-700">
-                You&rsquo;re {myReg.role === 'contributor' ? 'contributing' : 'attending'} ·{' '}
-                {myReg.role === 'contributor' ? len + 1 : len}h
-              </span>
-              {!isPast && (
-                <>
-                  <button
-                    onClick={() => register(myReg.role === 'contributor' ? 'attendee' : 'contributor')}
-                    disabled={busy}
-                    className="rounded-md bg-ink-100 px-2 py-1 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-200 disabled:opacity-50"
-                  >
-                    Switch to {myReg.role === 'contributor' ? 'attendee' : 'contributor'}
-                  </button>
-                  <button
-                    onClick={leave}
-                    disabled={busy}
-                    className="rounded-md px-2 py-1 text-xs font-medium text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-50"
-                  >
-                    Leave
-                  </button>
-                </>
-              )}
+            migration 0036) — so a past meeting has no buttons at all; the check
+            beside "Attendees" is what tells you you're on the list. */}
+        {!canceled && !isPast && (
+          myReg ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => register(myReg.role === 'contributor' ? 'attendee' : 'contributor')}
+                disabled={busy}
+                className="rounded-lg bg-green-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              >
+                Switch to {myReg.role === 'contributor' ? 'attendee' : 'contributor'} ·{' '}
+                {myReg.role === 'contributor' ? len : len + 1}h
+              </button>
+              <button
+                onClick={leave}
+                disabled={busy}
+                className="rounded-lg border border-coral-200 bg-surface py-2 text-sm font-semibold text-coral-700 transition-colors hover:bg-coral-50 disabled:opacity-50"
+              >
+                Leave
+              </button>
             </div>
           ) : (
-            !isPast && (
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => register('attendee')}
-                  disabled={busy}
-                  className="rounded-lg bg-green-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-                >
-                  Attend · {len}h
-                </button>
-                <button
-                  onClick={() => register('contributor')}
-                  disabled={busy}
-                  className="rounded-lg border border-blue-300 bg-surface py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50"
-                >
-                  Contribute · {len + 1}h
-                </button>
-              </div>
-            )
-          ))}
-        {!canceled && (
-          <p className="mt-2 text-2xs text-ink-400">
-            Contributors earn the meeting length + 1 hr; attendees earn the length.{' '}
-            {isPast
-              ? 'Attendance is final once a meeting ends — ask an admin to correct it.'
-              : 'Hours are added automatically once the meeting ends (PST).'}
-          </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => register('attendee')}
+                disabled={busy}
+                className="rounded-lg bg-green-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+              >
+                Attend · {len}h
+              </button>
+              <button
+                onClick={() => register('contributor')}
+                disabled={busy}
+                className="rounded-lg border border-blue-300 bg-surface py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50"
+              >
+                Contribute · {len + 1}h
+              </button>
+            </div>
+          )
         )}
        </div>
       </div>

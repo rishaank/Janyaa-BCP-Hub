@@ -7,7 +7,7 @@ import {
   ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, DollarSign, Users, ExternalLink, Instagram, CalendarDays,
   Pencil, Trash2, UserCog, LogIn,
 } from 'lucide-react'
-import { Logo, Avatar, Badge, Button, roleTones } from '../components/ui'
+import { Logo, Avatar, Badge, Button, StatPill, roleTones } from '../components/ui'
 import { getPublicEvent, getEvent, signUpForEvent, leaveEvent, deleteEvent, initials } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
@@ -272,10 +272,9 @@ function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, r
       </div>
 
       {/* Stats */}
-      <div className="mt-6 grid grid-cols-3 gap-4">
-        <Stat icon={Hourglass} tone="green" label="Hours each" value={event.hours} />
-        <Stat icon={DollarSign} tone="gold" label="Raised" value={`$${raised.toLocaleString()}`} />
-        <Stat icon={Users} tone="blue" label={hasEnded(event) ? 'Attendees' : 'Signed up'} value={attendees.length} />
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <StatPill icon={Hourglass} tone="green" value={event.hours} label="hours each" />
+        <StatPill icon={DollarSign} tone="gold" value={`$${raised.toLocaleString()}`} label="raised" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -339,19 +338,6 @@ function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, r
   )
 }
 
-function Stat({ icon: Icon, label, value, tone }) {
-  const tones = { green: 'bg-green-50 text-green-600', gold: 'bg-gold-100 text-gold-700', blue: 'bg-blue-50 text-blue-500' }
-  return (
-    <div className="rounded-xl border border-ink-200 bg-surface p-4">
-      <span className={`grid h-9 w-9 place-items-center rounded-md ${tones[tone] ?? tones.green}`}>
-        <Icon size={18} />
-      </span>
-      <p className="mt-3 font-display text-2xl font-bold tabular-nums text-ink-900">{value}</p>
-      <p className="text-xs text-ink-500">{label}</p>
-    </div>
-  )
-}
-
 // Crew list + the interactive bits: sign up / leave (any event that hasn't
 // happened yet, tentative ones included — signing up for a maybe-event is how
 // the club gauges interest before confirming it), the hours explanation, and the
@@ -373,7 +359,8 @@ function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage
     <div className="flex flex-col rounded-xl border border-ink-200 bg-surface p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1.5 font-semibold text-ink-900">
-          <Users size={16} className="text-ink-400" /> {isPast ? 'Attendees' : 'Crew'} · {attendees.length}
+          {isSignedUp ? <Check size={16} className="text-green-600" /> : <Users size={16} className="text-ink-400" />}
+          {attendees.length} Attendees
         </h2>
         {isAdmin && (
           <button
@@ -419,13 +406,11 @@ function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage
         )
       )}
 
-      <p className="mt-3 text-xs text-ink-400">
-        {event.is_tentative
-          ? 'Sign up to say you’re interested. Hours start counting once this event is confirmed.'
-          : isPast
-            ? `${event.hours} hrs counted automatically for everyone who attended.`
-            : `Everyone who signs up earns ${event.hours} hrs — added automatically once the event has taken place.`}
-      </p>
+      {event.is_tentative && (
+        <p className="mt-3 text-xs text-ink-400">
+          Sign up to say you’re interested. Hours start counting once this event is confirmed.
+        </p>
+      )}
     </div>
   )
 }
