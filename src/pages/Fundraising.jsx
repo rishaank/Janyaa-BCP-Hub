@@ -316,7 +316,7 @@ export default function Fundraising() {
 
   return (
     <>
-      <PageHeader title="Fundraising" subtitle="Live GoFundMe total, the shared goal, and in-person events over time." />
+      <PageHeader title="Fundraising" />
 
       {/* GoFundMe live hero + editable shared goal */}
       <Card className="mb-6 overflow-hidden">

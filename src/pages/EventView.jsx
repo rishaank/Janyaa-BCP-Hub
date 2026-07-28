@@ -5,7 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, DollarSign, Users, ExternalLink, Instagram, CalendarDays,
-  Pencil, Trash2, UserCog, LogIn,
+  Pencil, Trash2, LogIn,
 } from 'lucide-react'
 import { Logo, Avatar, Badge, Button, StatPill, roleTones } from '../components/ui'
 import { getPublicEvent, getEvent, signUpForEvent, leaveEvent, deleteEvent, initials } from '../lib/api'
@@ -365,9 +365,11 @@ function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage
         {isAdmin && (
           <button
             onClick={onManage}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
+            className="rounded-md p-1 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+            title="Add or remove crew"
+            aria-label="Add or remove crew"
           >
-            <UserCog size={14} /> Manage
+            <Pencil size={15} />
           </button>
         )}
       </div>

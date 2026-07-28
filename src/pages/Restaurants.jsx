@@ -7,7 +7,7 @@ export default function Restaurants() {
   useDocumentTitle('Restaurant Affiliates')
   return (
     <>
-      <PageHeader title="Restaurant Affiliates" subtitle="Spirit-night fundraisers and dining partnerships that give back to the club." />
+      <PageHeader title="Restaurant Affiliates" />
       <EmptyState icon={UtensilsCrossed} title="Coming soon">
         The restaurant affiliate program will live here. Nothing to show yet.
       </EmptyState>

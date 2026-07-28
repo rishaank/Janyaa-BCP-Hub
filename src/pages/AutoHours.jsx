@@ -69,7 +69,6 @@ export default function AutoHours() {
       <PageHeader
         title="Role Hours"
         badge={<AccessChip mode="edit" />}
-        subtitle="Volunteer hours that accrue automatically based on a member's role."
         action={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-ink-100 px-3 py-1.5 font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-600">
             <Clock size={13} /> Next auto grant in {days} {days === 1 ? 'day' : 'days'}

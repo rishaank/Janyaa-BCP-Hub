@@ -2,7 +2,7 @@
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, UserCog } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Pencil } from 'lucide-react'
 import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import {
   getLocations,
@@ -232,29 +232,27 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
       {/* Crew / capacity */}
       <div className="mt-5 rounded-xl bg-ink-50 p-4">
         <div className="mb-2.5 flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
-            {isSignedUp ? <Check size={15} className="text-green-600" /> : <Users size={15} className="text-ink-400" />}
-            Attendees
-          </span>
-          <span className="flex items-center gap-2">
-            {isAdmin && (
-              <button
-                onClick={() => setManage(true)}
-                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
-                title="Add or remove crew"
-              >
-                <UserCog size={13} /> Manage
-              </button>
-            )}
-            <span className={`font-mono text-sm font-semibold tabular-nums ${understaffed && !isPast ? 'text-gold-700' : 'text-ink-700'}`}>
-              {signups.length}
-              {!isPast && (
-                <span className="font-normal text-ink-400">
-                  {' '}/ {event.max_people ?? '∞'} · min {event.min_people}
-                </span>
-              )}
+          <span className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-700">
+            {isSignedUp ? <Check size={15} className="shrink-0 text-green-600" /> : <Users size={15} className="shrink-0 text-ink-400" />}
+            <span className={understaffed && !isPast ? 'text-gold-700' : undefined}>
+              {signups.length} Attendees
             </span>
+            {!isPast && (
+              <span className="truncate font-normal text-ink-400">
+                · max {event.max_people ?? '∞'} · min {event.min_people}
+              </span>
+            )}
           </span>
+          {isAdmin && (
+            <button
+              onClick={() => setManage(true)}
+              className="shrink-0 rounded-md p-1 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+              title="Add or remove crew"
+              aria-label="Add or remove crew"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
         </div>
 
         {!isPast && event.max_people > 0 && (

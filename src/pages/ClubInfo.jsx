@@ -191,10 +191,7 @@ export default function ClubInfo() {
   useDocumentTitle('Club Info')
   return (
     <>
-      <PageHeader
-        title="Club Information"
-        subtitle="Key links, forms, and Janyaa impact facts — all in one place."
-      />
+      <PageHeader title="Club Information" />
 
       <div className="ja-stagger grid grid-cols-2 gap-4 sm:grid-cols-4">
         {stats.map((s) => (

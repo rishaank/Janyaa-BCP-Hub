@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import {
   ArrowLeft, Share2, Check, MapPin, Clock, Users, CalendarDays, Link2,
-  Pencil, Trash2, UserCog, Ban, RotateCcw, LogIn,
+  Pencil, Trash2, Ban, RotateCcw, LogIn,
 } from 'lucide-react'
 import { Logo, Avatar, Badge, Button, roleTones } from '../components/ui'
 import {
@@ -283,9 +283,11 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
         {isAdmin && (
           <button
             onClick={onManage}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
+            className="rounded-md p-1 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+            title="Add or remove attendees"
+            aria-label="Add or remove attendees"
           >
-            <UserCog size={14} /> Manage
+            <Pencil size={15} />
           </button>
         )}
       </div>
@@ -294,15 +296,19 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
         <p className="text-sm text-ink-400">No one listed yet.</p>
       ) : (
         <div className="flex flex-wrap gap-x-4 gap-y-3">
-          {attendees.map((a) => (
-            <div key={a.id} className="flex items-center gap-2">
-              <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />
-              <span className="text-sm text-ink-700">{a.name}</span>
-              {a.attend_role === 'contributor' && (
-                <span className="rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700" title="Contributor (+1 hr)">+1</span>
-              )}
-            </div>
-          ))}
+          {attendees.map((a) => {
+            const contributor = a.attend_role === 'contributor'
+            return (
+              <div
+                key={a.id}
+                title={contributor ? `${a.name} — contributor (+1 hr)` : a.name}
+                className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3 ${contributor ? 'bg-gold-100' : ''}`}
+              >
+                <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />
+                <span className={`text-sm ${contributor ? 'font-medium text-gold-800' : 'text-ink-700'}`}>{a.name}</span>
+              </div>
+            )
+          })}
         </div>
       )}
 

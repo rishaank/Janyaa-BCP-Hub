@@ -94,7 +94,6 @@ export default function History() {
     <>
       <PageHeader
         title="History"
-        subtitle="Every action across the Hub, plus website updates."
         badge={<AccessChip mode="edit" label="Admin only" />}
       />
       {loading ? (

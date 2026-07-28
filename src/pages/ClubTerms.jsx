@@ -89,7 +89,6 @@ export default function ClubTerms() {
     <>
       <PageHeader
         title="Terms"
-        subtitle="Every club term — events, meetings, members, and money — with an AI breakdown that refreshes monthly."
         action={isAdmin && isDesktop ? <Button icon={Plus} onClick={() => setModal('new')}>Add Term</Button> : undefined}
       />
 

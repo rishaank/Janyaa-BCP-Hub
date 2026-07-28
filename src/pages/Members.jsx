@@ -68,7 +68,6 @@ export default function Members() {
     <>
       <PageHeader
         title="Members"
-        subtitle="Everyone in the Hub — click anyone to see their full profile."
         action={
           <div className="flex items-center gap-2">
             <Button variant="soft" icon={exporting ? Loader2 : Download} loading={exporting} onClick={exportAll} disabled={exporting}>

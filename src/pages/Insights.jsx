@@ -48,7 +48,6 @@ export default function Insights({ embedded = false }) {
       ) : (
         <PageHeader
           title="AI Insights"
-          subtitle="Specific, actionable patterns pulled from your real events, hours, and fundraising."
           action={actions}
         />
       )}

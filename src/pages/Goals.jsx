@@ -124,9 +124,6 @@ export default function Goals() {
     <>
       <PageHeader
         title="Leadership goals"
-        subtitle={isAdmin
-          ? 'Set the club’s priorities for the term and track progress — one row per person, one column per month.'
-          : 'The club’s priorities for the term — set your own goals on your row.'}
         badge={isAdmin ? <AccessChip mode="edit" /> : null}
         action={isDesktop ? <Button icon={Plus} onClick={openAddGoal}>Add Goal</Button> : undefined}
       />

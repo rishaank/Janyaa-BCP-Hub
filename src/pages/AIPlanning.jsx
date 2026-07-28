@@ -61,7 +61,6 @@ export default function AIPlanning() {
     <>
       <PageHeader
         title="AI Planning"
-        subtitle="Gemini-powered insights, planning, and content from your real club data — refreshed automatically every month."
         action={isAdmin ? <Button icon={RefreshCw} onClick={() => setRegenOpen(true)}>Regenerate</Button> : undefined}
       />
       {/* Mobile-only hero — mirrors the redesign's gradient banner. */}

@@ -186,7 +186,6 @@ export default function EventsMeetings() {
     <>
       <PageHeader
         title="Events & Meetings"
-        subtitle="Manage and view events, meetings, and attendance."
         action={
           // Two rows on mobile (view toggles, then action buttons); one wrapped row on desktop.
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">

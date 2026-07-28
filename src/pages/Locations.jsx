@@ -139,10 +139,7 @@ export default function Locations() {
 
   return (
     <>
-      <PageHeader
-        title="Locations"
-        subtitle="Search or drop a pin to save fundraising spots — the address fills in automatically."
-      />
+      <PageHeader title="Locations" />
 
       <SearchBar
         onPick={(r) => {

@@ -35,10 +35,7 @@ export default function AIStudio({ embedded = false }) {
   return (
     <>
       {!embedded && (
-        <PageHeader
-          title="AI Studio"
-          subtitle="Let AI plan events, suggest what to run next, and draft your social posts — from your real club data."
-        />
+        <PageHeader title="AI Studio" />
       )}
       {!embedded && (
         <Card className="mb-6 overflow-hidden border-0 bg-gradient-to-r from-blue-800 to-green-800 p-6 text-white">

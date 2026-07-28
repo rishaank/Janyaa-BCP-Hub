@@ -31,7 +31,7 @@ export default function HoursRequests() {
   if (!isOpsLead) {
     return (
       <>
-        <PageHeader title="Hours Requests" subtitle="Review members' requests for volunteer hours." />
+        <PageHeader title="Hours Requests" />
         <EmptyState icon={Lock} title="Operations lead only">
           Only the operations lead can review hours requests.
         </EmptyState>
@@ -44,10 +44,7 @@ export default function HoursRequests() {
 
   return (
     <>
-      <PageHeader
-        title="Hours Requests"
-        subtitle="Members' requests for volunteer hours — approve to credit them, or deny with a reason."
-      />
+      <PageHeader title="Hours Requests" />
       {loading ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {[0, 1].map((i) => (

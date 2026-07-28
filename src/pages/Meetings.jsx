@@ -2,7 +2,7 @@
 // the meeting card, the create/edit form modal, and the recurring-series modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Clock, MapPin, Users, Trash2, Check, UserCog, X, Link2 } from 'lucide-react'
+import { Plus, Clock, MapPin, Users, Trash2, Check, Pencil, X, Link2 } from 'lucide-react'
 import { Card, Button, Badge, Modal, FormField, inputClass } from '../components/ui'
 import {
   getMeetingSeries, ensureUpcomingMeetings,
@@ -121,30 +121,30 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
         <div className="mb-2.5 flex items-center justify-between">
           <span className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
             {myReg ? <Check size={15} className="text-green-600" /> : <Users size={15} className="text-ink-400" />}
-            Attendees
+            {attendees.length} Attendees
           </span>
-          <span className="flex items-center gap-2">
-            {isAdmin && (
-              <button
-                onClick={() => setManage(true)}
-                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-2xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-blue-600"
-                title="Add or remove attendees"
-              >
-                <UserCog size={13} /> Manage
-              </button>
-            )}
-            <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">{attendees.length}</span>
-          </span>
+          {isAdmin && (
+            <button
+              onClick={() => setManage(true)}
+              className="rounded-md p-1 text-ink-400 transition-colors hover:bg-ink-100 hover:text-blue-600"
+              title="Add or remove attendees"
+              aria-label="Add or remove attendees"
+            >
+              <Pencil size={14} />
+            </button>
+          )}
         </div>
         {attendees.length > 0 ? (
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
             {attendees.map((a) => (
-              <span key={a.member_id} className="inline-flex items-center">
-                <MemberChip id={a.member_id} name={a.profiles?.name} role={a.profiles?.role} />
-                {a.role === 'contributor' && (
-                  <span className="ml-0.5 rounded-full bg-gold-100 px-1.5 py-0.5 text-[10px] font-bold text-gold-700" title="Contributor (+1 hr)">+1</span>
-                )}
-              </span>
+              <MemberChip
+                key={a.member_id}
+                id={a.member_id}
+                name={a.profiles?.name}
+                role={a.profiles?.role}
+                highlight={a.role === 'contributor'}
+                title={a.role === 'contributor' ? `${a.profiles?.name} — contributor (+1 hr)` : a.profiles?.name}
+              />
             ))}
           </div>
         ) : (
