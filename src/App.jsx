@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -87,6 +88,7 @@ export default function App() {
           </Routes>
           </Suspense>
           <Analytics />
+          <SpeedInsights />
           </BrowserRouter>
         </AuthProvider>
       </ErrorBoundary>
