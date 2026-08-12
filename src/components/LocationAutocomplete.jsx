@@ -36,12 +36,14 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
     }
     timer.current = setTimeout(async () => {
       setBusy(true)
-      try {
-        setResults(hasGooglePlaces ? await googleSearch(q) : await osmSearch(q))
-        setOpen(true)
-      } catch {
-        setResults([])
-      }
+      // A referrer-restricted key (Vercel preview deploys never match the
+      // production referrer) would otherwise leave the picker silently dead,
+      // so any Google failure drops back to OpenStreetMap for that search.
+      let hits = []
+      if (hasGooglePlaces) hits = await googleSearch(q).catch(() => null)
+      if (!hits) hits = await osmSearch(q).catch(() => [])
+      setResults(hits)
+      setOpen(true)
       setBusy(false)
     }, 350)
   }
@@ -49,7 +51,12 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
   async function googleSearch(q) {
     if (!token.current) token.current = await newSessionToken()
     const hits = await fetchSuggestions(q, token.current)
-    return hits.map((h) => ({ key: h.id, label: [h.name, h.secondary].filter(Boolean).join(', '), hit: h }))
+    return hits.map((h) => ({
+      source: 'google',
+      key: h.id,
+      label: [h.name, h.secondary].filter(Boolean).join(', '),
+      hit: h,
+    }))
   }
 
   async function osmSearch(q) {
@@ -57,26 +64,28 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
       `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=us&viewbox=${BAY}&bounded=0&q=${encodeURIComponent(q)}`,
     )
     const data = await res.json()
-    return data.map((r) => ({ key: r.place_id, label: r.display_name, hit: r }))
+    return data.map((r) => ({ source: 'osm', key: r.place_id, label: r.display_name, hit: r }))
   }
 
+  // Branch on where the result actually came from, not on whether a key exists
+  // — after a Google failure the list holds OSM rows.
   async function pick(result) {
     setOpen(false)
     setResults([])
-    if (hasGooglePlaces) {
+    if (result.source === 'google') {
       // Resolving ends the session (one Essentials Place Details).
-      const place = await resolveSuggestion(result.hit)
+      const place = await resolveSuggestion(result.hit).catch(() => null)
       token.current = null
-      onSelect(place)
-    } else {
-      const r = result.hit
-      onSelect({
-        name: r.display_name.split(',')[0],
-        address: r.display_name,
-        lat: Number(r.lat),
-        lng: Number(r.lon),
-      })
+      if (place) onSelect(place)
+      return
     }
+    const r = result.hit
+    onSelect({
+      name: r.display_name.split(',')[0],
+      address: r.display_name,
+      lat: Number(r.lat),
+      lng: Number(r.lon),
+    })
   }
 
   return (
