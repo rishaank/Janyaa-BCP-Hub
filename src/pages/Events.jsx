@@ -1,6 +1,6 @@
 // Event pieces shared by the merged Events & Meetings page (src/pages/EventsMeetings.jsx):
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Pencil } from 'lucide-react'
 import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
@@ -14,6 +14,7 @@ import {
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
 import EventTodos from '../components/EventTodos'
+import { hasGooglePlaces, lookupAddress } from '../lib/places'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { bestDays, topDay } from '../lib/planning'
 import { hasEnded } from '../lib/time'
@@ -302,6 +303,30 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const editing = Boolean(event)
   const [saved, setSaved] = useState([])
+  const [finding, setFinding] = useState(false)
+  const addrTimer = useRef(null)
+
+  // Typing/pasting an address fills in the Location name (and coordinates for
+  // the event map) — the reverse of picking a place in the search above. Only
+  // ever fills a blank Location, so it can't clobber a name someone chose.
+  function setAddress(e) {
+    const address = e.target.value
+    setForm({ ...form, address })
+    clearTimeout(addrTimer.current)
+    if (!hasGooglePlaces || form.location.trim() || address.trim().length < 8) return
+    addrTimer.current = setTimeout(async () => {
+      setFinding(true)
+      const place = await lookupAddress(address).catch(() => null)
+      setFinding(false)
+      if (!place) return
+      setForm((cur) =>
+        cur.location.trim() || cur.address !== address
+          ? cur
+          : { ...cur, location: place.name, latitude: place.lat, longitude: place.lng },
+      )
+    }, 800)
+  }
+  useEffect(() => () => clearTimeout(addrTimer.current), [])
 
   const planDays = bestDays(events)
   const planBest = topDay(planDays)
@@ -430,7 +455,10 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
           />
         </FormField>
         <FormField label="Address">
-          <input className={inputClass} value={form.address} onChange={set('address')} placeholder="Auto-fills from the search above" />
+          <input className={inputClass} value={form.address} onChange={setAddress} placeholder="Auto-fills from the search above" />
+          <span className="mt-1 block text-xs text-ink-500">
+            {finding ? 'Finding the place…' : 'Works both ways — paste an address here and the Location fills itself in.'}
+          </span>
         </FormField>
         <div className="grid grid-cols-3 gap-3">
           <FormField label="Hours each">

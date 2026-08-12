@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { Search, MapPin, Loader2 } from 'lucide-react'
 import { inputClass } from './ui'
+import { hasGooglePlaces, fetchSuggestions, newSessionToken, resolveSuggestion } from '../lib/places'
 
-// Debounced place search (OpenStreetMap, biased to the US + Bay Area).
+// Debounced place search. Uses Google Places Autocomplete (free per session)
+// when VITE_GOOGLE_MAPS_API_KEY is set, otherwise falls back to OpenStreetMap
+// so dev/preview builds without the key still work.
 // onSelect gets { name, address, lat, lng } for the chosen result.
 const BAY = '-122.6,37.7,-121.5,36.9'
 
@@ -12,6 +15,9 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
   const [open, setOpen] = useState(false)
   const timer = useRef(null)
   const box = useRef(null)
+  // One Google session token spans a whole type-and-pick; cleared on select so
+  // the next search starts a fresh (still free) session.
+  const token = useRef(null)
 
   useEffect(() => {
     function onDoc(e) {
@@ -31,16 +37,46 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
     timer.current = setTimeout(async () => {
       setBusy(true)
       try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=us&viewbox=${BAY}&bounded=0&q=${encodeURIComponent(q)}`,
-        )
-        setResults(await res.json())
+        setResults(hasGooglePlaces ? await googleSearch(q) : await osmSearch(q))
         setOpen(true)
       } catch {
         setResults([])
       }
       setBusy(false)
     }, 350)
+  }
+
+  async function googleSearch(q) {
+    if (!token.current) token.current = await newSessionToken()
+    const hits = await fetchSuggestions(q, token.current)
+    return hits.map((h) => ({ key: h.id, label: [h.name, h.secondary].filter(Boolean).join(', '), hit: h }))
+  }
+
+  async function osmSearch(q) {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&countrycodes=us&viewbox=${BAY}&bounded=0&q=${encodeURIComponent(q)}`,
+    )
+    const data = await res.json()
+    return data.map((r) => ({ key: r.place_id, label: r.display_name, hit: r }))
+  }
+
+  async function pick(result) {
+    setOpen(false)
+    setResults([])
+    if (hasGooglePlaces) {
+      // Resolving ends the session (one Essentials Place Details).
+      const place = await resolveSuggestion(result.hit)
+      token.current = null
+      onSelect(place)
+    } else {
+      const r = result.hit
+      onSelect({
+        name: r.display_name.split(',')[0],
+        address: r.display_name,
+        lat: Number(r.lat),
+        lng: Number(r.lon),
+      })
+    }
   }
 
   return (
@@ -60,23 +96,14 @@ export default function LocationAutocomplete({ value, onChange, onSelect, placeh
       {open && results.length > 0 && (
         <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border border-ink-200 bg-surface shadow-lg">
           {results.map((r) => (
-            <li key={r.place_id}>
+            <li key={r.key}>
               <button
                 type="button"
-                onClick={() => {
-                  onSelect({
-                    name: r.display_name.split(',')[0],
-                    address: r.display_name,
-                    lat: Number(r.lat),
-                    lng: Number(r.lon),
-                  })
-                  setOpen(false)
-                  setResults([])
-                }}
+                onClick={() => pick(r)}
                 className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-ink-50"
               >
                 <MapPin size={15} className="mt-0.5 shrink-0 text-green-600" />
-                <span className="text-ink-700">{r.display_name}</span>
+                <span className="text-ink-700">{r.label}</span>
               </button>
             </li>
           ))}

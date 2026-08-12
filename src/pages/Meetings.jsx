@@ -14,6 +14,7 @@ import MemberChip from '../components/MemberChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import Linkify from '../components/Linkify'
 import LinkChip from '../components/LinkChip'
+import LocationAutocomplete from '../components/LocationAutocomplete'
 import { hasEnded } from '../lib/time'
 
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -308,7 +309,14 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
           </FormField>
         </div>
         <FormField label="Location">
-          <input className={inputClass} value={form.location} onChange={set('location')} placeholder="Room 204 / Zoom" />
+          {/* Meetings store a single free-text location (no address column), so
+              the picker just fills the name — "Room 204" still types fine. */}
+          <LocationAutocomplete
+            value={form.location}
+            placeholder="Room 204 / Zoom / search a place…"
+            onChange={(v) => setForm({ ...form, location: v })}
+            onSelect={({ name }) => setForm({ ...form, location: name })}
+          />
         </FormField>
         <FormField label="Notes">
           <textarea className={inputClass} rows={3} value={form.notes} onChange={set('notes')} placeholder="Agenda, decisions, action items…" />
@@ -459,7 +467,12 @@ export function SeriesModal({ open, onClose, onChange }) {
               </select>
             </FormField>
             <FormField label="Location">
-              <input className={inputClass} value={form.location} onChange={set('location')} placeholder="Room 204" />
+              <LocationAutocomplete
+                value={form.location}
+                placeholder="Room 204"
+                onChange={(v) => setForm({ ...form, location: v })}
+                onSelect={({ name }) => setForm({ ...form, location: name })}
+              />
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-3">
