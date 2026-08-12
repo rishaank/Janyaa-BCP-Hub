@@ -14,6 +14,7 @@ import { useTheme } from '../context/ThemeContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
+import { EventTodosPanel } from '../components/EventTodos'
 import { EventFormModal } from './Events'
 import { hasEnded } from '../lib/time'
 
@@ -308,6 +309,10 @@ function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, r
           onManage={onManage}
         />
       </div>
+
+      {/* To-dos — members only, and only while the event is still ahead. This is
+          the only place they exist on mobile (the list shows glance cards). */}
+      {session && !hasEnded(event) && <EventTodosPanel eventId={event.id} myId={userId} />}
 
       {/* Notes / timeline */}
       {event.notes && (

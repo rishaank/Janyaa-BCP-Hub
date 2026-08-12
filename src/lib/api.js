@@ -282,6 +282,17 @@ export function deleteEvent(id) {
   return supabase.from('events').delete().eq('id', id)
 }
 
+// To-dos for one event — the public get_public_event RPC omits them, so the
+// full-screen view loads them separately for signed-in members (members-only RLS).
+export async function getEventTodos(eventId) {
+  const { data } = await supabase
+    .from('event_todos')
+    .select('id, item, done, assignee_id, profiles ( id, name, role )')
+    .eq('event_id', eventId)
+    .order('created_at')
+  return data ?? []
+}
+
 export function deleteTodo(id) {
   return supabase.from('event_todos').delete().eq('id', id)
 }

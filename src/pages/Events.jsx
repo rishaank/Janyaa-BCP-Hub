@@ -2,7 +2,7 @@
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Hand, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Pencil } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Pencil } from 'lucide-react'
 import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import {
   getLocations,
@@ -10,12 +10,10 @@ import {
   leaveEvent,
   createEvent,
   updateEvent,
-  addTodo,
-  setTodoAssignee,
-  deleteTodo,
 } from '../lib/api'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import MemberChip from '../components/MemberChip'
+import EventTodos from '../components/EventTodos'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { bestDays, topDay } from '../lib/planning'
 import { hasEnded } from '../lib/time'
@@ -89,7 +87,6 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
   const atCapacity = event.max_people && signups.length >= event.max_people
   const understaffed = signups.length < event.min_people
   const [busy, setBusy] = useState(false)
-  const [newTodo, setNewTodo] = useState('')
   const [copied, setCopied] = useState('')
   const [manage, setManage] = useState(false)
   const timeRange = timeRangeOf(event.start_time, event.end_time)
@@ -109,14 +106,6 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
     else await signUpForEvent(event.id, myId)
     await onChange()
     setBusy(false)
-  }
-
-  async function submitTodo(e) {
-    e.preventDefault()
-    if (!newTodo.trim()) return
-    await addTodo(event.id, newTodo.trim())
-    setNewTodo('')
-    await onChange()
   }
 
   return (
@@ -287,26 +276,7 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
       {/* To-dos (upcoming only) */}
       {!isPast && (
         <div className="mt-5">
-          <p className="mb-2 font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
-            To-dos · who brings what
-          </p>
-          <ul className="space-y-1.5">
-            {todos.map((t) => (
-              <TodoRow key={t.id} todo={t} myId={myId} onChange={onChange} />
-            ))}
-            {todos.length === 0 && <li className="text-xs text-ink-400">No items yet.</li>}
-          </ul>
-          <form onSubmit={submitTodo} className="mt-2 flex gap-2">
-            <input
-              value={newTodo}
-              onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="Add an item (e.g. Tables)"
-              className="flex-1 rounded-lg border border-ink-200 px-3 py-1.5 text-sm outline-none focus:border-green-400"
-            />
-            <button type="submit" className="rounded-lg bg-ink-100 px-3 text-sm font-medium text-ink-600 transition-colors hover:bg-ink-200">
-              Add
-            </button>
-          </form>
+          <EventTodos eventId={event.id} todos={todos} myId={myId} onChange={onChange} />
         </div>
       )}
 
@@ -321,50 +291,6 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
         />
       )}
     </Card>
-  )
-}
-
-function TodoRow({ todo, myId, onChange }) {
-  const owner = todo.profiles
-  const mine = todo.assignee_id === myId
-
-  async function claim() {
-    await setTodoAssignee(todo.id, mine ? null : myId)
-    await onChange()
-  }
-  async function remove() {
-    await deleteTodo(todo.id)
-    await onChange()
-  }
-
-  return (
-    <li className="group flex items-center gap-2 text-sm">
-      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink-300" />
-      <span className="min-w-0 flex-1 break-words text-ink-700">{todo.item}</span>
-
-      <span className="flex shrink-0 items-center gap-2">
-        {owner ? (
-          <MemberChip id={owner.id} name={owner.name} role={owner.role} />
-        ) : (
-          <span className="text-xs text-gold-700">unclaimed</span>
-        )}
-        <button
-          onClick={claim}
-          className={`rounded-md px-2 py-0.5 text-xs font-medium transition-colors ${
-            mine ? 'bg-ink-100 text-ink-600 hover:bg-ink-200' : 'bg-green-50 text-green-700 hover:bg-green-100'
-          }`}
-        >
-          {mine ? 'Drop' : owner ? 'Take' : <span className="flex items-center gap-1"><Hand size={11} /> Claim</span>}
-        </button>
-        <button
-          onClick={remove}
-          className="rounded p-0.5 text-ink-300 transition-colors hover:bg-coral-50 hover:text-coral-600"
-          aria-label="Delete to-do"
-        >
-          <X size={13} />
-        </button>
-      </span>
-    </li>
   )
 }
 
