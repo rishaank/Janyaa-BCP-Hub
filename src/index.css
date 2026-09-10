@@ -265,6 +265,50 @@ body::before {
   .ja-collapse { transition: none; }
 }
 
+/* Native date / time controls size themselves from their own content in WebKit
+   and quietly ignore the width we give them, so on iOS the Date / Start / End
+   fields rendered wider than every other input — past the modal's own padding.
+   Forcing the standard box model (and dropping the native appearance, which we
+   fully restyle anyway) pins them to the same width as a text field. */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+/* WebKit adds its own padding + centring inside the control; strip it so the
+   value lines up with the text in every other field. */
+input[type='date']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value,
+input[type='datetime-local']::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+  min-height: 1lh;
+}
+input[type='date']::-webkit-datetime-edit,
+input[type='time']::-webkit-datetime-edit,
+input[type='datetime-local']::-webkit-datetime-edit {
+  padding: 0;
+}
+/* `appearance: none` also hides the picker button in Chrome — keep it, toned
+   to the ink ramp (and inverted in dark, where the stock glyph is near-black). */
+input[type='date']::-webkit-calendar-picker-indicator,
+input[type='time']::-webkit-calendar-picker-indicator,
+input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+}
+input[type='date']::-webkit-calendar-picker-indicator:hover,
+input[type='time']::-webkit-calendar-picker-indicator:hover,
+input[type='datetime-local']::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.9;
+}
+
 /* Range slider themed to brand tokens so the track + thumb read in light AND
    dark (native accent-color leaves a light track that clashes on dark cards). */
 input[type='range'].ja-range {

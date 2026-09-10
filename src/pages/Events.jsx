@@ -2,8 +2,8 @@
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Link2, Pencil } from 'lucide-react'
-import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, CalendarPlus, Check, TrendingUp, ExternalLink, Link2, Pencil } from 'lucide-react'
+import { Card, Button, Badge, ProgressBar, Modal, FormField, RemoveRowButton, inputClass } from '../components/ui'
 import {
   getLocations,
   signUpForEvent,
@@ -421,7 +421,7 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
         </FormField>
         {/* Native date/time controls have a wide minimum, so two columns only
             appear once there's room — below that they stack instead of clipping. */}
-        <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 min-[22rem]:grid-cols-2">
           <FormField label="Start time">
             <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
           </FormField>
@@ -449,7 +449,7 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
             placeholder="Search a place, or pick one you've used…"
           />
         </FormField>
-        <div className="grid grid-cols-2 gap-3 min-[26rem]:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 min-[22rem]:grid-cols-3">
           <FormField label="Hours each">
             <input type="number" min="0" step="0.5" className={inputClass} value={form.hours} onChange={set('hours')} />
           </FormField>
@@ -464,44 +464,18 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
           <FormField label="Amount raised ($)">
             <div className="flex gap-2">
               <input type="number" min="0" step="1" className={inputClass} value={form.raised} onChange={set('raised')} />
-              <RemoveFieldButton label="Remove amount raised" onClick={() => dropExtra('raised')} />
+              <RemoveRowButton label="Remove amount raised" onClick={() => dropExtra('raised')} />
             </div>
           </FormField>
         )}
         {extras.notes && (
           <FormField label="Notes">
             <div className="flex gap-2">
-              <textarea className={inputClass} rows={2} value={form.notes} onChange={set('notes')} />
-              <RemoveFieldButton label="Remove notes" onClick={() => dropExtra('notes')} />
+              <textarea className={inputClass} rows={3} value={form.notes} onChange={set('notes')} />
+              <RemoveRowButton label="Remove notes" onClick={() => dropExtra('notes')} />
             </div>
           </FormField>
         )}
-        <FormField label="Links">
-          <div className="space-y-2">
-            {(form.links ?? []).map((url, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  className={inputClass}
-                  value={url}
-                  onChange={(e) => {
-                    const next = [...form.links]
-                    next[i] = e.target.value
-                    setForm({ ...form, links: next })
-                  }}
-                  placeholder="Instagram post, sign-up sheet, flyer…"
-                />
-                <RemoveFieldButton label="Remove link" onClick={() => setForm({ ...form, links: form.links.filter((_, j) => j !== i) })} />
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, links: [...(form.links ?? []), ''] })}
-              className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
-            >
-              <Link2 size={14} /> Add a Link
-            </button>
-          </div>
-        </FormField>
         {(!extras.raised || !extras.notes) && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             {!extras.raised && (
@@ -524,26 +498,37 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
             )}
           </div>
         )}
+        <FormField label="Links">
+          <div className="space-y-2">
+            {(form.links ?? []).map((url, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  className={inputClass}
+                  value={url}
+                  onChange={(e) => {
+                    const next = [...form.links]
+                    next[i] = e.target.value
+                    setForm({ ...form, links: next })
+                  }}
+                  placeholder="Instagram post, sign-up sheet, flyer…"
+                />
+                <RemoveRowButton label="Remove link" onClick={() => setForm((f) => ({ ...f, links: (f.links ?? []).filter((_, j) => j !== i) }))} />
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, links: [...(form.links ?? []), ''] })}
+              className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+            >
+              <Link2 size={14} /> Add a Link
+            </button>
+          </div>
+        </FormField>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Event'}</Button>
         </div>
       </form>
     </Modal>
-  )
-}
-
-// The square X beside a removable row — shared by links and the optional fields.
-function RemoveFieldButton({ label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="shrink-0 self-start rounded-lg border border-ink-300 px-2.5 py-2.5 text-ink-500 transition-colors hover:bg-coral-50 hover:text-coral-600"
-      aria-label={label}
-      title={label}
-    >
-      <X size={15} />
-    </button>
   )
 }

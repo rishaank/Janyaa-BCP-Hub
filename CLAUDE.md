@@ -187,10 +187,20 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     adder, and an edit opens them automatically when the event already has a value
     (`extrasFor`). Collapsing one clears it, so a hidden box never saves an invisible value.
     Form helper text is kept to what a member can't infer — don't re-explain a labelled field.
-  - **Two-column date/time rows must stack on a phone.** Native `date`/`time` controls have a
-    wide intrinsic minimum, so inside the `max-w-md` modal they overlap at phone widths. Every
-    such row is `grid-cols-1 gap-3 min-[26rem]:grid-cols-2` (the event, meeting, term and
-    hours-entry forms). Use that, not a bare `grid-cols-2`.
+  - **Native date/time inputs need `appearance: none`.** In WebKit they size themselves from
+    their own content and ignore the width they're given, so on iOS the Date / Start / End fields
+    rendered wider than every other input — past the modal's own padding. `index.css` pins
+    `date`/`time`/`datetime-local`/`month` to `appearance: none` + `box-sizing: border-box` +
+    `width: 100%` (and re-styles the WebKit inner parts + picker indicator, which `appearance:
+    none` would otherwise strip). Belt and braces, two-column date/time rows are
+    `grid-cols-1 gap-3 min-[22rem]:grid-cols-2` so they stack rather than clip on a very narrow
+    phone (the event, meeting, term and hours-entry forms) — use that, not a bare `grid-cols-2`.
+  - **Row-removal X buttons fire on pointerdown, not click** — `RemoveRowButton` in `ui.jsx`
+    (links, optional fields). On iOS the first tap after typing in a field goes to dismissing the
+    keyboard, and the layout shifts as it slides away, so the click that follows lands somewhere
+    else: removing a link you had just typed into did nothing at all. The shared button acts on
+    `pointerdown` (with `preventDefault`, so focus stays put) and guards the trailing click so it
+    can't fire twice, while keyboard activation still works. Use it for any new removable row.
   - **Numbers on screen go through `src/lib/format.js`** — `num(v)` and `money(v)` round to at most
     the hundredths place (a maximum, so whole numbers stay whole) and add thousands separators.
     Hours are derived, not typed — a 50-minute meeting is `0.8333…` hours — so any raw `{x.hours}`

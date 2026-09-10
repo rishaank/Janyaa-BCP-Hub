@@ -57,7 +57,7 @@ export function useDraftRescue({ label, value, baseline, onClose, reopen, enable
     if (!dirty) return
     showToast({
       message: `${label} draft cleared`,
-      detail: 'Nothing was saved. Undo brings it all back.',
+      detail: 'Nothing was saved.',
       actionLabel: 'Undo',
       onAction: () => {
         restoringRef.current = true

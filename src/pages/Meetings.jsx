@@ -2,8 +2,8 @@
 // the meeting card, the create/edit form modal, and the recurring-series modal.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Clock, MapPin, Users, Trash2, Check, Pencil, X, Link2 } from 'lucide-react'
-import { Card, Button, Badge, Modal, FormField, inputClass } from '../components/ui'
+import { Plus, Clock, MapPin, Users, Trash2, Check, Pencil, Link2 } from 'lucide-react'
+import { Card, Button, Badge, Modal, FormField, RemoveRowButton, inputClass } from '../components/ui'
 import {
   getMeetingSeries, ensureUpcomingMeetings,
   createMeeting, updateMeeting,
@@ -312,7 +312,7 @@ export function MeetingFormModal({ open, meeting, onClose, onReopen, onSaved }) 
         )}
         {/* Native time controls have a wide minimum — two columns only once
             there's room, so they stack instead of clipping on a phone. */}
-        <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 min-[22rem]:grid-cols-2">
           <FormField label="Start time">
             <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
           </FormField>
@@ -347,14 +347,10 @@ export function MeetingFormModal({ open, meeting, onClose, onReopen, onSaved }) 
                   }}
                   placeholder="Agenda doc, Meet link, slides…"
                 />
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, links: form.links.filter((_, j) => j !== i) })}
-                  className="shrink-0 rounded-lg border border-ink-300 px-2.5 text-ink-500 transition-colors hover:bg-coral-50 hover:text-coral-600"
-                  aria-label="Remove link"
-                >
-                  <X size={15} />
-                </button>
+                <RemoveRowButton
+                  label="Remove link"
+                  onClick={() => setForm((f) => ({ ...f, links: (f.links ?? []).filter((_, j) => j !== i) }))}
+                />
               </div>
             ))}
             <button
@@ -493,7 +489,7 @@ export function SeriesModal({ open, onClose, onReopen, onChange }) {
               />
             </FormField>
           </div>
-          <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 min-[22rem]:grid-cols-2">
             <FormField label="Start time">
               <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
             </FormField>

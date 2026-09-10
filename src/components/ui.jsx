@@ -1,6 +1,7 @@
 // Small shared UI primitives used across every page, on the Janyaa brand system.
 // Color/radii/shadow tokens come from src/styles/tailwind-theme.css; legacy
 // palette names are remapped to the brand in src/index.css.
+import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Pin, Shield, Lock } from 'lucide-react'
 import useScrollLock from '../lib/useScrollLock'
@@ -379,6 +380,40 @@ export function FormField({ label, children }) {
       <span className="mb-1 block text-sm font-semibold text-ink-800">{label}</span>
       {children}
     </label>
+  )
+}
+
+// The square X that removes a repeatable row (a link, an optional field). It
+// fires on **pointerdown**, not click: on iOS the first tap after typing in a
+// field goes to dismissing the keyboard, and the layout shifts as the keyboard
+// slides away, so the click that follows lands somewhere else entirely — which
+// is why removing a link you had just typed into did nothing. preventDefault
+// also keeps focus where it is, so the keyboard doesn't flap shut and open.
+export function RemoveRowButton({ label, onClick, className = '' }) {
+  const firedOnPointer = useRef(false)
+  return (
+    <button
+      type="button"
+      onPointerDown={(e) => {
+        e.preventDefault()
+        firedOnPointer.current = true
+        onClick()
+      }}
+      onPointerCancel={() => { firedOnPointer.current = false }}
+      // Keyboard activation (Enter / Space) still arrives as a plain click.
+      onClick={() => {
+        if (firedOnPointer.current) {
+          firedOnPointer.current = false
+          return
+        }
+        onClick()
+      }}
+      className={`shrink-0 self-start rounded-lg border border-ink-300 px-2.5 py-2.5 text-ink-500 transition-colors [touch-action:manipulation] hover:bg-coral-50 hover:text-coral-600 ${className}`}
+      aria-label={label}
+      title={label}
+    >
+      <X size={15} />
+    </button>
   )
 }
 

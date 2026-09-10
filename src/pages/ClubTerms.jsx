@@ -354,7 +354,7 @@ function TermModal({ open, term, onClose, onReopen, onSaved }) {
         <FormField label="Label">
           <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} required placeholder="e.g. Summer 2026" />
         </FormField>
-        <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 min-[22rem]:grid-cols-2">
           <FormField label="Starts">
             <input type="date" className={inputClass} value={start} onChange={(e) => setStart(e.target.value)} required />
           </FormField>

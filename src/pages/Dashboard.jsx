@@ -224,23 +224,23 @@ export default function Dashboard() {
       <div className="flex flex-wrap items-center gap-3">
         <StatPill
           icon={Clock}
-          value={`${Number(d.term_hours)}h`}
+          value={`${num(d.term_hours)}h`}
           label="this term"
-          hint={`${Number(d.total_hours)}h all-time`}
+          hint={`${num(d.total_hours)}h all-time`}
           tone="blue"
         />
         <StatPill
           icon={CalendarDays}
-          value={Number(d.events_term ?? 0)}
+          value={num(d.events_term ?? 0)}
           label="events this term"
-          hint={`${Number(d.events_count ?? 0)} all-time`}
+          hint={`${num(d.events_count ?? 0)} all-time`}
           tone="green"
         />
         <StatPill
           icon={Presentation}
-          value={Number(d.meetings_term ?? 0)}
+          value={num(d.meetings_term ?? 0)}
           label="meetings this term"
-          hint={`${Number(d.meetings_count ?? 0)} all-time`}
+          hint={`${num(d.meetings_count ?? 0)} all-time`}
           tone="blue"
         />
         <FundraisingPill raised={fundRaised} target={fundTarget} />
@@ -594,12 +594,12 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
           {pendingReqs.map((r) => (
             <span key={r.id} className="badge badge-gold" style={{ padding: '6px 11px', fontSize: 12 }}>
-              <Clock size={13} /> Pending — {Number(r.hours)}h · {r.activity}
+              <Clock size={13} /> Pending — {num(r.hours)}h · {r.activity}
             </span>
           ))}
           {approvedReqs.map((r) => (
             <span key={r.id} className="badge badge-green" style={{ padding: '6px 11px', fontSize: 12 }}>
-              <Check size={13} /> Approved — {Number(r.hours)}h
+              <Check size={13} /> Approved — {num(r.hours)}h
               <button onClick={() => onDismiss(r.id)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', marginLeft: 2 }}><X size={12} /></button>
             </span>
           ))}
@@ -611,7 +611,7 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
           <div style={{ minWidth: 0, flex: 1 }}>
             <p style={{ fontWeight: 700, color: 'var(--ink-900)' }}>Hours request denied</p>
             <p style={{ marginTop: 2, fontSize: 13, color: 'var(--ink-700)' }}>
-              Your request for {Number(r.hours)}h ({r.activity}) was denied{r.reviewer?.name ? ` by ${r.reviewer.name}` : ''}.
+              Your request for {num(r.hours)}h ({r.activity}) was denied{r.reviewer?.name ? ` by ${r.reviewer.name}` : ''}.
             </p>
             {r.denial_reason && <p style={{ marginTop: 4, fontSize: 13, color: 'var(--ink-600)' }}>Reason: {r.denial_reason}</p>}
           </div>
@@ -621,9 +621,9 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
 
       {/* Stat pills */}
       <div className="jh-statrow">
-        <MPill icon={Users} val={Number(d.members_count ?? 0)} lab="members" tone="green" />
-        <MPill icon={Clock} val={`${Number(d.term_hours)}h`} lab="this term" tone="blue" />
-        <MPill icon={CalendarDays} val={Number(d.events_term ?? 0)} lab="events" tone="green" />
+        <MPill icon={Users} val={num(d.members_count ?? 0)} lab="members" tone="green" />
+        <MPill icon={Clock} val={`${num(d.term_hours)}h`} lab="this term" tone="blue" />
+        <MPill icon={CalendarDays} val={num(d.events_term ?? 0)} lab="events" tone="green" />
         <MFundPill raised={fundRaised} target={fundTarget} />
       </div>
 

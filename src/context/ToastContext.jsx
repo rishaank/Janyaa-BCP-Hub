@@ -6,6 +6,10 @@
 // sticky page headers 30 · desktop sidebar 40 · mobile bottom sheet 60/61 ·
 // modals 200 · toasts 300. Toasts sit above modals on purpose — an Undo chip
 // has to stay reachable even if the member opens another popup meanwhile.
+//
+// Placement: directly above the mobile tab bar (~72px + the home-indicator
+// inset), bottom-right on desktop. Keep it hugging the bar — a chip floating in
+// the middle of the page reads as part of the page, not as a notification.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Undo2 } from 'lucide-react'
@@ -55,7 +59,7 @@ export function ToastProvider({ children }) {
       {children}
       {createPortal(
         <div
-          className="pointer-events-none fixed bottom-[calc(150px+env(safe-area-inset-bottom))] left-1/2 z-[300] flex w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 flex-col items-stretch gap-2 lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0"
+          className="pointer-events-none fixed bottom-[calc(82px+env(safe-area-inset-bottom))] left-1/2 z-[300] flex w-[min(24rem,calc(100vw-1.5rem))] -translate-x-1/2 flex-col items-stretch gap-2 lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0"
           role="status"
           aria-live="polite"
         >
@@ -76,7 +80,7 @@ function Toast({ toast, onDismiss }) {
       <div className="flex items-center gap-3 px-3.5 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink-900">{message}</p>
-          {detail && <p className="mt-0.5 truncate text-xs text-ink-500">{detail}</p>}
+          {detail && <p className="mt-0.5 text-xs leading-snug text-ink-500">{detail}</p>}
         </div>
         {actionLabel && (
           <button
