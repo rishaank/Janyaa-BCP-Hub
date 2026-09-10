@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check,
-  Sparkles, ArrowUpRight, ChevronDown, ChevronUp, KeyRound,
+  Sparkles, ArrowUpRight, ChevronDown, ChevronUp, KeyRound, CopyPlus, Search,
 } from 'lucide-react'
 import {
   Card,
@@ -38,6 +38,7 @@ import {
   addHoursEntry,
   updateHoursEntry,
   deleteHoursEntry,
+  copyHoursEntry,
   getEventsBrief,
   submitHoursRequest,
   generateMemberInsight,
@@ -53,6 +54,9 @@ import Linkify from '../components/Linkify'
 import AvatarCropper from '../components/AvatarCropper'
 import { exportMemberHours } from '../lib/exportHours'
 import { laNow, hasEnded } from '../lib/time'
+import { num } from '../lib/format'
+import { useDraftRescue } from '../lib/useDraftRescue'
+import { useToast } from '../context/ToastContext'
 
 export default function ProfilePage() {
   const { id } = useParams()
@@ -135,7 +139,7 @@ export default function ProfilePage() {
               </p>
             </div>
             <div className="text-center sm:text-right">
-              <p className="font-mono text-4xl font-bold tabular-nums text-ink-900">{data.hours}</p>
+              <p className="font-mono text-4xl font-bold tabular-nums text-ink-900">{num(data.hours)}</p>
               <p className="text-xs text-ink-500">volunteer hours</p>
             </div>
           </div>
@@ -155,7 +159,7 @@ export default function ProfilePage() {
               {p.is_admin && <Badge tone="blue"><Shield size={11} /> Admin</Badge>}
             </div>
             <div className="mt-4 flex items-baseline gap-1.5">
-              <span className="font-mono text-3xl font-bold tabular-nums text-ink-900">{data.hours}</span>
+              <span className="font-mono text-3xl font-bold tabular-nums text-ink-900">{num(data.hours)}</span>
               <span className="text-xs text-ink-500">volunteer hours</span>
             </div>
           </div>
@@ -486,6 +490,7 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
   const [modalOpen, setModalOpen] = useState(false)
   const [editEntry, setEditEntry] = useState(null)
   const [requestOpen, setRequestOpen] = useState(false)
+  const [copyEntry, setCopyEntry] = useState(null) // entry being copied onto other members
   const [showAll, setShowAll] = useState(false)
   const shownEntries = showAll ? entries : entries.slice(0, 5)
 
@@ -498,7 +503,7 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
     setModalOpen(true)
   }
   async function remove(entry) {
-    if (!window.confirm(`Remove "${entry.description}" (${entry.hours}h)? This can't be undone.`)) return
+    if (!window.confirm(`Remove "${entry.description}" (${num(entry.hours)}h)? This can't be undone.`)) return
     await deleteHoursEntry(entry.grant_id)
     onChange()
   }
@@ -542,7 +547,7 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
             const meta = kindMeta[e.kind] ?? { label: e.kind, tone: 'ink' }
             const editable = canDirectEdit && !!e.grant_id
             return (
-              <li key={e.grant_id ?? i} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+              <li key={e.grant_id ?? i} className="group flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   {e.event_id ? (
                     <Link to={`/events/${e.event_id}`} className="block truncate text-sm font-medium text-ink-800 transition-colors hover:text-green-700">
@@ -559,7 +564,17 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <Badge tone={meta.tone}>{meta.label}</Badge>
-                  <span className="w-12 text-right font-mono text-sm font-semibold tabular-nums text-ink-700">{e.hours}h</span>
+                  <span className="w-14 text-right font-mono text-sm font-semibold tabular-nums text-ink-700">{num(e.hours)}h</span>
+                  {canDirectEdit && (
+                    <button
+                      onClick={() => setCopyEntry(e)}
+                      title="Copy these hours to another member"
+                      aria-label="Copy these hours to another member"
+                      className="rounded-md p-1.5 text-ink-400 transition-all hover:bg-green-50 hover:text-green-700 focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                    >
+                      <CopyPlus size={13} />
+                    </button>
+                  )}
                   {editable && (
                     <span className="flex items-center gap-0.5">
                       <button
@@ -589,7 +604,8 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
       {canDirectEdit && (
         <p className="mt-3 text-xs text-ink-400">
           Logged, role, and imported entries can be edited here. Event sign-ups and meeting attendance
-          are managed on the Events &amp; Meetings page.
+          are managed on the Events &amp; Meetings page. Hover any row to copy those hours onto another
+          member — handy when several people did the same thing.
         </p>
       )}
       <HoursEntryModal
@@ -597,6 +613,7 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
         entry={editEntry}
         memberId={memberId}
         onClose={() => setModalOpen(false)}
+        onReopen={() => setModalOpen(true)}
         onSaved={() => {
           setModalOpen(false)
           onChange()
@@ -608,7 +625,18 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
         targetName={memberName}
         onBehalf={!isOwn}
         onClose={() => setRequestOpen(false)}
+        onReopen={() => setRequestOpen(true)}
         onSaved={() => setRequestOpen(false)}
+      />
+      <CopyHoursModal
+        entry={copyEntry}
+        fromId={memberId}
+        fromName={memberName}
+        onClose={() => setCopyEntry(null)}
+        onCopied={() => {
+          setCopyEntry(null)
+          onChange()
+        }}
       />
     </Card>
   )
@@ -616,22 +644,27 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
 
 // Member request form — sends an hours request to the operations lead (who
 // approves or denies it). Used in place of "Add hours" for non-admins.
-function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, onClose, onSaved }) {
+function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, onClose, onReopen, onSaved }) {
   const [activity, setActivity] = useState('')
   const [hours, setHours] = useState('')
   const [contribution, setContribution] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [done, setDone] = useState(false)
+  // Closing a half-filled request says so and offers Undo instead of binning it.
+  const draft = { activity, hours, contribution }
+  const rescue = useDraftRescue({ label: 'Request', value: draft, onClose, reopen: onReopen ?? onClose, enabled: !done })
 
   useEffect(() => {
-    if (open) {
-      setActivity('')
-      setHours('')
-      setContribution('')
-      setErr('')
-      setDone(false)
-    }
+    if (!open) return // never wipe the fields on the way out — Undo still needs them
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    setActivity('')
+    setHours('')
+    setContribution('')
+    setErr('')
+    setDone(false)
+    rescue.setBaseline({ activity: '', hours: '', contribution: '' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   async function submit(e) {
@@ -651,7 +684,7 @@ function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, on
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={onBehalf ? `Request hours for ${targetName || 'member'}` : 'Request hours'}>
+    <Modal open={open} onClose={rescue.close} title={onBehalf ? `Request hours for ${targetName || 'member'}` : 'Request hours'}>
       {done ? (
         <div className="py-4 text-center">
           <div className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-full bg-green-50 text-green-600">
@@ -686,7 +719,7 @@ function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, on
           </FormField>
           {err && <p className="text-sm text-coral-700">{err}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+            <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
             <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Request'}</Button>
           </div>
         </form>
@@ -697,7 +730,7 @@ function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, on
 
 // Admin add/edit form for a single hours ledger entry. Optionally links the entry
 // to an event (so it shows on the event page and in exports).
-function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
+function HoursEntryModal({ open, entry, memberId, onClose, onReopen, onSaved }) {
   const editing = Boolean(entry)
   const [hours, setHours] = useState('')
   const [date, setDate] = useState('')
@@ -705,23 +738,31 @@ function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
   const [eventId, setEventId] = useState('')
   const [events, setEvents] = useState([])
   const [busy, setBusy] = useState(false)
+  // Closing a half-filled form says so and offers Undo instead of binning it.
+  const draft = { hours, date, note, eventId }
+  const rescue = useDraftRescue({ label: 'Hours', value: draft, onClose, reopen: onReopen ?? onClose })
 
   useEffect(() => {
     if (open) getEventsBrief().then(setEvents)
   }, [open])
 
   useEffect(() => {
-    if (entry) {
-      setHours(String(entry.hours ?? ''))
-      setDate(entry.date ?? '')
-      setNote(entry.description === 'Hours' ? '' : entry.description ?? '')
-      setEventId(entry.event_id ?? '')
-    } else {
-      setHours('')
-      setDate('')
-      setNote('')
-      setEventId('')
-    }
+    if (!open) return // never wipe the fields on the way out — Undo still needs them
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    const next = entry
+      ? {
+          hours: String(entry.hours ?? ''),
+          date: entry.date ?? '',
+          note: entry.description === 'Hours' ? '' : entry.description ?? '',
+          eventId: entry.event_id ?? '',
+        }
+      : { hours: '', date: '', note: '', eventId: '' }
+    setHours(next.hours)
+    setDate(next.date)
+    setNote(next.note)
+    setEventId(next.eventId)
+    rescue.setBaseline(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry, open])
 
   // Picking an event pre-fills a blank description/date from it.
@@ -752,7 +793,7 @@ function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit hours entry' : 'Add hours'}>
+    <Modal open={open} onClose={rescue.close} title={editing ? 'Edit hours entry' : 'Add hours'}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Hours">
@@ -777,10 +818,104 @@ function HoursEntryModal({ open, entry, memberId, onClose, onSaved }) {
           <span className="mt-1 block text-xs text-ink-500">Links the entry to an event so it shows on the event view and in exports.</span>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Hours'}</Button>
         </div>
       </form>
+    </Modal>
+  )
+}
+
+// Copy one hours entry onto other members (operations lead). The same activity
+// often covers several people — a shift someone logged for the whole group, an
+// imported row that was only credited to one of them — and re-typing it on every
+// profile is where the ledger drifts. Each pick gets its own editable `manual`
+// row carrying the original's hours, date, description and event/meeting link.
+function CopyHoursModal({ entry, fromId, fromName, onClose, onCopied }) {
+  const { showToast } = useToast()
+  const [members, setMembers] = useState([])
+  const [picked, setPicked] = useState([])
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const open = Boolean(entry)
+
+  useEffect(() => {
+    if (!open) return
+    setPicked([])
+    setQuery('')
+    setErr('')
+    getMembersBrief().then((ms) => setMembers(ms.filter((m) => m.id !== fromId)))
+  }, [open, fromId])
+
+  const shown = members.filter((m) => (m.name ?? '').toLowerCase().includes(query.trim().toLowerCase()))
+  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+
+  async function copy() {
+    setErr('')
+    setBusy(true)
+    const res = await copyHoursEntry({ entry, memberIds: picked })
+    setBusy(false)
+    if (!res.ok) return setErr(res.error || 'Could not copy those hours.')
+    const names = picked.map((id) => members.find((m) => m.id === id)?.name).filter(Boolean)
+    showToast({
+      tone: 'green',
+      message: `Copied to ${picked.length} member${picked.length === 1 ? '' : 's'}`,
+      detail: `${num(entry.hours)}h · ${names.join(', ')}`,
+    })
+    onCopied()
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Copy hours to another member">
+      <div className="space-y-3">
+        <div className="rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5">
+          <p className="truncate text-sm font-semibold text-ink-900">{entry?.description}</p>
+          <p className="mt-0.5 text-xs text-ink-500">
+            {num(entry?.hours)}h · {entry?.date ? formatDate(entry.date) : 'Undated'}
+            {fromName ? ` · from ${fromName}` : ''}
+          </p>
+        </div>
+        <p className="text-xs text-ink-500">
+          Each member picked gets their own editable entry — worth a glance that they aren&rsquo;t already
+          credited for it.
+        </p>
+        <FormField label="Copy to">
+          <div className="relative">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400" />
+            <input
+              className={`${inputClass} pl-9`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search members…"
+            />
+          </div>
+        </FormField>
+        <ul className="max-h-64 space-y-1 overflow-y-auto">
+          {shown.length === 0 && <li className="py-4 text-center text-sm text-ink-400">No members match.</li>}
+          {shown.map((m) => (
+            <li key={m.id}>
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-ink-200 px-3 py-2 transition-colors hover:bg-ink-50">
+                <input
+                  type="checkbox"
+                  checked={picked.includes(m.id)}
+                  onChange={() => toggle(m.id)}
+                  className="h-4 w-4 shrink-0 accent-green-600"
+                />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink-800">{m.name}</span>
+                <Badge tone={roleTones[m.role] ?? 'ink'}>{roleLabels[m.role] ?? 'Member'}</Badge>
+              </label>
+            </li>
+          ))}
+        </ul>
+        {err && <p className="text-sm text-coral-700">{err}</p>}
+        <div className="flex justify-end gap-2 pt-1">
+          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button type="button" icon={CopyPlus} onClick={copy} disabled={busy || picked.length === 0}>
+            {busy ? 'Copying…' : `Copy to ${picked.length || ''} ${picked.length === 1 ? 'member' : 'members'}`.replace('  ', ' ')}
+          </Button>
+        </div>
+      </div>
     </Modal>
   )
 }
@@ -818,7 +953,7 @@ function EventList({ title, events, empty, className = '' }) {
                       {e.location ? ` · ${e.location}` : ''}
                     </p>
                   </div>
-                  <span className="shrink-0 font-mono text-xs text-ink-500">{e.hours} hrs</span>
+                  <span className="shrink-0 font-mono text-xs text-ink-500">{num(e.hours)} hrs</span>
                 </Link>
               </li>
             ))}
@@ -874,7 +1009,7 @@ function ProfileGoalCard({ goal }) {
       <div className="mt-auto pt-4">
         <div className="mb-1.5 flex items-center justify-between">
           <span className="font-mono text-2xs font-semibold uppercase tracking-[0.06em] text-ink-500">{periodLabel(goal.period)}</span>
-          <span className="font-mono text-xs font-semibold tabular-nums text-ink-700">{goal.progress}%</span>
+          <span className="font-mono text-xs font-semibold tabular-nums text-ink-700">{num(goal.progress)}%</span>
         </div>
         <ProgressBar value={goal.progress} max={100} tone={done ? 'green' : 'gold'} />
       </div>

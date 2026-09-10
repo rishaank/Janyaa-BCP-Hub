@@ -223,6 +223,14 @@ body::before {
 }
 .ja-veil-in { animation: ja-veil-in 0.2s ease-out both; }
 
+/* Toast countdown rail — drains over the toast's own lifetime, so the Undo
+   window is visible rather than a guess. Duration is set inline per toast. */
+@keyframes ja-toast-timer {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.ja-toast-timer { animation: ja-toast-timer linear forwards; }
+
 /* Opacity-only entrance (no transform) — safe over position:fixed children like
    the mobile FAB. Used for mobile page transitions. */
 @keyframes ja-fade-soft {
@@ -252,6 +260,7 @@ body::before {
 
 @media (prefers-reduced-motion: reduce) {
   .ja-fade, .ja-fade-soft, .ja-pop, .ja-veil-in, .ja-stagger > * { animation: none; }
+  .ja-toast-timer { animation: none; width: 100%; }
   .ja-userdot::after { animation: none; }
   .ja-collapse { transition: none; }
 }

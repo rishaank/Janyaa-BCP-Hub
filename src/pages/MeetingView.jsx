@@ -15,6 +15,7 @@ import LinkChip from '../components/LinkChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { MeetingFormModal } from './Meetings'
 import { hasEnded } from '../lib/time'
+import { num } from '../lib/format'
 
 const fmtTime = (t) => {
   if (!t) return ''
@@ -30,7 +31,7 @@ function meetingLength(m) {
     const [sh, sm] = m.start_time.split(':').map(Number)
     const [eh, em] = m.end_time.split(':').map(Number)
     const d = (eh * 60 + em - (sh * 60 + sm)) / 60
-    if (d > 0) return Math.round(d * 10) / 10
+    if (d > 0) return Math.round(d * 100) / 100 // hundredths — matches the hours the ledger credits
   }
   return 1
 }
@@ -339,14 +340,14 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
                 disabled={busy}
                 className="rounded-lg bg-green-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
               >
-                Attend · {len}h
+                Attend · {num(len)}h
               </button>
               <button
                 onClick={() => register('contributor')}
                 disabled={busy}
                 className="rounded-lg border border-blue-300 bg-surface py-2.5 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50"
               >
-                Contribute · {len + 1}h
+                Contribute · {num(len + 1)}h
               </button>
             </div>
           )

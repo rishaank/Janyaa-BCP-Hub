@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { bestDays } from '../lib/planning'
+import { money } from '../lib/format'
 
 const MON_FIRST = [1, 2, 3, 4, 5, 6, 0] // display Mon..Sun
 
@@ -13,7 +14,7 @@ function ChartTooltip({ active, payload }) {
     <div className="rounded-xl border border-ink-200 bg-surface px-3 py-2 shadow-lg">
       <p className="text-xs font-semibold text-ink-900">{p.day}</p>
       <p className="mt-0.5 text-sm font-semibold tabular-nums text-green-700">
-        ${p.avgRaised} avg{' '}
+        {money(p.avgRaised)} avg{' '}
         <span className="font-normal text-ink-500">· {p.count} event{p.count === 1 ? '' : 's'}</span>
       </p>
     </div>
@@ -35,7 +36,7 @@ export default function BestDaysChart({ events }) {
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 4 }}>
           <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#8c8475' }} tickLine={false} axisLine={{ stroke: 'rgba(140,132,117,0.3)' }} />
-          <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11, fill: '#8c8475' }} tickLine={false} axisLine={false} width={48} />
+          <YAxis tickFormatter={(v) => money(v)} tick={{ fontSize: 11, fill: '#8c8475' }} tickLine={false} axisLine={false} width={48} />
           <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<ChartTooltip />} />
           <Bar dataKey="avgRaised" radius={[6, 6, 0, 0]}>
             {data.map((d, i) => (

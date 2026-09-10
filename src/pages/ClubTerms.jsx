@@ -18,6 +18,8 @@ import {
   setAutoTerming, generateTermInsights, initials,
 } from '../lib/api'
 import { laToday } from '../lib/time'
+import { num, money } from '../lib/format'
+import { useDraftRescue } from '../lib/useDraftRescue'
 
 const TODAY = laToday()
 
@@ -140,6 +142,7 @@ export default function ClubTerms() {
         open={modal !== null}
         term={modal === 'new' ? null : modal}
         onClose={() => setModal(null)}
+        onReopen={(t) => setModal(t ?? 'new')}
         onSaved={() => {
           setModal(null)
           load()
@@ -194,7 +197,7 @@ function TermCard({ term: t, events, meetings, members, profit, current, open, o
           <span className="flex items-center gap-1.5"><CalendarCheck size={15} className="text-ink-400" /> {meetings.length}</span>
           <span className="flex items-center gap-1.5"><Users size={15} className="text-ink-400" /> {members.length}</span>
           <span className="flex items-center gap-1.5 font-semibold tabular-nums text-ink-800">
-            <DollarSign size={15} className="text-gold-600" /> {profit.toLocaleString()}
+            <DollarSign size={15} className="text-gold-600" /> {num(profit)}
           </span>
         </span>
         <ChevronDown size={18} className={`shrink-0 text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -239,7 +242,7 @@ function TermCard({ term: t, events, meetings, members, profit, current, open, o
                             <span className="block text-xs text-ink-400">{formatDate(e.date)}</span>
                           </span>
                           {Number(e.raised) > 0 && (
-                            <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-gold-700">${Number(e.raised)}</span>
+                            <span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-gold-700">{money(e.raised)}</span>
                           )}
                         </Link>
                       </li>
@@ -311,21 +314,26 @@ function TermCard({ term: t, events, meetings, members, profit, current, open, o
 
 // Admin add/edit form for a term. Edited terms become 'manual' so auto terming
 // never overwrites them.
-function TermModal({ open, term, onClose, onSaved }) {
+function TermModal({ open, term, onClose, onReopen, onSaved }) {
   const editing = Boolean(term)
   const [label, setLabel] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // Closing a half-filled form says so and offers Undo instead of binning it.
+  const rescue = useDraftRescue({ label: 'Term', value: { label, start, end }, onClose, reopen: () => (onReopen ?? onClose)(term) })
 
   useEffect(() => {
-    if (open) {
-      setLabel(term?.label ?? '')
-      setStart(term?.start_date ?? '')
-      setEnd(term?.end_date ?? '')
-      setErr('')
-    }
+    if (!open) return // never wipe the fields on the way out — Undo still needs them
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    const next = { label: term?.label ?? '', start: term?.start_date ?? '', end: term?.end_date ?? '' }
+    setLabel(next.label)
+    setStart(next.start)
+    setEnd(next.end)
+    setErr('')
+    rescue.setBaseline(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, term])
 
   async function submit(e) {
@@ -341,7 +349,7 @@ function TermModal({ open, term, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? `Edit ${term?.label ?? 'term'}` : 'Add term'}>
+    <Modal open={open} onClose={rescue.close} title={editing ? `Edit ${term?.label ?? 'term'}` : 'Add term'}>
       <form onSubmit={submit} className="space-y-3">
         <FormField label="Label">
           <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} required placeholder="e.g. Summer 2026" />
@@ -359,7 +367,7 @@ function TermModal({ open, term, onClose, onSaved }) {
         </p>
         {err && <p className="text-sm text-coral-700">{err}</p>}
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add term'}</Button>
         </div>
       </form>

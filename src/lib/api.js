@@ -87,6 +87,26 @@ export function deleteHoursEntry(id) {
   return supabase.from('hours_grants').delete().eq('id', id)
 }
 
+// Copy one hours entry onto other members' ledgers (the profile's hours history
+// → "Copy to another member"). Each copy lands as its own editable `manual` row,
+// keeping the original's hours, date, description and event/meeting link, so the
+// entry shows up on the target's profile exactly as it does on the source's.
+// Same admin RLS as every other ledger write (migration 0022).
+export async function copyHoursEntry({ entry, memberIds }) {
+  const rows = (memberIds ?? []).map((id) => ({
+    member_id: id,
+    hours: Number(entry.hours),
+    source: 'manual',
+    note: entry.description || 'Hours',
+    entry_date: entry.date || null,
+    event_id: entry.event_id || null,
+    meeting_id: entry.meeting_id || null,
+  }))
+  if (rows.length === 0) return { ok: false, error: 'Pick at least one member.' }
+  const { error } = await supabase.from('hours_grants').insert(rows)
+  return { ok: !error, error: error?.message }
+}
+
 // A light event list (id, name, date) for linking a hours entry to an event.
 export async function getEventsBrief() {
   const { data } = await supabase.from('events').select('id, name, date').order('date', { ascending: false })

@@ -12,10 +12,12 @@ import {
 } from '../lib/api'
 import MemberChip from '../components/MemberChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
+import { useDraftRescue } from '../lib/useDraftRescue'
 import Linkify from '../components/Linkify'
 import LinkChip from '../components/LinkChip'
 import LocationAutocomplete from '../components/LocationAutocomplete'
 import { hasEnded } from '../lib/time'
+import { num } from '../lib/format'
 
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
@@ -34,7 +36,7 @@ function meetingLength(m) {
     const [sh, sm] = m.start_time.split(':').map(Number)
     const [eh, em] = m.end_time.split(':').map(Number)
     const d = (eh * 60 + em - (sh * 60 + sm)) / 60
-    if (d > 0) return Math.round(d * 10) / 10
+    if (d > 0) return Math.round(d * 100) / 100 // hundredths — matches the hours the ledger credits
   }
   return 1
 }
@@ -182,14 +184,14 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
                 disabled={busy}
                 className="rounded-lg bg-green-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
               >
-                Attend · {len}h
+                Attend · {num(len)}h
               </button>
               <button
                 onClick={() => register('contributor')}
                 disabled={busy}
                 className="rounded-lg border border-blue-300 bg-surface py-2 text-sm font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50"
               >
-                Contribute · {len + 1}h
+                Contribute · {num(len + 1)}h
               </button>
             </div>
           )
@@ -215,18 +217,22 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
 
 const blankMeeting = { title: '', date: '', start_time: '', end_time: '', location: '', notes: '', links: [] }
 
-export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
+export function MeetingFormModal({ open, meeting, onClose, onReopen, onSaved }) {
   const [form, setForm] = useState(blankMeeting)
   const [repeat, setRepeat] = useState(false)
   const [busy, setBusy] = useState(false)
+  // Closing a half-filled form says so and offers Undo instead of binning it.
+  const rescue = useDraftRescue({ label: 'Meeting', value: form, onClose, reopen: onReopen ?? onClose })
   const editing = Boolean(meeting)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const repeatDay = form.date ? DOW[new Date(form.date + 'T00:00:00').getDay()] : null
 
   useEffect(() => {
+    if (!open) return // never wipe the form on the way out — Undo still needs it
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
     setRepeat(false)
     if (meeting) {
-      setForm({
+      const next = {
         title: meeting.title ?? '',
         date: meeting.date ?? '',
         start_time: (meeting.start_time ?? '').slice(0, 5),
@@ -234,10 +240,14 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
         location: meeting.location ?? '',
         notes: meeting.notes ?? '',
         links: meeting.links ?? [],
-      })
+      }
+      setForm(next)
+      rescue.setBaseline(next)
     } else {
       setForm(blankMeeting)
+      rescue.setBaseline(blankMeeting)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meeting, open])
 
   async function submit(e) {
@@ -274,7 +284,7 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit Meeting' : 'Add Meeting'}>
+    <Modal open={open} onClose={rescue.close} title={editing ? 'Edit Meeting' : 'Add Meeting'}>
       <form onSubmit={submit} className="space-y-3">
         <FormField label="Title">
           <input className={inputClass} value={form.title} onChange={set('title')} required placeholder="Weekly officer sync" />
@@ -355,7 +365,7 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
           </div>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Meeting'}</Button>
         </div>
       </form>
@@ -365,15 +375,21 @@ export function MeetingFormModal({ open, meeting, onClose, onSaved }) {
 
 const blankSeries = { title: '', weekday: 4, start_time: '', end_time: '', location: '', notes: '' }
 
-export function SeriesModal({ open, onClose, onChange }) {
+export function SeriesModal({ open, onClose, onReopen, onChange }) {
   const [series, setSeries] = useState([])
   const [form, setForm] = useState(blankSeries)
   const [busy, setBusy] = useState(false)
+  const rescue = useDraftRescue({ label: 'Schedule', value: form, onClose, reopen: onReopen ?? onClose })
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
   const load = () => getMeetingSeries().then(setSeries)
   useEffect(() => {
-    if (open) load()
+    if (!open) return
+    load()
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    setForm(blankSeries)
+    rescue.setBaseline(blankSeries)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   async function add(e) {
@@ -410,7 +426,7 @@ export function SeriesModal({ open, onClose, onChange }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Recurring Meetings">
+    <Modal open={open} onClose={rescue.close} title="Recurring Meetings">
       <div className="space-y-4">
         <p className="text-sm text-ink-600">
           Set a weekly schedule (like every Thursday) and the Hub auto-creates the meetings for the next two

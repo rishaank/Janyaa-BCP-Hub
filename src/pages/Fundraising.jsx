@@ -32,6 +32,7 @@ import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import BestDaysChart from '../components/BestDaysChart'
+import { num, money } from '../lib/format'
 
 const DAY = 86400000
 const ts = (iso) => new Date(iso + 'T00:00:00').getTime()
@@ -71,7 +72,7 @@ function ChartTooltip({ active, payload, label }) {
   return (
     <div className="rounded-xl border border-ink-200 bg-surface px-3 py-2 shadow-lg">
       <p className="text-xs font-semibold text-ink-900">{label}</p>
-      <p className="mt-0.5 text-sm font-semibold tabular-nums text-green-700">${Number(pt.value).toLocaleString()}</p>
+      <p className="mt-0.5 text-sm font-semibold tabular-nums text-green-700">{money(pt.value)}</p>
     </div>
   )
 }
@@ -198,7 +199,7 @@ export default function Fundraising() {
           </div>
           <div className="gfm-body">
             <div className="gfm-raised-l">Raised so far</div>
-            <div className="gfm-raised">{gfmRaised != null ? `$${gfmRaised.toLocaleString()}` : '—'}</div>
+            <div className="gfm-raised">{gfmRaised != null ? money(gfmRaised) : '—'}</div>
             <div className="gfm-goal">
               <span>Shared goal</span>
               <b><EditableGoal target={target} editable={!!settings} onSaved={loadSettings} /></b>
@@ -283,7 +284,7 @@ export default function Fundraising() {
           {canProject && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10, padding: 11, borderRadius: 12, background: 'var(--blue-soft)', fontSize: 12.5, color: 'var(--ink-700)', lineHeight: 1.45 }}>
               <Sparkles size={15} style={{ color: 'var(--blue-text)', flex: 'none', marginTop: 1 }} />
-              <span>At ~<b>${perMonth}/month</b>, in-person events are on track for about <b>${projectedYearEnd.toLocaleString()}</b> by the end of {thisYear}.</span>
+              <span>At ~<b>{money(perMonth)}/month</b>, in-person events are on track for about <b>{money(projectedYearEnd)}</b> by the end of {thisYear}.</span>
             </div>
           )}
         </div>
@@ -306,7 +307,7 @@ export default function Fundraising() {
                   <div className="jh-row-t">{e.name}</div>
                   <div className="jh-row-s">{formatDate(e.date)} · {e.location}</div>
                 </div>
-                <span className="amt">${e.raised}</span>
+                <span className="amt">{money(e.raised)}</span>
               </Link>
             ))
           )}
@@ -360,7 +361,7 @@ export default function Fundraising() {
             <div>
               <p className="text-sm font-medium text-ink-500">Raised So Far</p>
               <p className="mt-0.5 font-display text-5xl font-bold tracking-tight tabular-nums text-green-700">
-                {gfmRaised != null ? `$${gfmRaised.toLocaleString()}` : '—'}
+                {gfmRaised != null ? money(gfmRaised) : '—'}
               </p>
             </div>
             <div className="text-right">
@@ -516,8 +517,8 @@ export default function Fundraising() {
           <div className="mt-3 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
             <Sparkles size={16} className="mt-0.5 shrink-0 text-blue-500" />
             <p>
-              At the current pace (~<span className="font-semibold text-ink-900">${perMonth}/month</span>), in-person events are on track for about{' '}
-              <span className="font-semibold text-ink-900">${projectedYearEnd.toLocaleString()}</span> by the end of {thisYear}.
+              At the current pace (~<span className="font-semibold text-ink-900">{money(perMonth)}/month</span>), in-person events are on track for about{' '}
+              <span className="font-semibold text-ink-900">{money(projectedYearEnd)}</span> by the end of {thisYear}.
             </p>
           </div>
         )}
@@ -543,7 +544,7 @@ export default function Fundraising() {
                     <p className="truncate text-sm font-medium text-ink-800 transition-colors group-hover:text-green-700">{e.name}</p>
                     <p className="truncate text-xs text-ink-400">{formatDate(e.date)} · {e.location}</p>
                   </div>
-                  <span className="shrink-0 font-semibold text-ink-900">${e.raised}</span>
+                  <span className="shrink-0 font-semibold text-ink-900">{money(e.raised)}</span>
                 </Link>
               </li>
             ))}
@@ -571,7 +572,7 @@ function EditableGoal({ target, editable, onSaved }) {
   }
 
   if (!editable) {
-    return <span className="text-ink-900">${Number(target).toLocaleString()}</span>
+    return <span className="text-ink-900">{money(target)}</span>
   }
 
   if (!editing) {
@@ -581,7 +582,7 @@ function EditableGoal({ target, editable, onSaved }) {
         className="inline-flex items-center gap-1 align-baseline text-ink-900 hover:text-green-600"
         title="Edit the shared goal"
       >
-        ${Number(target).toLocaleString()}
+        {money(target)}
         <Pencil size={14} className="text-ink-400" />
       </button>
     )

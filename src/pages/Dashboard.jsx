@@ -17,6 +17,7 @@ import { useIsDesktop } from '../lib/useMediaQuery'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import InsightCard from '../components/InsightCard'
 import Linkify from '../components/Linkify'
+import { num, money } from '../lib/format'
 
 const monthOf = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
 const dayOf = (iso) => new Date(iso + 'T00:00:00').getDate()
@@ -159,7 +160,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 rounded-full border border-gold-200 bg-gold-50 px-3 py-1.5 text-sm text-gold-700"
             >
               <Clock size={14} className="shrink-0" />
-              <span>Hours request pending — <b className="tabular-nums">{Number(r.hours)}h</b> for {r.activity}</span>
+              <span>Hours request pending — <b className="tabular-nums">{num(r.hours)}h</b> for {r.activity}</span>
             </span>
           ))}
           {approvedReqs.map((r) => (
@@ -168,7 +169,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-sm text-green-700"
             >
               <Check size={14} className="shrink-0" />
-              <span>Hours request approved — <b className="tabular-nums">{Number(r.hours)}h</b> for {r.activity}</span>
+              <span>Hours request approved — <b className="tabular-nums">{num(r.hours)}h</b> for {r.activity}</span>
               <button
                 onClick={() => dismissRequest(r.id)}
                 className="-mr-1 shrink-0 rounded-full p-0.5 text-green-700/70 transition-colors hover:bg-green-100 hover:text-green-700"
@@ -188,7 +189,7 @@ export default function Dashboard() {
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-ink-900">Hours request denied</p>
             <p className="mt-0.5 text-sm text-ink-700">
-              Your request for <span className="font-medium">{Number(r.hours)}h</span> ({r.activity}) was denied
+              Your request for <span className="font-medium">{num(r.hours)}h</span> ({r.activity}) was denied
               {r.reviewer?.name ? ` by ${r.reviewer.name}` : ''}.
             </p>
             {r.denial_reason && (
@@ -326,7 +327,7 @@ export default function Dashboard() {
                     <span className="w-4 text-sm font-semibold text-ink-400">{i + 1}</span>
                     <Avatar initials={initials(m.name)} tone={roleTones[m.role]} src={m.avatar_url} />
                     <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink-900">{m.name}</p>
-                    <span className="text-sm font-semibold tabular-nums text-ink-700">{hrs}h</span>
+                    <span className="text-sm font-semibold tabular-nums text-ink-700">{num(hrs)}h</span>
                   </>
                 )
                 return isGuest ? (
@@ -389,7 +390,7 @@ export default function Dashboard() {
                         'Unassigned'
                       )}
                     </span>
-                    <span className="font-mono text-xs font-semibold tabular-nums text-ink-700">{g.progress}%</span>
+                    <span className="font-mono text-xs font-semibold tabular-nums text-ink-700">{num(g.progress)}%</span>
                   </div>
                   <ProgressBar value={g.progress} max={100} tone="gold" />
                 </div>
@@ -473,9 +474,9 @@ function FundraisingPill({ raised, target }) {
         <PiggyBank size={15} className="text-gold-700" />
       </span>
       <span className="flex items-baseline gap-1.5">
-        <span className="font-display text-lg font-bold leading-none tabular-nums text-ink-900">{pct}%</span>
+        <span className="font-display text-lg font-bold leading-none tabular-nums text-ink-900">{num(pct)}%</span>
         <span className="text-sm text-ink-500">to goal</span>
-        <span className="text-xs text-ink-400">· ${raised.toLocaleString()} / ${target.toLocaleString()}</span>
+        <span className="text-xs text-ink-400">· {money(raised)} / {money(target)}</span>
       </span>
     </div>
   )
@@ -531,7 +532,7 @@ function MFundPill({ raised, target }) {
         </svg>
         <PiggyBank size={15} style={{ color: 'var(--gold-text)' }} />
       </span>
-      <span className="jh-pill-val">{pct}%</span>
+      <span className="jh-pill-val">{num(pct)}%</span>
       <span className="jh-pill-lab">to goal</span>
     </div>
   )
@@ -690,7 +691,7 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
                 ? <img className="jh-avatar" src={m.avatar_url} alt="" />
                 : <span className={'jh-avatar av-' + (roleTones[m.role] ?? 'blue')}>{initials(m.name)}</span>}
               <span className="jh-lb-name">{m.name}</span>
-              <span className="jh-lb-h">{lbView === 'term' ? m.term_hours : m.hours}h</span>
+              <span className="jh-lb-h">{num(lbView === 'term' ? m.term_hours : m.hours)}h</span>
             </button>
           ))
         )}
@@ -718,7 +719,7 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
                       </>
                     ) : 'Unassigned'}
                   </span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--ink-700)' }}>{g.progress}%</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--ink-700)' }}>{num(g.progress)}%</span>
                 </div>
                 <div className="jh-prog"><i style={{ width: g.progress + '%' }} /></div>
               </div>

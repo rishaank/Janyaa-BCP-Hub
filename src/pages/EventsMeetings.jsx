@@ -94,6 +94,7 @@ export default function EventsMeetings() {
         event={editEvent}
         events={events}
         onClose={() => setEventForm(false)}
+        onReopen={() => setEventForm(true)}
         onSaved={() => { setEventForm(false); loadEvents(); autoGenerateInsights() }}
       />
       <CalendarSubscribeModal open={showSubscribe} onClose={() => setShowSubscribe(false)} />
@@ -101,9 +102,15 @@ export default function EventsMeetings() {
         open={meetingForm}
         meeting={editMeeting}
         onClose={() => setMeetingForm(false)}
+        onReopen={() => setMeetingForm(true)}
         onSaved={() => { setMeetingForm(false); loadMeetings() }}
       />
-      <SeriesModal open={seriesOpen} onClose={() => setSeriesOpen(false)} onChange={loadMeetings} />
+      <SeriesModal
+        open={seriesOpen}
+        onClose={() => setSeriesOpen(false)}
+        onReopen={() => setSeriesOpen(true)}
+        onChange={loadMeetings}
+      />
     </>
   )
 

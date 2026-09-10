@@ -18,6 +18,8 @@ import { hasGooglePlaces, lookupAddress } from '../lib/places'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { bestDays, topDay } from '../lib/planning'
 import { hasEnded } from '../lib/time'
+import { useDraftRescue } from '../lib/useDraftRescue'
+import { num, money } from '../lib/format'
 
 // "15:00:00" → "3:00 PM"
 function fmtTime(t) {
@@ -195,9 +197,9 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
         ) : event.is_tentative ? (
           <span className="flex items-center gap-1.5 text-ink-400"><Clock size={14} className="text-ink-400" /> Time TBD</span>
         ) : null}
-        <span className="flex items-center gap-1.5"><Hourglass size={14} className="text-ink-400" /> {event.hours} hrs each</span>
+        <span className="flex items-center gap-1.5"><Hourglass size={14} className="text-ink-400" /> {num(event.hours)} hrs each</span>
         {Number(event.raised) > 0 && (
-          <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-green-600" /> ${Number(event.raised).toLocaleString()} raised</span>
+          <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-green-600" /> {money(event.raised)} raised</span>
         )}
       </div>
 
@@ -297,9 +299,11 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
 
 const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', latitude: null, longitude: null, hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [], is_tentative: false }
 
-export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
+export function EventFormModal({ open, event, events = [], onClose, onReopen, onSaved }) {
   const [form, setForm] = useState(blank)
   const [busy, setBusy] = useState(false)
+  // Closing a half-filled form says so and offers Undo instead of binning it.
+  const rescue = useDraftRescue({ label: 'Event', value: form, onClose, reopen: onReopen ?? onClose })
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const editing = Boolean(event)
   const [saved, setSaved] = useState([])
@@ -337,8 +341,10 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   }, [open])
 
   useEffect(() => {
+    if (!open) return // never wipe the form on the way out — Undo still needs it
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
     if (event) {
-      setForm({
+      const next = {
         name: event.name ?? '',
         date: event.date ?? '',
         start_time: (event.start_time ?? '').slice(0, 5),
@@ -354,10 +360,14 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
         notes: event.notes ?? '',
         instagram_urls: event.instagram_urls ?? [],
         is_tentative: event.is_tentative ?? false,
-      })
+      }
+      setForm(next)
+      rescue.setBaseline(next)
     } else {
       setForm(blank)
+      rescue.setBaseline(blank)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, open])
 
   async function submit(e) {
@@ -387,7 +397,7 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit Event' : 'Add Event'}>
+    <Modal open={open} onClose={rescue.close} title={editing ? 'Edit Event' : 'Add Event'}>
       <form onSubmit={submit} className="space-y-3">
         <FormField label="Event name">
           <input className={inputClass} value={form.name} onChange={set('name')} required placeholder="Library STEM session" />
@@ -512,7 +522,7 @@ export function EventFormModal({ open, event, events = [], onClose, onSaved }) {
           </div>
         </FormField>
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Event'}</Button>
         </div>
       </form>

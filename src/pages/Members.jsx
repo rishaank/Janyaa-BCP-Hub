@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { num } from '../lib/format'
+import { useDraftRescue } from '../lib/useDraftRescue'
 
 // Gold / silver / bronze for the top-3 hours leaders.
 const TROPHY = ['#eab308', '#9ca3af', '#cd7f32']
@@ -41,8 +43,8 @@ export default function Members() {
   }, [])
   useRealtime(['profiles', 'event_signups'], load)
 
-  const totalHours = Math.round(members.reduce((s, m) => s + m.hours, 0) * 10) / 10
-  const totalTermHours = Math.round(members.reduce((s, m) => s + (m.term_hours ?? 0), 0) * 10) / 10
+  const totalHours = num(members.reduce((s, m) => s + m.hours, 0))
+  const totalTermHours = num(members.reduce((s, m) => s + (m.term_hours ?? 0), 0))
   // Ranked most → least hours, so the list order + trophies line up.
   const ranked = [...members].sort((a, b) => b.hours - a.hours)
 
@@ -175,8 +177,8 @@ export default function Members() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-ink-600">{m.joined_date ? formatDate(m.joined_date) : '—'}</td>
-                    <td className="px-5 py-3 font-mono tabular-nums text-ink-600">{m.term_hours} hrs</td>
-                    <td className="px-5 py-3 font-mono font-semibold tabular-nums text-ink-900">{m.hours} hrs</td>
+                    <td className="px-5 py-3 font-mono tabular-nums text-ink-600">{num(m.term_hours)} hrs</td>
+                    <td className="px-5 py-3 font-mono font-semibold tabular-nums text-ink-900">{num(m.hours)} hrs</td>
                   </tr>
                 ))}
               </tbody>
@@ -185,7 +187,7 @@ export default function Members() {
         )}
       </Card>
 
-      <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={load} />
+      <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onReopen={() => setAddOpen(true)} onAdded={load} />
     </>
   )
 }
@@ -277,8 +279,8 @@ function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen
                 </div>
               </div>
               <div className="mem-hrs">
-                <div className="mem-hrs-v">{sortBy === 'total' ? m.hours : (m.term_hours ?? 0)}h</div>
-                <div className="mem-hrs-l">{sortBy === 'total' ? `${m.term_hours ?? 0}h term` : `${m.hours}h total`}</div>
+                <div className="mem-hrs-v">{num(sortBy === 'total' ? m.hours : (m.term_hours ?? 0))}h</div>
+                <div className="mem-hrs-l">{sortBy === 'total' ? `${num(m.term_hours ?? 0)}h term` : `${num(m.hours)}h total`}</div>
               </div>
             </button>
           ))
@@ -294,7 +296,7 @@ function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen
           <UserPlus size={24} /> Add
         </button>
       )}
-      <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onAdded={onAdded} />
+      <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} onReopen={() => setAddOpen(true)} onAdded={onAdded} />
     </>
   )
 }
@@ -343,7 +345,9 @@ const tab = (active) =>
     active ? 'border-green-500 bg-green-50 text-green-700' : 'border-ink-200 text-ink-600 hover:bg-ink-50'
   }`
 
-function AddMemberModal({ open, onClose, onAdded }) {
+const blankMember = { name: '', email: '', mode: 'invite', password: '' }
+
+function AddMemberModal({ open, onClose, onReopen, onAdded }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [mode, setMode] = useState('invite') // 'invite' | 'password'
@@ -355,6 +359,26 @@ function AddMemberModal({ open, onClose, onAdded }) {
   // shows the link instead of the form, since the account can't be made twice.
   const [invite, setInvite] = useState(null) // { link, copied }
 
+  // Closing a half-filled form says so and offers Undo instead of binning it —
+  // off once the account exists (a success close isn't a discarded draft).
+  const rescue = useDraftRescue({
+    label: 'Member',
+    value: { name, email, mode, password },
+    onClose,
+    reopen: onReopen ?? onClose,
+    enabled: !okMsg && !invite,
+  })
+
+  // The form only resets on the way *in*: on the way out the draft has to stay
+  // put, or Undo would bring back an empty form.
+  useEffect(() => {
+    if (!open) return
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    reset()
+    rescue.setBaseline(blankMember)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
   function reset() {
     setName('')
     setEmail('')
@@ -365,8 +389,7 @@ function AddMemberModal({ open, onClose, onAdded }) {
     setInvite(null)
   }
   function close() {
-    reset()
-    onClose()
+    rescue.close()
   }
 
   async function submit(e) {

@@ -21,6 +21,8 @@ import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useTheme } from '../context/ThemeContext'
 import { locationPerformance } from '../lib/planning'
 import Linkify from '../components/Linkify'
+import { money } from '../lib/format'
+import { useDraftRescue } from '../lib/useDraftRescue'
 
 // Green dot for a not-yet-saved pin.
 const pendingIcon = L.divIcon({
@@ -306,7 +308,7 @@ export default function Locations() {
                 {loc.description && <p className="mt-2 break-words text-sm text-ink-600"><Linkify>{loc.description}</Linkify></p>}
                 {perf[loc.id]?.count > 0 && (
                   <p className="mt-2 text-xs font-semibold text-green-700">
-                    ${perf[loc.id].raised.toLocaleString()} raised · {perf[loc.id].count} event
+                    {money(perf[loc.id].raised)} raised · {perf[loc.id].count} event
                     {perf[loc.id].count === 1 ? '' : 's'} here{loc.id === topId ? ' · top earner' : ''}
                   </p>
                 )}
@@ -342,6 +344,7 @@ export default function Locations() {
       <SaveLocationModal
         pending={pending}
         onClose={() => setPending(null)}
+        onReopen={(p) => setPending(p)}
         onSaved={() => {
           setPending(null)
           load()
@@ -350,6 +353,7 @@ export default function Locations() {
       <EditLocationModal
         location={editing}
         onClose={() => setEditing(null)}
+        onReopen={(loc) => setEditing(loc)}
         onSaved={() => {
           setEditing(null)
           load()
@@ -487,13 +491,20 @@ function LocationFields({ form, set }) {
   )
 }
 
-function SaveLocationModal({ pending, onClose, onSaved }) {
+function SaveLocationModal({ pending, onClose, onReopen, onSaved }) {
   const [form, setForm] = useState(blankLoc)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  // Closing a half-filled form says so and offers Undo instead of binning it.
+  const rescue = useDraftRescue({ label: 'Location', value: form, onClose, reopen: () => (onReopen ?? onClose)(pending) })
 
   useEffect(() => {
-    if (pending) setForm((f) => ({ ...f, name: pending.name || '', address: pending.address || '' }))
+    if (!pending) return // never wipe the form on the way out — Undo still needs it
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    const next = { ...blankLoc, name: pending.name || '', address: pending.address || '' }
+    setForm(next)
+    rescue.setBaseline(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending])
 
   async function submit(e) {
@@ -506,14 +517,14 @@ function SaveLocationModal({ pending, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={Boolean(pending)} onClose={onClose} title="Save location">
+    <Modal open={Boolean(pending)} onClose={rescue.close} title="Save location">
       <form onSubmit={submit} className="space-y-3">
         <p className="rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-500">
           📍 {pending ? `${pending.lat.toFixed(4)}, ${pending.lng.toFixed(4)}` : ''} — address auto-filled from the map
         </p>
         <LocationFields form={form} set={set} />
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" icon={Plus} disabled={busy}>{busy ? 'Saving…' : 'Save location'}</Button>
         </div>
       </form>
@@ -521,22 +532,27 @@ function SaveLocationModal({ pending, onClose, onSaved }) {
   )
 }
 
-function EditLocationModal({ location, onClose, onSaved }) {
+function EditLocationModal({ location, onClose, onReopen, onSaved }) {
   const [form, setForm] = useState(blankLoc)
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
+  // Closing a half-edited form says so and offers Undo instead of binning it.
+  const rescue = useDraftRescue({ label: 'Location', value: form, onClose, reopen: () => (onReopen ?? onClose)(location) })
 
   useEffect(() => {
-    if (location) {
-      setForm({
-        name: location.name ?? '',
-        address: location.address ?? '',
-        status: location.status ?? 'prospect',
-        contact_person: location.contact_person ?? '',
-        contact_email: location.contact_email ?? '',
-        description: location.description ?? '',
-      })
+    if (!location) return // never wipe the form on the way out — Undo still needs it
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    const next = {
+      name: location.name ?? '',
+      address: location.address ?? '',
+      status: location.status ?? 'prospect',
+      contact_person: location.contact_person ?? '',
+      contact_email: location.contact_email ?? '',
+      description: location.description ?? '',
     }
+    setForm(next)
+    rescue.setBaseline(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location])
 
   async function submit(e) {
@@ -548,11 +564,11 @@ function EditLocationModal({ location, onClose, onSaved }) {
   }
 
   return (
-    <Modal open={Boolean(location)} onClose={onClose} title="Edit location">
+    <Modal open={Boolean(location)} onClose={rescue.close} title="Edit location">
       <form onSubmit={submit} className="space-y-3">
         <LocationFields form={form} set={set} />
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
         </div>
       </form>

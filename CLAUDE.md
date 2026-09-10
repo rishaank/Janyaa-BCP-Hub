@@ -149,13 +149,33 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     `event_signups` / `meeting_attendees`.
   - **Popups: one z-layer scale, and they always lock the page.** Layers are page content `0` ·
     sticky page headers `z-30` · desktop sidebar `z-40` · mobile bottom sheet `60/61` (`mobile.css`) ·
-    modals `z-[200]`. **Nothing outside a modal may exceed `z-30`** — a `z-[500]` header on the
+    modals `z-[200]` · toasts `z-[300]`. **Nothing outside a modal or a toast may exceed `z-30`** — a `z-[500]` header on the
     event/meeting full-screen views used to paint over the modal veil. Leaflet maps don't need a high
     header: wrap the map in `relative z-0 … isolate` (as `EventView` / `Locations` do) and its internal
     panes stay contained. Every overlay calls `useScrollLock()` (`src/lib/useScrollLock.js`), which
     refcounts a `ja-scroll-locked` class on `<html>`; the CSS in `index.css` freezes **both** the
     document scroller *and* the mobile shell's `.jh-body` pane, and pads out the hidden scrollbar so
     the background doesn't shift. The shared `Modal` does this for you — new popups should use it.
+  - **Toasts + draft rescue.** `src/context/ToastContext.jsx` (`ToastProvider`, wrapped in `App.jsx`
+    inside `AuthProvider`) shows small auto-dismissing chips — bottom-centre above the mobile FAB,
+    bottom-right on desktop — with an optional action button and a countdown rail (`.ja-toast-timer`).
+    `useToast()` → `showToast({ message, detail, actionLabel, onAction, duration = 7000, tone })`.
+    Its main job is **draft rescue** (`src/lib/useDraftRescue.js`): closing a multi-field popup with
+    the X, Cancel, or a veil click used to bin everything typed. Now the modal wraps its close in
+    `useDraftRescue({ label, value, onClose, reopen })` and, when the fields differ from the baseline,
+    the close shows a “<label> draft cleared” chip for 7 s whose **Undo** reopens the popup with every
+    field intact. Wired into the event, meeting, recurring-schedule, hours-entry, hours-request, goal,
+    semester-targets, add-member, location (save + edit) and term forms; the parent passes an
+    `onReopen` beside `onClose`. Two rules make it work: the modal's reset effect must bail out
+    **while closed** (`if (!open) return`) so the draft outlives the close, and must bail out on
+    `rescue.consumeRestore()` so Undo isn't overwritten. Most form modals stay mounted while closed,
+    so their own state holds the draft; one that the parent unmounts (`GoalEditModal`) gets it back
+    through `reopen(draft)` → a `draft` field on its `state` prop.
+  - **Numbers on screen go through `src/lib/format.js`** — `num(v)` and `money(v)` round to at most
+    the hundredths place (a maximum, so whole numbers stay whole) and add thousands separators.
+    Hours are derived, not typed — a 50-minute meeting is `0.8333…` hours — so any raw `{x.hours}`
+    or `${x.raised}` in JSX is a bug waiting to print a full float. Rounding is display-only; stored
+    values keep their precision so totals still sum from the exact figures.
 
 ## Design system — READ THIS BEFORE TOUCHING UI
 
@@ -343,7 +363,12 @@ the monthly cron + the per-role **Grant Now** button (`grant_role_month`, 0031) 
 month's grants idempotently.
 **Hours breakdown (Feature 3):** `get_hours_breakdowns(p_member uuid)` (null = everyone) returns each
 member's itemized history; shown on `ProfilePage` and exported to **.xlsx** via `src/lib/exportHours.js`
-(SheetJS, lazy-loaded) — per-user on the profile, **global on the Members page**. **Spreadsheet import
+(SheetJS, lazy-loaded) — per-user on the profile, **global on the Members page**. Each row in that
+history carries a hover **Copy** button for the **operations lead** (`copyHoursEntry` in `api.js`):
+one activity often covers several people, and re-typing it per profile is where the ledger drifts.
+Every pick gets its own editable `manual` row keeping the original's hours, date, description and
+event/meeting link — it does **not** de-duplicate, so check the target isn't already credited.
+**Spreadsheet import
 (0019):** a one-time load from "Janyaa Member Hours.xlsx" set everyone's history (exact per-member totals,
 event rows linked by date); the member **Aarush** was created (auth user, no password) and **Rohan**'s
 sign-up hours were materialized into the ledger.

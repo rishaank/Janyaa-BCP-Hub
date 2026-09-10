@@ -5,6 +5,7 @@ import { getRoleHoursRules, updateRoleHoursRule, grantRoleMonth } from '../lib/a
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { num } from '../lib/format'
 
 const cadenceLabel = { monthly: 'every month', per_event: 'per new event' }
 // Stable display order, regardless of how the rows come back.
@@ -142,7 +143,7 @@ function RuleRow({ rule, granted, onGrant }) {
         <div className="min-w-0">
           <p className="font-medium text-ink-900">{roleLabels[rule.role] ?? rule.role}</p>
           <p className="text-xs text-ink-500">
-            {Number(hours)} {Number(hours) === 1 ? 'hour' : 'hours'} {cadenceLabel[cadence]}
+            {num(hours)} {Number(hours) === 1 ? 'hour' : 'hours'} {cadenceLabel[cadence]}
           </p>
         </div>
       </div>

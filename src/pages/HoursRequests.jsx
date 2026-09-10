@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getHoursRequests, decideHoursRequest, initials } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { num } from '../lib/format'
 
 const fmtDateTime = (iso) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -132,7 +133,7 @@ function RequestCard({ req, onChange, reviewed }) {
           </div>
         </div>
         <span className="shrink-0 rounded-xl bg-ink-50 px-3 py-1.5 text-center">
-          <span className="block font-display text-lg font-bold leading-none text-ink-900">{Number(req.hours)}</span>
+          <span className="block font-display text-lg font-bold leading-none text-ink-900">{num(req.hours)}</span>
           <span className="mt-0.5 block text-2xs text-ink-500">hours</span>
         </span>
       </div>

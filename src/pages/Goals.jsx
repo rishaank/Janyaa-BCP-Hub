@@ -11,6 +11,8 @@ import { useRealtime } from '../lib/useRealtime'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import { useIsDesktop } from '../lib/useMediaQuery'
 import Linkify from '../components/Linkify'
+import { num } from '../lib/format'
+import { useDraftRescue } from '../lib/useDraftRescue'
 
 const MONTH_ABBR = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 const MONTH_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -210,10 +212,17 @@ export default function Goals() {
           myId={myId}
           isAdmin={isAdmin}
           onClose={() => setEdit(null)}
+          onReopen={(next) => setEdit(next)}
           onSaved={() => { setEdit(null); loadGoals() }}
         />
       )}
-      <TargetsEditorModal open={targetsOpen} targets={targets} onClose={() => setTargetsOpen(false)} onSave={saveTargets} />
+      <TargetsEditorModal
+        open={targetsOpen}
+        targets={targets}
+        onClose={() => setTargetsOpen(false)}
+        onReopen={() => setTargetsOpen(true)}
+        onSave={saveTargets}
+      />
 
       {!isDesktop && (
         <button className="jh-fab" onClick={openAddGoal} aria-label="Add goal">
@@ -405,7 +414,7 @@ function ProgressLine({ value, done }) {
       <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-ink-150">
         <div className={`h-full rounded-full ${done ? 'bg-green-600' : 'bg-gold-500'}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="min-w-[30px] text-right font-mono text-[11.5px] font-bold tabular-nums text-ink-600">{pct}%</span>
+      <span className="min-w-[34px] text-right font-mono text-[11.5px] font-bold tabular-nums text-ink-600">{num(pct)}%</span>
     </div>
   )
 }
@@ -492,11 +501,18 @@ function TargetsStrip({ targets, editable, onEdit }) {
   )
 }
 
-function TargetsEditorModal({ open, targets, onClose, onSave }) {
+function TargetsEditorModal({ open, targets, onClose, onReopen, onSave }) {
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
+  // Closing half-edited targets says so and offers Undo instead of binning them.
+  const rescue = useDraftRescue({ label: 'Targets', value: items, onClose, reopen: onReopen ?? onClose })
   useEffect(() => {
-    if (open) setItems((targets || []).map((t) => ({ label: t.label ?? '', sub: t.sub ?? '' })))
+    if (!open) return // never wipe the list on the way out — Undo still needs it
+    if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
+    const next = (targets || []).map((t) => ({ label: t.label ?? '', sub: t.sub ?? '' }))
+    setItems(next)
+    rescue.setBaseline(next)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, targets])
 
   async function save() {
@@ -507,7 +523,7 @@ function TargetsEditorModal({ open, targets, onClose, onSave }) {
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Edit Semester Targets">
+    <Modal open={open} onClose={rescue.close} title="Edit Semester Targets">
       <div className="space-y-3">
         <p className="text-sm text-ink-600">Club-wide goals for the term. These also show on the dashboard.</p>
         <div className="space-y-2">
@@ -543,7 +559,7 @@ function TargetsEditorModal({ open, targets, onClose, onSave }) {
           <Plus size={15} /> Add Target
         </button>
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="soft" onClick={onClose}>Cancel</Button>
+          <Button variant="soft" onClick={rescue.close}>Cancel</Button>
           <Button icon={Check} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save Targets'}</Button>
         </div>
       </div>
@@ -553,14 +569,30 @@ function TargetsEditorModal({ open, targets, onClose, onSave }) {
 
 // ---- add / edit a single goal cell --------------------------------------
 
-function GoalEditModal({ state, members, months, myId, isAdmin, onClose, onSaved }) {
+function GoalEditModal({ state, members, months, myId, isAdmin, onClose, onReopen, onSaved }) {
   const goal = state.goal
   const editing = !!goal
-  const [ownerId, setOwnerId] = useState(goal?.owner_id ?? state.owner_id ?? (isAdmin ? '' : myId))
-  const [period, setPeriod] = useState(goal?.period ?? state.period ?? 'TERM')
-  const [text, setText] = useState(goal?.title ?? '')
-  const [progress, setProgress] = useState(goal?.progress ?? 0)
+  // This modal is unmounted on close, so a rescued draft rides back in on the
+  // `state` prop (see the Goals grid's onReopen) rather than surviving in state.
+  const base = {
+    ownerId: goal?.owner_id ?? state.owner_id ?? (isAdmin ? '' : myId),
+    period: goal?.period ?? state.period ?? 'TERM',
+    text: goal?.title ?? '',
+    progress: Number(goal?.progress ?? 0),
+  }
+  const seed = state.draft ?? base
+  const [ownerId, setOwnerId] = useState(seed.ownerId)
+  const [period, setPeriod] = useState(seed.period)
+  const [text, setText] = useState(seed.text)
+  const [progress, setProgress] = useState(seed.progress)
   const [busy, setBusy] = useState(false)
+  const rescue = useDraftRescue({
+    label: 'Goal',
+    value: { ownerId, period, text, progress: Number(progress) },
+    baseline: base,
+    onClose,
+    reopen: (draft) => (onReopen ?? onClose)({ ...state, draft }),
+  })
 
   const periodOptions = [{ key: 'TERM', label: 'Term goal' }, ...months.map((mo) => ({ key: mo.key, label: `${mo.long} goal` }))]
 
@@ -590,7 +622,7 @@ function GoalEditModal({ state, members, months, myId, isAdmin, onClose, onSaved
   }
 
   return (
-    <Modal open onClose={onClose} title={editing ? 'Edit Goal' : 'Add Goal'}>
+    <Modal open onClose={rescue.close} title={editing ? 'Edit Goal' : 'Add Goal'}>
       <form onSubmit={submit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Member">
@@ -619,7 +651,7 @@ function GoalEditModal({ state, members, months, myId, isAdmin, onClose, onSaved
         <FormField label="Goal">
           <textarea className={inputClass} rows={3} value={text} onChange={(e) => setText(e.target.value)} required placeholder="What does success look like?" />
         </FormField>
-        <FormField label={`Progress · ${progress}%${Number(progress) >= 100 ? ' · done' : ''}`}>
+        <FormField label={`Progress · ${num(progress)}%${Number(progress) >= 100 ? ' · done' : ''}`}>
           <input type="range" min="0" max="100" step="5" value={progress} onChange={(e) => setProgress(e.target.value)} className="ja-range" />
         </FormField>
         <div className="flex items-center justify-between pt-1">
@@ -629,7 +661,7 @@ function GoalEditModal({ state, members, months, myId, isAdmin, onClose, onSaved
             </button>
           ) : <span />}
           <div className="flex gap-2">
-            <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
+            <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
             <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save' : 'Add Goal'}</Button>
           </div>
         </div>

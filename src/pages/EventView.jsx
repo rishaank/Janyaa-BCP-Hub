@@ -17,6 +17,7 @@ import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { EventTodosPanel } from '../components/EventTodos'
 import { EventFormModal } from './Events'
 import { hasEnded } from '../lib/time'
+import { num, money } from '../lib/format'
 
 const pin = L.divIcon({
   className: '',
@@ -274,8 +275,8 @@ function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, r
 
       {/* Stats */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <StatPill icon={Hourglass} tone="green" value={event.hours} label="hours each" />
-        <StatPill icon={DollarSign} tone="gold" value={`$${raised.toLocaleString()}`} label="raised" />
+        <StatPill icon={Hourglass} tone="green" value={num(event.hours)} label="hours each" />
+        <StatPill icon={DollarSign} tone="gold" value={money(raised)} label="raised" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

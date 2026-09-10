@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
+import { ToastProvider } from './context/ToastContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import Layout from './components/Layout'
@@ -46,6 +47,7 @@ export default function App() {
     <ThemeProvider>
       <ErrorBoundary>
         <AuthProvider>
+          <ToastProvider>
           <BrowserRouter>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -90,6 +92,7 @@ export default function App() {
           <Analytics />
           <SpeedInsights />
           </BrowserRouter>
+          </ToastProvider>
         </AuthProvider>
       </ErrorBoundary>
     </ThemeProvider>
