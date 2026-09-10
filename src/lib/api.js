@@ -113,6 +113,18 @@ export async function getEventsBrief() {
   return data ?? []
 }
 
+// Every place the club has run an event, for the event form's one-box location
+// picker ("Used before"). Light on purpose — no sign-ups, no to-dos — and the
+// picker de-dupes by name and orders newest first.
+export async function getEventPlaces() {
+  const { data } = await supabase
+    .from('events')
+    .select('id, location, address, latitude, longitude, date')
+    .not('location', 'is', null)
+    .order('date', { ascending: false })
+  return (data ?? []).filter((e) => (e.location ?? '').trim())
+}
+
 // ---- Hours requests (member → operations lead, migration 0023) ------------
 
 // Submit a request for hours to the operations lead. A member requests for

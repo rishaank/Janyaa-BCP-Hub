@@ -795,7 +795,7 @@ function HoursEntryModal({ open, entry, memberId, onClose, onReopen, onSaved }) 
   return (
     <Modal open={open} onClose={rescue.close} title={editing ? 'Edit hours entry' : 'Add hours'}>
       <form onSubmit={submit} className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
           <FormField label="Hours">
             <input type="number" min="0" step="0.5" className={inputClass} value={hours} onChange={(e) => setHours(e.target.value)} required />
           </FormField>

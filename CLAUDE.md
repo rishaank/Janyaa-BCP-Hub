@@ -171,6 +171,26 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     `rescue.consumeRestore()` so Undo isn't overwritten. Most form modals stay mounted while closed,
     so their own state holds the draft; one that the parent unmounts (`GoalEditModal`) gets it back
     through `reopen(draft)` → a `draft` field on its `state` prop.
+  - **One box for a place.** The event form asks for a location **once**:
+    `src/components/LocationPicker.jsx` holds name + address + lat/lng behind a single
+    field. Its dropdown ranks **Saved spots** (`locations`, bookmark icon) → **Used before**
+    (every past event's place, newest first, history icon, via `getEventPlaces()`) → **live
+    place search** (Google Places, OpenStreetMap fallback), each row showing the name large
+    with the address as its subtitle. The input carries the name; the resolved address sits
+    under it. On submit, a name typed without picking a suggestion is resolved through
+    `lookupAddress()` so `location` **and** `address` + coordinates all land in the row —
+    the DB columns are unchanged, so every existing display keeps working.
+    `LocationAutocomplete.jsx` is the older single-value picker, still used for meetings
+    (one free-text location, no address column) and the Locations page.
+  - **Optional fields hide until asked for.** In the event form, *Amount raised* and *Notes*
+    are behind `+ Add Amount Raised` / `+ Add Notes` buttons styled exactly like the link
+    adder, and an edit opens them automatically when the event already has a value
+    (`extrasFor`). Collapsing one clears it, so a hidden box never saves an invisible value.
+    Form helper text is kept to what a member can't infer — don't re-explain a labelled field.
+  - **Two-column date/time rows must stack on a phone.** Native `date`/`time` controls have a
+    wide intrinsic minimum, so inside the `max-w-md` modal they overlap at phone widths. Every
+    such row is `grid-cols-1 gap-3 min-[26rem]:grid-cols-2` (the event, meeting, term and
+    hours-entry forms). Use that, not a bare `grid-cols-2`.
   - **Numbers on screen go through `src/lib/format.js`** — `num(v)` and `money(v)` round to at most
     the hundredths place (a maximum, so whole numbers stay whole) and add thousands separators.
     Hours are derived, not typed — a 50-minute meeting is `0.8333…` hours — so any raw `{x.hours}`
@@ -285,6 +305,11 @@ UPDATE policy repeats the meeting test in **`with check` as well as `using`**, o
 re-point an upcoming row at a finished meeting; (3) `sync_meeting_hours_ledger()` + triggers mirror 0034
 so a **pre-cutoff** meeting credits its attendees (source `attendance`, the meeting counterpart of
 `signup`) — no meeting predates the cutoff today, so there was nothing to backfill.
+Migration 0037 gives **events the general `links` array** meetings have had since 0030: an event could
+only ever carry Instagram posts (`instagram_urls`), so a sign-up sheet, flyer or drive folder had nowhere
+to go. `events.links` (`text[]`) is backfilled from `instagram_urls`, `get_public_event()` returns both
+(so a cached older bundle doesn't lose the posts mid-rollout), and the legacy column is left in place as
+the rollback path — **deprecated, no longer written**.
 Tables: `profiles`, `events`, `event_signups`,
 `event_todos`, `meetings` / `meeting_series` / `meeting_attendees` (club meetings — see below),
 `goals` (leadership goals), `role_hours_rules` / `hours_grants` (role-based auto-hours, migration 0015),
@@ -297,8 +322,13 @@ Tables: `profiles`, `events`, `event_signups`,
   a not-yet-confirmed event whose date/time/location can be left “TBD”; tentative events bucket into their
   own section, never earn hours, and are marked `STATUS:TENTATIVE` / skipped in the `.ics` feed),
   `latitude` / `longitude` (migration 0016 — captured from the location autocomplete so the public event
-  view can show a map; the view geocodes the address as a fallback). `get_public_event(uuid)` (anon RPC,
-  migration 0016) returns one event's public data + attendees for `/events/:id`.
+  view can show a map; the view geocodes the address as a fallback), `links` (`text[]`, migration 0037 —
+  **every** event URL, the same shape as `meetings.links`). `get_public_event(uuid)` (anon RPC,
+  migration 0016, extended in 0037) returns one event's public data + attendees for `/events/:id`.
+  **`instagram_urls` is deprecated** (migration 0037 folded it into `links` and backfilled it): the app
+  no longer writes it, reads fall back to it only for a row `links` hasn't reached, and a later migration
+  should drop it. Instagram URLs are just links now — `EventView` still detects them and renders the full
+  `embed.js` posts, while every other link renders as a `LinkChip`.
 - **`profiles`:** `is_admin`, `hours_adjustment`, `avatar_url`, and `is_founder` (migration 0012 — drives
   the **Founder** badge on Members + the profile header; set on the club founders).
 - **`club_settings`:** `term_start_date` (migration 0013 — when the current term began; default

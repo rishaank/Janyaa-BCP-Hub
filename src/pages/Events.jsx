@@ -2,7 +2,7 @@
 // the event card, the create/edit form modal, and the calendar-subscribe modal.
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Instagram, Pencil } from 'lucide-react'
+import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, X, CalendarPlus, Check, TrendingUp, ExternalLink, Link2, Pencil } from 'lucide-react'
 import { Card, Button, Badge, ProgressBar, Modal, FormField, inputClass } from '../components/ui'
 import {
   getLocations,
@@ -10,11 +10,13 @@ import {
   leaveEvent,
   createEvent,
   updateEvent,
+  getEventPlaces,
 } from '../lib/api'
-import LocationAutocomplete from '../components/LocationAutocomplete'
+import LocationPicker from '../components/LocationPicker'
 import MemberChip from '../components/MemberChip'
+import LinkChip from '../components/LinkChip'
 import EventTodos from '../components/EventTodos'
-import { hasGooglePlaces, lookupAddress } from '../lib/places'
+import { lookupAddress } from '../lib/places'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { bestDays, topDay } from '../lib/planning'
 import { hasEnded } from '../lib/time'
@@ -93,6 +95,9 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
   const [copied, setCopied] = useState('')
   const [manage, setManage] = useState(false)
   const timeRange = timeRangeOf(event.start_time, event.end_time)
+  // Instagram posts live in `links` since migration 0037; older rows kept them
+  // in the legacy column.
+  const eventLinks = event.links?.length ? event.links : event.instagram_urls ?? []
   const mapsUrl = event.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`
     : null
@@ -203,18 +208,10 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
         )}
       </div>
 
-      {event.instagram_urls?.length > 0 && (
+      {eventLinks.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {event.instagram_urls.map((url, i) => (
-            <a
-              key={i}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-full bg-ink-50 px-2.5 py-1 text-xs font-medium text-ink-700 transition-colors hover:bg-blue-50 hover:text-blue-700"
-            >
-              <Instagram size={13} /> {event.instagram_urls.length > 1 ? `Post ${i + 1}` : 'Instagram'}
-            </a>
+          {eventLinks.map((url, i) => (
+            <LinkChip key={i} url={url} />
           ))}
         </div>
       )}
@@ -297,47 +294,33 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
   )
 }
 
-const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', latitude: null, longitude: null, hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', instagram_urls: [], is_tentative: false }
+const blank = { name: '', date: '', start_time: '', end_time: '', location: '', address: '', latitude: null, longitude: null, hours: 3, min_people: 2, max_people: 6, raised: 0, notes: '', links: [], is_tentative: false }
+
+// Which optional fields a saved event already uses — those open straight away so
+// an edit never hides data behind an Add button.
+const extrasFor = (e) => ({ raised: Number(e?.raised) > 0, notes: Boolean((e?.notes ?? '').trim()) })
 
 export function EventFormModal({ open, event, events = [], onClose, onReopen, onSaved }) {
   const [form, setForm] = useState(blank)
   const [busy, setBusy] = useState(false)
+  // Amount raised + notes stay out of the way until asked for (same pattern as
+  // the link rows) — most events are created with neither.
+  const [extras, setExtras] = useState(extrasFor(null))
   // Closing a half-filled form says so and offers Undo instead of binning it.
   const rescue = useDraftRescue({ label: 'Event', value: form, onClose, reopen: onReopen ?? onClose })
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
   const editing = Boolean(event)
   const [saved, setSaved] = useState([])
-  const [finding, setFinding] = useState(false)
-  const addrTimer = useRef(null)
-
-  // Typing/pasting an address fills in the Location name (and coordinates for
-  // the event map) — the reverse of picking a place in the search above. Only
-  // ever fills a blank Location, so it can't clobber a name someone chose.
-  function setAddress(e) {
-    const address = e.target.value
-    setForm({ ...form, address })
-    clearTimeout(addrTimer.current)
-    if (!hasGooglePlaces || form.location.trim() || address.trim().length < 8) return
-    addrTimer.current = setTimeout(async () => {
-      setFinding(true)
-      const place = await lookupAddress(address).catch(() => null)
-      setFinding(false)
-      if (!place) return
-      setForm((cur) =>
-        cur.location.trim() || cur.address !== address
-          ? cur
-          : { ...cur, location: place.name, latitude: place.lat, longitude: place.lng },
-      )
-    }, 800)
-  }
-  useEffect(() => () => clearTimeout(addrTimer.current), [])
+  const [places, setPlaces] = useState([]) // every place the club has used before
 
   const planDays = bestDays(events)
   const planBest = topDay(planDays)
   const picked = form.date ? planDays[new Date(form.date + 'T00:00:00').getDay()] : null
 
   useEffect(() => {
-    if (open) getLocations().then(setSaved)
+    if (!open) return
+    getLocations().then(setSaved)
+    getEventPlaces().then(setPlaces)
   }, [open])
 
   useEffect(() => {
@@ -358,7 +341,9 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
         max_people: event.max_people ?? 6,
         raised: event.raised ?? 0,
         notes: event.notes ?? '',
-        instagram_urls: event.instagram_urls ?? [],
+        // Instagram posts folded into the general link list (migration 0037);
+        // older rows still carry them under the legacy column.
+        links: event.links?.length ? event.links : event.instagram_urls ?? [],
         is_tentative: event.is_tentative ?? false,
       }
       setForm(next)
@@ -367,33 +352,53 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
       setForm(blank)
       rescue.setBaseline(blank)
     }
+    setExtras(extrasFor(event))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event, open])
 
   async function submit(e) {
     e.preventDefault()
     setBusy(true)
+    // One box holds the place, so fill in the other half here: a name typed
+    // without picking a suggestion gets resolved to a real address + pin on the
+    // way to the database, which is what the event view's map needs.
+    let { location, address, latitude, longitude } = form
+    if (location.trim() && !address.trim()) {
+      const place = await lookupAddress(location).catch(() => null)
+      if (place) {
+        address = place.address ?? ''
+        latitude = place.lat ?? null
+        longitude = place.lng ?? null
+      }
+    }
     const fields = {
       name: form.name,
       date: form.date || null,
       is_tentative: form.is_tentative,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
-      location: form.location,
-      address: form.address,
-      latitude: form.latitude,
-      longitude: form.longitude,
+      location,
+      address,
+      latitude,
+      longitude,
       hours: Number(form.hours),
       min_people: Number(form.min_people),
       max_people: Number(form.max_people),
       raised: Number(form.raised),
       notes: form.notes,
-      instagram_urls: (form.instagram_urls ?? []).map((s) => s.trim()).filter(Boolean),
+      links: (form.links ?? []).map((s) => s.trim()).filter(Boolean),
     }
     if (editing) await updateEvent(event.id, fields)
     else await createEvent({ ...fields, type: 'other' })
     setBusy(false)
     onSaved()
+  }
+
+  // Hiding an optional field clears it, so a collapsed box never saves a value
+  // nobody can see.
+  function dropExtra(key) {
+    setExtras((x) => ({ ...x, [key]: false }))
+    setForm((f) => ({ ...f, [key]: key === 'raised' ? 0 : '' }))
   }
 
   return (
@@ -402,25 +407,21 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
         <FormField label="Event name">
           <input className={inputClass} value={form.name} onChange={set('name')} required placeholder="Library STEM session" />
         </FormField>
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5">
+        <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2.5">
           <input
             type="checkbox"
             checked={form.is_tentative}
             onChange={(e) => setForm({ ...form, is_tentative: e.target.checked })}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-green-600"
+            className="h-4 w-4 shrink-0 accent-green-600"
           />
-          <span>
-            <span className="block text-sm font-semibold text-ink-800">Tentative event</span>
-            <span className="mt-0.5 block text-xs text-ink-500">
-              Not locked in yet. Leave the date, time, location, or anything else blank and it shows as “TBD”.
-              AI Insights will treat it as unconfirmed.
-            </span>
-          </span>
+          <span className="text-sm font-semibold text-ink-800">Tentative event</span>
         </label>
         <FormField label={form.is_tentative ? 'Date · optional' : 'Date'}>
           <input type="date" className={inputClass} value={form.date} onChange={set('date')} required={!form.is_tentative} />
         </FormField>
-        <div className="grid grid-cols-2 gap-3">
+        {/* Native date/time controls have a wide minimum, so two columns only
+            appear once there's room — below that they stack instead of clipping. */}
+        <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
           <FormField label="Start time">
             <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
           </FormField>
@@ -433,44 +434,22 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
             <TrendingUp size={14} className="mt-0.5 shrink-0" />
             <span>
               {picked.count > 0
-                ? `Past ${picked.day} events averaged $${picked.avgRaised} across ${picked.count}.`
+                ? `Past ${picked.day} events averaged ${money(picked.avgRaised)} across ${picked.count}.`
                 : `No past ${picked.day} events yet.`}{' '}
-              Best day so far: <b>{planBest.day}</b> (~${planBest.avgRaised}).
+              Best day so far: <b>{planBest.day}</b> (~{money(planBest.avgRaised)}).
             </span>
           </div>
         )}
-        {saved.length > 0 && (
-          <FormField label="Use a saved spot">
-            <select
-              className={inputClass}
-              value=""
-              onChange={(e) => {
-                const loc = saved.find((s) => s.id === e.target.value)
-                if (loc) setForm({ ...form, location: loc.name, address: loc.address || '', latitude: loc.latitude ?? null, longitude: loc.longitude ?? null })
-              }}
-            >
-              <option value="">Pick a saved location…</option>
-              {saved.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </FormField>
-        )}
         <FormField label="Location">
-          <LocationAutocomplete
-            value={form.location}
-            placeholder="Search a place…"
-            onChange={(v) => setForm({ ...form, location: v })}
-            onSelect={({ name, address, lat, lng }) => setForm({ ...form, location: name, address, latitude: lat ?? null, longitude: lng ?? null })}
+          <LocationPicker
+            value={form}
+            onChange={(place) => setForm((f) => ({ ...f, ...place }))}
+            saved={saved}
+            pastEvents={places}
+            placeholder="Search a place, or pick one you've used…"
           />
         </FormField>
-        <FormField label="Address">
-          <input className={inputClass} value={form.address} onChange={setAddress} placeholder="Auto-fills from the search above" />
-          <span className="mt-1 block text-xs text-ink-500">
-            {finding ? 'Finding the place…' : 'Works both ways — paste an address here and the Location fills itself in.'}
-          </span>
-        </FormField>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 min-[26rem]:grid-cols-3">
           <FormField label="Hours each">
             <input type="number" min="0" step="0.5" className={inputClass} value={form.hours} onChange={set('hours')} />
           </FormField>
@@ -481,51 +460,90 @@ export function EventFormModal({ open, event, events = [], onClose, onReopen, on
             <input type="number" min="0" className={inputClass} value={form.max_people} onChange={set('max_people')} />
           </FormField>
         </div>
-        <FormField label="Amount raised ($)">
-          <input type="number" min="0" step="1" className={inputClass} value={form.raised} onChange={set('raised')} />
-          <span className="mt-1 block text-xs text-ink-500">In-person money raised at this event — feeds the fundraising graph.</span>
-        </FormField>
-        <FormField label="Notes">
-          <textarea className={inputClass} rows={2} value={form.notes} onChange={set('notes')} />
-        </FormField>
-        <FormField label="Instagram posts">
+        {extras.raised && (
+          <FormField label="Amount raised ($)">
+            <div className="flex gap-2">
+              <input type="number" min="0" step="1" className={inputClass} value={form.raised} onChange={set('raised')} />
+              <RemoveFieldButton label="Remove amount raised" onClick={() => dropExtra('raised')} />
+            </div>
+          </FormField>
+        )}
+        {extras.notes && (
+          <FormField label="Notes">
+            <div className="flex gap-2">
+              <textarea className={inputClass} rows={2} value={form.notes} onChange={set('notes')} />
+              <RemoveFieldButton label="Remove notes" onClick={() => dropExtra('notes')} />
+            </div>
+          </FormField>
+        )}
+        <FormField label="Links">
           <div className="space-y-2">
-            {(form.instagram_urls ?? []).map((url, i) => (
+            {(form.links ?? []).map((url, i) => (
               <div key={i} className="flex gap-2">
                 <input
                   className={inputClass}
                   value={url}
                   onChange={(e) => {
-                    const next = [...form.instagram_urls]
+                    const next = [...form.links]
                     next[i] = e.target.value
-                    setForm({ ...form, instagram_urls: next })
+                    setForm({ ...form, links: next })
                   }}
-                  placeholder="https://www.instagram.com/p/…"
+                  placeholder="Instagram post, sign-up sheet, flyer…"
                 />
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, instagram_urls: form.instagram_urls.filter((_, j) => j !== i) })}
-                  className="shrink-0 rounded-lg border border-ink-300 px-2.5 text-ink-500 transition-colors hover:bg-coral-50 hover:text-coral-600"
-                  aria-label="Remove link"
-                >
-                  <X size={15} />
-                </button>
+                <RemoveFieldButton label="Remove link" onClick={() => setForm({ ...form, links: form.links.filter((_, j) => j !== i) })} />
               </div>
             ))}
             <button
               type="button"
-              onClick={() => setForm({ ...form, instagram_urls: [...(form.instagram_urls ?? []), ''] })}
+              onClick={() => setForm({ ...form, links: [...(form.links ?? []), ''] })}
               className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
             >
-              <Plus size={14} /> Add Instagram Link
+              <Link2 size={14} /> Add a Link
             </button>
           </div>
         </FormField>
+        {(!extras.raised || !extras.notes) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {!extras.raised && (
+              <button
+                type="button"
+                onClick={() => setExtras((x) => ({ ...x, raised: true }))}
+                className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+              >
+                <Plus size={14} /> Add Amount Raised
+              </button>
+            )}
+            {!extras.notes && (
+              <button
+                type="button"
+                onClick={() => setExtras((x) => ({ ...x, notes: true }))}
+                className="flex items-center gap-1 text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+              >
+                <Plus size={14} /> Add Notes
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save Changes' : 'Add Event'}</Button>
         </div>
       </form>
     </Modal>
+  )
+}
+
+// The square X beside a removable row — shared by links and the optional fields.
+function RemoveFieldButton({ label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="shrink-0 self-start rounded-lg border border-ink-300 px-2.5 py-2.5 text-ink-500 transition-colors hover:bg-coral-50 hover:text-coral-600"
+      aria-label={label}
+      title={label}
+    >
+      <X size={15} />
+    </button>
   )
 }

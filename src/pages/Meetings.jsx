@@ -310,7 +310,9 @@ export function MeetingFormModal({ open, meeting, onClose, onReopen, onSaved }) 
             </span>
           </label>
         )}
-        <div className="grid grid-cols-2 gap-3">
+        {/* Native time controls have a wide minimum — two columns only once
+            there's room, so they stack instead of clipping on a phone. */}
+        <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
           <FormField label="Start time">
             <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
           </FormField>
@@ -491,7 +493,7 @@ export function SeriesModal({ open, onClose, onReopen, onChange }) {
               />
             </FormField>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2">
             <FormField label="Start time">
               <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
             </FormField>

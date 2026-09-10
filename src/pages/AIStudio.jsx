@@ -181,7 +181,7 @@ function PlanResult({ plan, onCreated, onDiscard }) {
       max_people: Number(plan.maxPeople) || 6,
       raised: 0,
       notes,
-      instagram_urls: [],
+      links: [],
       type: 'other',
     })
     if (!error && created) {

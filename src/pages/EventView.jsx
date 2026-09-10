@@ -5,7 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import {
   ArrowLeft, Share2, Check, MapPin, Clock, Hourglass, DollarSign, Users, ExternalLink, Instagram, CalendarDays,
-  Pencil, Trash2, LogIn,
+  Pencil, Trash2, LogIn, Link2,
 } from 'lucide-react'
 import { Logo, Avatar, Badge, Button, StatPill, roleTones } from '../components/ui'
 import { getPublicEvent, getEvent, signUpForEvent, leaveEvent, deleteEvent, initials } from '../lib/api'
@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import Linkify from '../components/Linkify'
+import LinkChip from '../components/LinkChip'
 import ManageAttendeesModal from '../components/ManageAttendeesModal'
 import { EventTodosPanel } from '../components/EventTodos'
 import { EventFormModal } from './Events'
@@ -203,6 +204,7 @@ export default function EventView() {
             open={editOpen}
             event={editEvent}
             onClose={() => setEditOpen(false)}
+            onReopen={() => setEditOpen(true)}
             onSaved={() => { setEditOpen(false); reload() }}
           />
           <ManageAttendeesModal
@@ -221,7 +223,12 @@ export default function EventView() {
 
 function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, reload, onEdit, onDelete, onManage }) {
   const attendees = event.attendees ?? []
-  const igUrls = (event.instagram_urls ?? []).filter((u) => cleanIg(u))
+  // Every event URL lives in `links` since migration 0037 (older rows still
+  // carry Instagram posts in the legacy column). Instagram ones keep their full
+  // embeds; everything else renders as a link chip.
+  const allLinks = event.links?.length ? event.links : event.instagram_urls ?? []
+  const igUrls = allLinks.filter((u) => cleanIg(u))
+  const otherLinks = allLinks.filter((u) => !cleanIg(u))
   const timeRange = event.start_time
     ? (event.end_time
         ? `${fmtTime(event.start_time)}–${fmtTime(event.end_time)}`
@@ -320,6 +327,20 @@ function EventBody({ event, isDark, copied, onShare, session, userId, isAdmin, r
         <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5">
           <h2 className="mb-2 font-semibold text-ink-900">Details</h2>
           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-600"><Linkify>{event.notes}</Linkify></p>
+        </div>
+      )}
+
+      {/* Links */}
+      {otherLinks.length > 0 && (
+        <div className="mt-6">
+          <h2 className="mb-3 flex items-center gap-1.5 font-semibold text-ink-900">
+            <Link2 size={16} className="text-ink-400" /> Links
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {otherLinks.map((url, i) => (
+              <LinkChip key={i} url={url} size="lg" />
+            ))}
+          </div>
         </div>
       )}
 
