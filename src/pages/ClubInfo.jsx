@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ExternalLink,
   FileText,
@@ -12,9 +12,14 @@ import {
   Check,
   QrCode,
   Download,
+  HeartHandshake,
+  Users,
+  Archive,
 } from 'lucide-react'
 import { PageHeader, Card, Button } from '../components/ui'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
+import { getSettings } from '../lib/api'
+import { money } from '../lib/format'
 
 const docs = [
   { icon: Presentation, title: 'Club Charter', desc: 'Our founding charter', url: 'https://docs.google.com/presentation/d/1ZctOVnMEnfyzPMYBPjRTirzRFLAFUrHfAOLsB0deDRU/edit?usp=sharing' },
@@ -132,10 +137,10 @@ function FactCard({ fact }) {
   )
 }
 
-// Linktree actions — open / copy the link, and open / copy / download the QR code.
-function LinktreeCard() {
-  const LINK = 'https://linktr.ee/janyaabcp'
-  const QR = '/linktree-qr.png'
+// Open / copy a link, and open / copy / download its QR code. Shared by the
+// Linktree card and the donation cards below — the club hands these out by text,
+// in a DM and on a printed flyer, so all three routes have to be one tap.
+function ShareButtons({ link, qr, qrFileName, openLabel = 'Open link' }) {
   const [copied, setCopied] = useState('')
   const flash = (k) => {
     setCopied(k)
@@ -143,45 +148,166 @@ function LinktreeCard() {
   }
 
   function copyLink() {
-    navigator.clipboard?.writeText(LINK)
+    navigator.clipboard?.writeText(link)
     flash('link')
   }
   async function copyQr() {
     try {
-      const blob = await (await fetch(QR)).blob()
+      const blob = await (await fetch(qr)).blob()
       await navigator.clipboard.write([new window.ClipboardItem({ [blob.type]: blob })])
       flash('qr')
     } catch {
       // Fall back to copying the image URL if image-to-clipboard isn't supported.
-      navigator.clipboard?.writeText(`${window.location.origin}${QR}`)
+      navigator.clipboard?.writeText(`${window.location.origin}${qr}`)
       flash('qr')
     }
   }
   function downloadQr() {
     const a = document.createElement('a')
-    a.href = QR
-    a.download = 'janyaa-linktree-qr.png'
+    a.href = qr
+    a.download = qrFileName
     document.body.appendChild(a)
     a.click()
     a.remove()
   }
 
   return (
+    <div className="flex flex-wrap gap-2">
+      <a href={link} target="_blank" rel="noreferrer">
+        <Button icon={ExternalLink}>{openLabel}</Button>
+      </a>
+      <Button variant="soft" icon={copied === 'link' ? Check : Copy} onClick={copyLink}>
+        {copied === 'link' ? 'Copied' : 'Copy link'}
+      </Button>
+      {qr && (
+        <>
+          <a href={qr} target="_blank" rel="noreferrer">
+            <Button variant="soft" icon={QrCode}>Open QR code</Button>
+          </a>
+          <Button variant="soft" icon={copied === 'qr' ? Check : Copy} onClick={copyQr}>
+            {copied === 'qr' ? 'Copied' : 'Copy QR code'}
+          </Button>
+          <Button variant="soft" icon={Download} onClick={downloadQr}>Download QR code</Button>
+        </>
+      )}
+    </div>
+  )
+}
+
+function LinktreeCard() {
+  return (
     <Card className="p-4">
-      <div className="flex flex-wrap gap-2">
-        <a href={LINK} target="_blank" rel="noreferrer">
-          <Button icon={ExternalLink}>Open Linktree</Button>
+      <ShareButtons
+        link="https://linktr.ee/janyaabcp"
+        qr="/linktree-qr.png"
+        qrFileName="janyaa-linktree-qr.png"
+        openLabel="Open Linktree"
+      />
+    </Card>
+  )
+}
+
+// A small status pill telling members at a glance which platform is live and
+// which is only kept for the record.
+function PlatformBadge({ tone }) {
+  const live = tone === 'live'
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+        live ? 'bg-green-100 text-green-700' : 'bg-ink-100 text-ink-500'
+      }`}
+    >
+      {live ? <HeartHandshake size={12} /> : <Archive size={12} />}
+      {live ? 'Current' : 'Legacy'}
+    </span>
+  )
+}
+
+// The live donation platform. Everything a member needs to send someone to the
+// right page AND have the money land on the club's own ledger — which on a
+// shared Janyaa campaign is not automatic: it depends on the team field.
+function GivebutterCard({ settings }) {
+  const url = settings?.donations_url || 'https://givebutter.com/59uJ48'
+  const teamName = settings?.donations_team_name || 'Bellarmine Youth Chapter'
+  const teamUrl = settings?.donations_team_url
+  const goal = Number(settings?.donations_campaign_goal ?? 10000)
+  const raised = settings?.donations_campaign_raised
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-ink-900">Givebutter donation page</h3>
+            <PlatformBadge tone="live" />
+          </div>
+          <p className="mt-1 text-sm text-ink-500">
+            Run by Janyaa's account. Goal {money(goal)}
+            {raised != null ? ` · ${money(raised)} raised` : ''}
+          </p>
+        </div>
+        <img
+          src="/givebutter-qr.png"
+          alt={`QR code for the Janyaa Givebutter donation page (${url})`}
+          className="h-24 w-24 shrink-0 rounded-lg border border-ink-200 bg-white p-1"
+        />
+      </div>
+
+      {/* The single step that decides whether a donation counts for the club. */}
+      <div className="mt-3 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
+        <Users size={16} className="mt-0.5 shrink-0 text-blue-500" />
+        <p>
+          Tell donors to pick <span className="font-semibold text-ink-900">{teamName}</span> under{' '}
+          <span className="font-semibold text-ink-900">Credit a team</span>. Without it, the gift counts
+          for Janyaa, not us.
+        </p>
+      </div>
+
+      <div className="mt-3">
+        <ShareButtons
+          link={url}
+          qr="/givebutter-qr.png"
+          qrFileName="janyaa-bcp-givebutter-qr.png"
+          openLabel="Open donation page"
+        />
+      </div>
+
+      {teamUrl && (
+        <a
+          href={teamUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          Open our {teamName} page <ExternalLink size={12} />
         </a>
-        <Button variant="soft" icon={copied === 'link' ? Check : Copy} onClick={copyLink}>
-          {copied === 'link' ? 'Copied' : 'Copy link'}
-        </Button>
-        <a href={QR} target="_blank" rel="noreferrer">
-          <Button variant="soft" icon={QrCode}>Open QR code</Button>
-        </a>
-        <Button variant="soft" icon={copied === 'qr' ? Check : Copy} onClick={copyQr}>
-          {copied === 'qr' ? 'Copied' : 'Copy QR code'}
-        </Button>
-        <Button variant="soft" icon={Download} onClick={downloadQr}>Download QR code</Button>
+      )}
+    </Card>
+  )
+}
+
+// Kept deliberately. The campaign is closed, but the money it raised still
+// counts in the Hub's totals, and old flyers and posts still point at it — so
+// the record stays here, plainly marked, rather than being deleted.
+function GoFundMeCard({ settings }) {
+  const url =
+    settings?.donations_legacy_url ||
+    'https://www.gofundme.com/f/support-janyaa-every-dollar-makes-a-difference'
+  const raised = settings?.donations_legacy_raised
+  const label = settings?.donations_legacy_label || 'GoFundMe'
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-semibold text-ink-900">{label}</h3>
+        <PlatformBadge tone="legacy" />
+      </div>
+      <p className="mt-1 text-sm text-ink-500">
+        Closed. Not synced.
+        {raised != null ? ` The ${money(raised)} it raised still counts in our total.` : ''}
+      </p>
+      <div className="mt-3">
+        <ShareButtons link={url} openLabel={`Open ${label}`} />
       </div>
     </Card>
   )
@@ -189,6 +315,13 @@ function LinktreeCard() {
 
 export default function ClubInfo() {
   useDocumentTitle('Club Info')
+  // The donation cards read live figures + URLs rather than hardcoding them, so
+  // the next platform change is a settings edit and not another code change.
+  const [settings, setSettings] = useState(null)
+  useEffect(() => {
+    getSettings().then(setSettings)
+  }, [])
+
   return (
     <>
       <PageHeader title="Club Information" />
@@ -204,6 +337,13 @@ export default function ClubInfo() {
 
       <Section title="Linktree" hint="All our public links in one place">
         <LinktreeCard />
+      </Section>
+
+      <Section title="Fundraising" hint="Where donations go.">
+        <div className="ja-stagger grid gap-3">
+          <GivebutterCard settings={settings} />
+          <GoFundMeCard settings={settings} />
+        </div>
       </Section>
 
       <Section title="Club documents" hint="The charter, plans, and applications.">

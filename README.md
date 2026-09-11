@@ -86,7 +86,7 @@ Total active members: ~8–9.
 - Google Drive (well-organized folders: Events, Meetings, Experiments, Member Hours sheet, etc.)
 - Google Form for new member interest
 - Google Sheet for member hours (markdown-style entries per person)
-- GoFundMe for fundraising campaigns
+- Givebutter for online donations (Janyaa's campaign; GoFundMe until 2026)
 - Email + group chat for coordination
 
 **Pain points (documented from Drive review):**
@@ -118,7 +118,7 @@ If the club doesn't intend to grow, doesn't want centralized tooling, or won't s
 
 **2. Event management.** Create event → assign roles → RSVP → attendance → post-event report. Recurring templates for EVSFM, library series, Vasona, Sunday Friends so each instance takes minutes not hours. This is the "autonomous events" piece.
 
-**3. Fundraising dashboard.** Per-event totals, term progress vs $500 target, year-over-year trend. GoFundMe has a read-only public API for live stats. Visible impact metric on the homepage.
+**3. Fundraising dashboard.** Per-event totals, term progress vs $500 target, year-over-year trend. Online donation totals are scraped from the club's donation platform. Visible impact metric on the homepage.
 
 **4. Location/partner scouting map.** Interactive map (using Leaflet, free, no API key) of potential fundraising locations with status (contacted / approved / declined / recurring partner), contact log per location, last-touched date. Kills the recurring "where can we fundraise" cycle.
 
@@ -156,7 +156,7 @@ Modules 1, 2, 3 only:
 - Auth (Google OAuth via Supabase, restricted to Bellarmine email domain if possible)
 - Member directory with hours tracking and rollups
 - Event creation, attendance, post-event reporting
-- Fundraising dashboard (manual $ entry first; GoFundMe API integration deferred to V2)
+- Fundraising dashboard (manual $ entry first; donation-platform integration deferred to V2)
 
 Hosted on Vercel + Supabase. Open access to all club members.
 
@@ -292,7 +292,7 @@ restaurant_events
 | Maps (V2) | Leaflet + OpenStreetMap | Free, no API key, sufficient for scouting use case |
 | AI (V3) | Anthropic Claude API | Aligns with Rishaan's existing tooling; lightweight insight generation |
 
-**Why not Express backend in MVP:** Adds another deployment surface (Railway/Render), more code to maintain, more cognitive load for someone learning. Supabase JS client called directly from React covers all MVP needs. If a custom backend becomes necessary for V2+ features (e.g., GoFundMe webhook handling, scheduled jobs, AI batch processing), add an Express service then.
+**Why not Express backend in MVP:** Adds another deployment surface (Railway/Render), more code to maintain, more cognitive load for someone learning. Supabase JS client called directly from React covers all MVP needs. If a custom backend becomes necessary for V2+ features (e.g., donation webhook handling, scheduled jobs, AI batch processing), add an Express service then.
 
 **Why not Next.js:** Marginal benefit for an app this size. SPA with React Router is simpler and sufficient.
 

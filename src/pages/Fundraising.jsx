@@ -21,11 +21,13 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Users,
+  AlertTriangle,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { PageHeader, Card, StatCard, Button, Skeleton, formatDate, timeAgo } from '../components/ui'
 import {
-  getFundraisingEvents, getSettings, updateRaiseTarget, syncGoFundme, autoGenerateInsights,
+  getFundraisingEvents, getSettings, updateRaiseTarget, syncDonations, autoGenerateInsights,
   currentTermStart, getCurrentTermStart,
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
@@ -33,6 +35,10 @@ import { useIsDesktop } from '../lib/useMediaQuery'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import BestDaysChart from '../components/BestDaysChart'
 import { num, money } from '../lib/format'
+
+// The Hub has now outlived two donation platforms. Label from the stored
+// provider rather than hardcoding a name into the markup again.
+const PROVIDER_LABELS = { givebutter: 'Givebutter', gofundme: 'GoFundMe' }
 
 const DAY = 86400000
 const ts = (iso) => new Date(iso + 'T00:00:00').getTime()
@@ -97,15 +103,16 @@ export default function Fundraising() {
       setEvents(data)
       setLoading(false)
     })
-    // Sync GoFundMe; if the amount actually changed, refresh AI insights (throttled).
+    // Sync the donation platform; if the amount actually changed, refresh AI
+    // insights (throttled).
     ;(async () => {
       const before = await getSettings()
       setSettings(before)
-      const { error } = await syncGoFundme()
+      const { error } = await syncDonations()
       if (error) return
       const after = await getSettings()
       setSettings(after)
-      if (before && after && Number(before.gofundme_raised) !== Number(after.gofundme_raised)) {
+      if (before && after && Number(before.donations_raised) !== Number(after.donations_raised)) {
         autoGenerateInsights()
       }
     })()
@@ -117,14 +124,39 @@ export default function Fundraising() {
 
   async function handleSync() {
     setSyncing(true)
-    const { error } = await syncGoFundme()
+    const { error } = await syncDonations(true)
     if (!error) await loadSettings()
     setSyncing(false)
   }
 
   const target = Number(settings?.raise_target ?? 500)
-  const gfmRaised = settings?.gofundme_raised != null ? Number(settings.gofundme_raised) : null
-  const pctFunded = target > 0 && gfmRaised != null ? Math.round((gfmRaised / target) * 100) : 0
+
+  // The club's online total = its Givebutter team amount + the finished GoFundMe
+  // run. The legacy figure is merged in so the headline number doesn't fall off a
+  // cliff the day the platform changed; it stays a separate column so the two
+  // platforms remain distinguishable in the data.
+  const toNum = (v) => (v != null ? Number(v) : null)
+  const teamRaised = toNum(settings?.donations_raised)
+  const legacyRaised = toNum(settings?.donations_legacy_raised)
+  const onlineRaised =
+    teamRaised == null && legacyRaised == null ? null : (teamRaised ?? 0) + (legacyRaised ?? 0)
+  const pctFunded = target > 0 && onlineRaised != null ? Math.round((onlineRaised / target) * 100) : 0
+
+  // The whole Janyaa campaign the club's team sits inside.
+  const campaignRaised = toNum(settings?.donations_campaign_raised)
+  const campaignGoal = Number(settings?.donations_campaign_goal ?? 10000)
+  const campaignPct =
+    campaignGoal > 0 && campaignRaised != null ? Math.round((campaignRaised / campaignGoal) * 100) : 0
+
+  const providerLabel = PROVIDER_LABELS[settings?.donations_provider] ?? 'Givebutter'
+  const legacyLabel = settings?.donations_legacy_label || 'GoFundMe'
+  const teamName = settings?.donations_team_name || 'Bellarmine Youth Chapter'
+  const campaignUrl = settings?.donations_url
+  const teamUrl = settings?.donations_team_url
+  // No team page on file yet: only that page reports the club's own credited
+  // total, so say the number is incomplete instead of quietly showing less.
+  const teamPending = !!settings && !teamUrl
+  const syncFailed = String(settings?.donations_sync_status || '').startsWith('error')
 
   const total = events.reduce((s, e) => s + Number(e.raised), 0)
   const thisTermEvents = events.filter((e) => e.date >= termStart)
@@ -182,33 +214,67 @@ export default function Fundraising() {
   if (!isDesktop)
     return (
       <>
-        {/* GoFundMe live hero + editable shared goal */}
-        <div className="gfm-hero">
-          <div className="gfm-top">
-            <span className="gfm-live"><span className="gfm-dot" /> GoFundMe · live</span>
+        {/* Live online-donations hero + editable shared goal */}
+        <div className="fund-hero">
+          <div className="fund-hero-top">
+            <span className="fund-hero-live"><span className="fund-hero-dot" /> {providerLabel} · live</span>
             <span style={{ display: 'flex', gap: 7 }}>
-              {settings?.gofundme_url && (
-                <a className="gfm-sync" href={settings.gofundme_url} target="_blank" rel="noreferrer" aria-label="View campaign on GoFundMe">
+              {campaignUrl && (
+                <a className="fund-hero-btn" href={campaignUrl} target="_blank" rel="noreferrer" aria-label={`View the campaign on ${providerLabel}`}>
                   <ExternalLink size={14} />
                 </a>
               )}
-              <button className="gfm-sync" onClick={handleSync} disabled={syncing}>
+              <button className="fund-hero-btn" onClick={handleSync} disabled={syncing}>
                 {syncing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Sync
               </button>
             </span>
           </div>
-          <div className="gfm-body">
-            <div className="gfm-raised-l">Raised so far</div>
-            <div className="gfm-raised">{gfmRaised != null ? money(gfmRaised) : '—'}</div>
-            <div className="gfm-goal">
+          <div className="fund-hero-body">
+            <div className="fund-hero-raised-l">Raised online</div>
+            <div className="fund-hero-raised">{onlineRaised != null ? money(onlineRaised) : '—'}</div>
+            {legacyRaised != null && legacyRaised > 0 && (
+              <div className="fund-hero-note">Includes {money(legacyRaised)} from {legacyLabel}</div>
+            )}
+            <div className="fund-hero-goal">
               <span>Shared goal</span>
               <b><EditableGoal target={target} editable={!!settings} onSaved={loadSettings} /></b>
             </div>
-            <div className="gfm-bar"><i style={{ width: `${Math.min(100, pctFunded)}%` }} /></div>
-            <div className="gfm-meta">
+            <div className="fund-hero-bar"><i style={{ width: `${Math.min(100, pctFunded)}%` }} /></div>
+            <div className="fund-hero-meta">
               <span>{pctFunded}% funded</span>
-              <span>{settings?.gofundme_donations != null ? `${settings.gofundme_donations} donations · ` : ''}synced {timeAgo(settings?.gofundme_synced_at) || 'never'}</span>
+              <span>
+                {settings?.donations_count != null ? `${settings.donations_count} donations · ` : ''}
+                synced {timeAgo(settings?.donations_synced_at) || 'never'}
+              </span>
             </div>
+
+            {/* Crediting the team is the one step that turns a Janyaa donation
+                into a Janyaa BCP one, so it leads. */}
+            <div className="fund-hero-tip">
+              <Users size={14} />
+              <span>Donors pick <b>{teamName}</b> under Credit a team. Otherwise it counts for Janyaa.</span>
+            </div>
+
+            {campaignRaised != null && (
+              <div className="fund-hero-campaign">
+                <div className="fund-hero-campaign-l">
+                  <span>Janyaa campaign</span>
+                  <b>{money(campaignRaised)} / {money(campaignGoal)}</b>
+                </div>
+                <div className="fund-hero-bar alt"><i style={{ width: `${Math.min(100, campaignPct)}%` }} /></div>
+              </div>
+            )}
+
+            {(teamPending || syncFailed) && (
+              <div className="fund-hero-warn">
+                <AlertTriangle size={14} />
+                <span>
+                  {teamPending
+                    ? `Team page not linked yet. Above is ${legacyLabel} history only.`
+                    : 'Last sync failed. These figures may be out of date.'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -319,7 +385,7 @@ export default function Fundraising() {
     <>
       <PageHeader title="Fundraising" />
 
-      {/* GoFundMe live hero + editable shared goal */}
+      {/* Live online-donations hero + editable shared goal */}
       <Card className="mb-6 overflow-hidden">
         <div className="flex items-center justify-between gap-2 border-b border-gold-100 bg-gradient-to-r from-gold-50 to-green-50 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-green-700">
@@ -327,20 +393,33 @@ export default function Fundraising() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
             </span>
-            <span className="truncate">GoFundMe campaign · live</span>
+            <span className="truncate">{providerLabel} campaign · live</span>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            {settings?.gofundme_url && (
+            {teamUrl && (
               <a
-                href={settings.gofundme_url}
+                href={teamUrl}
                 target="_blank"
                 rel="noreferrer"
-                title="View campaign on GoFundMe"
-                aria-label="View campaign on GoFundMe"
+                title={`View the ${teamName} team page`}
+                aria-label={`View the ${teamName} team page`}
+                className="inline-flex items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 sm:px-2.5 sm:py-1.5 sm:text-sm sm:font-medium"
+              >
+                <Users size={16} className="shrink-0" />
+                <span className="hidden sm:inline">Our team</span>
+              </a>
+            )}
+            {campaignUrl && (
+              <a
+                href={campaignUrl}
+                target="_blank"
+                rel="noreferrer"
+                title={`View the campaign on ${providerLabel}`}
+                aria-label={`View the campaign on ${providerLabel}`}
                 className="inline-flex items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 sm:px-2.5 sm:py-1.5 sm:text-sm sm:font-medium"
               >
                 <ExternalLink size={16} className="shrink-0" />
-                <span className="hidden sm:inline">View</span>
+                <span className="hidden sm:inline">Donate</span>
               </a>
             )}
             <button
@@ -359,10 +438,13 @@ export default function Fundraising() {
         <div className="p-6">
           <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
             <div>
-              <p className="text-sm font-medium text-ink-500">Raised So Far</p>
+              <p className="text-sm font-medium text-ink-500">Raised Online</p>
               <p className="mt-0.5 font-display text-5xl font-bold tracking-tight tabular-nums text-green-700">
-                {gfmRaised != null ? money(gfmRaised) : '—'}
+                {onlineRaised != null ? money(onlineRaised) : '—'}
               </p>
+              {legacyRaised != null && legacyRaised > 0 && (
+                <p className="mt-1 text-xs text-ink-400">Includes {money(legacyRaised)} from {legacyLabel}</p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-ink-500">Shared Goal</p>
@@ -376,8 +458,8 @@ export default function Fundraising() {
             <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-ink-500">
               <span>{pctFunded}% funded</span>
               <span>
-                {settings?.gofundme_donations != null ? `${settings.gofundme_donations} donations · ` : ''}
-                synced {timeAgo(settings?.gofundme_synced_at) || 'never'}
+                {settings?.donations_count != null ? `${settings.donations_count} donations · ` : ''}
+                synced {timeAgo(settings?.donations_synced_at) || 'never'}
               </span>
             </div>
             <div className="h-3 w-full overflow-hidden rounded-full bg-ink-100">
@@ -387,6 +469,58 @@ export default function Fundraising() {
               />
             </div>
           </div>
+
+          {/* Crediting the team is the one step that turns a Janyaa donation into
+              a Janyaa BCP one, so it leads. */}
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
+            <Users size={16} className="mt-0.5 shrink-0 text-blue-500" />
+            <p>
+              Donors pick <span className="font-semibold text-ink-900">{teamName}</span> under Credit a
+              team. Otherwise it counts for Janyaa, not us.
+            </p>
+          </div>
+
+          {/* The club's team sits inside Janyaa's wider campaign — show both. */}
+          {campaignRaised != null && (
+            <div className="mt-4 rounded-xl border border-ink-200 p-3">
+              <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-ink-500">
+                <span>Janyaa campaign</span>
+                <span className="tabular-nums">
+                  {money(campaignRaised)} / {money(campaignGoal)} · {campaignPct}%
+                </span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-ink-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-green-500 transition-all"
+                  style={{ width: `${Math.min(100, campaignPct)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {(teamPending || syncFailed) && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-gold-50 p-3 text-sm text-ink-700">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0 text-gold-600" />
+              <div>
+                {teamPending ? (
+                  <>
+                    <p>Team page not linked yet. Above is {legacyLabel} history only.</p>
+                    <p className="mt-1 text-xs text-ink-500">
+                      Admin: set{' '}
+                      <code className="rounded bg-ink-100 px-1">club_settings.donations_team_url</code>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p>Last sync failed. These figures may be out of date.</p>
+                    <p className="mt-1 text-xs text-ink-500">
+                      <code className="rounded bg-ink-100 px-1">{settings?.donations_sync_status}</code>
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 

@@ -551,9 +551,9 @@ export async function getFundraisingEvents() {
   return data ?? []
 }
 
-// ---- Club settings (shared goal + GoFundMe sync) -------------------------
+// ---- Club settings (shared goal + donation-platform sync) ----------------
 
-// The single shared settings row (raise_target + latest GoFundMe figures).
+// The single shared settings row (raise_target + latest donations_* figures).
 export async function getSettings() {
   const { data } = await supabase.from('club_settings').select('*').eq('id', true).single()
   return data
@@ -626,14 +626,31 @@ export function updateRaiseTarget(value) {
   return supabase.from('club_settings').update({ raise_target: value }).eq('id', true)
 }
 
-// Ask the server-side scraper (Edge Function) to refresh the GoFundMe totals.
+// Ask the server-side scraper (Edge Function) to refresh the online-donation
+// totals from the club's current platform (Givebutter, migration 0038).
 // Returns { error } so callers can no-op gracefully if it isn't deployed yet.
-export async function syncGoFundme() {
+export async function syncDonations(force = false) {
   try {
-    return await supabase.functions.invoke('sync-gofundme')
+    return await supabase.functions.invoke('sync-donations', { body: { force } })
   } catch (error) {
     return { data: null, error }
   }
+}
+
+// Parse one Givebutter page and report what was found WITHOUT saving — how an
+// admin finds the club's team-page URL and checks the scraper still reads it.
+// Admin-only, enforced in the function.
+export async function probeDonationsPage(url) {
+  try {
+    return await supabase.functions.invoke('sync-donations', { body: { probe: url } })
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+// Admin-editable donation-platform settings (the campaign + team page URLs).
+export function updateDonationSettings(patch) {
+  return supabase.from('club_settings').update(patch).eq('id', true)
 }
 
 // Ask the ai-insights Edge Function to regenerate insights from live club data.
@@ -646,7 +663,7 @@ export async function generateInsights() {
 }
 
 // Background, throttled auto-regen: only re-runs if the cached insights are older
-// than `minMinutes`. Called after real data changes (new event, GoFundMe change).
+// than `minMinutes`. Called after real data changes (new event, donation total).
 export async function autoGenerateInsights(minMinutes = 10) {
   try {
     const { data } = await supabase.from('club_settings').select('ai_insights_at').eq('id', true).single()

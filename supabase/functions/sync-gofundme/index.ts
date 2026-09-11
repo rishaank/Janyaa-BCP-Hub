@@ -1,4 +1,11 @@
 // Supabase Edge Function: sync-gofundme
+//
+// DEPRECATED (migration 0038). The club has moved to Givebutter and
+// `sync-donations` replaced this; the `sync-donations-3h` cron no longer calls
+// it and nothing in the app invokes it. It is kept, still deployable, purely as
+// the rollback path while the gofundme_* columns survive — delete it together
+// with those columns.
+//
 // Scrapes the GoFundMe campaign stored in club_settings.gofundme_url and writes
 // the live raised / goal / donation totals back to that row.
 //

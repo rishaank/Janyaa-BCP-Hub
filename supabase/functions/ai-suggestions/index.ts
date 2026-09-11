@@ -25,13 +25,16 @@ Deno.serve(async (req) => {
   const [{ data: events }, { data: locations }, { data: settings }] = await Promise.all([
     supabase.from('events').select('name,date,location,raised,hours,is_tentative,event_signups(member_id)'),
     supabase.from('locations').select('name,status,address'),
-    supabase.from('club_settings').select('raise_target,gofundme_raised').eq('id', true).single(),
+    supabase.from('club_settings').select('raise_target,donations_raised,donations_legacy_raised').eq('id', true).single(),
   ])
 
   const today = new Date().toISOString().slice(0, 10)
   const summary = {
     today,
-    fundraising: { goal: settings?.raise_target, raised: settings?.gofundme_raised },
+    fundraising: {
+      goal: settings?.raise_target,
+      raised: Number(settings?.donations_raised ?? 0) + Number(settings?.donations_legacy_raised ?? 0),
+    },
     pastEvents: (events ?? [])
       .filter((e) => e.date && e.date < today && !e.is_tentative)
       .map((e) => ({

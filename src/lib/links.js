@@ -49,6 +49,7 @@ const SITE_NAMES = {
   'canva.com': 'Canva',
   'discord.com': 'Discord',
   'discord.gg': 'Discord',
+  'givebutter.com': 'Givebutter',
   'gofundme.com': 'GoFundMe',
   'linktr.ee': 'Linktree',
   'maps.google.com': 'Google Maps',

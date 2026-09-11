@@ -324,26 +324,38 @@
 /* ============================================================
    FUNDRAISING
    ============================================================ */
-.gfm-hero { border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-sm); }
-.gfm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 15px; background: linear-gradient(100deg, var(--gold-soft), var(--green-soft)); border-bottom: 1px solid var(--ink-200); }
-.gfm-live { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--green-text); }
-.gfm-dot { position: relative; width: 8px; height: 8px; }
-.gfm-dot::before { content: ''; position: absolute; inset: 0; border-radius: 999px; background: var(--green-500); }
-.gfm-dot::after { content: ''; position: absolute; inset: -3px; border-radius: 999px; background: var(--green-400); opacity: 0.4; animation: gfmping 1.8s ease-out infinite; }
-@keyframes gfmping { 0% { transform: scale(0.6); opacity: 0.5; } 100% { transform: scale(1.6); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .gfm-dot::after { animation: none; } }
-.gfm-sync { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-600); background: var(--surface); border: 1px solid var(--ink-200); border-radius: 9px; padding: 6px 10px; cursor: pointer; text-decoration: none; }
-.gfm-sync:disabled { opacity: 0.6; cursor: default; }
-.gfm-sync .ic { width: 14px; height: 14px; }
-.gfm-body { padding: 18px 16px; background: var(--surface); }
-.gfm-raised-l { font-size: 12.5px; font-weight: 600; color: var(--ink-500); }
-.gfm-raised { font-family: var(--font-display); font-weight: 700; font-size: 42px; letter-spacing: -0.02em; line-height: 1; color: var(--green-text); font-variant-numeric: tabular-nums; }
-.gfm-goal { display: flex; align-items: baseline; justify-content: space-between; margin-top: 10px; font-size: 13px; color: var(--ink-500); }
-.gfm-goal b { font-size: 15px; font-family: var(--font-display); color: var(--ink-900); display: inline-flex; align-items: center; gap: 4px; }
-.gfm-goal button { background: none; border: none; font: inherit; cursor: pointer; color: var(--ink-900); display: inline-flex; align-items: center; gap: 4px; }
-.gfm-bar { height: 12px; border-radius: 999px; background: var(--ink-150); overflow: hidden; margin-top: 8px; }
-.gfm-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-500), var(--gold-600)); }
-.gfm-meta { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-500); margin-top: 7px; }
+.fund-hero { border: 1px solid var(--ink-200); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-sm); }
+.fund-hero-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 11px 15px; background: linear-gradient(100deg, var(--gold-soft), var(--green-soft)); border-bottom: 1px solid var(--ink-200); }
+.fund-hero-live { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 700; color: var(--green-text); }
+.fund-hero-dot { position: relative; width: 8px; height: 8px; }
+.fund-hero-dot::before { content: ''; position: absolute; inset: 0; border-radius: 999px; background: var(--green-500); }
+.fund-hero-dot::after { content: ''; position: absolute; inset: -3px; border-radius: 999px; background: var(--green-400); opacity: 0.4; animation: fundping 1.8s ease-out infinite; }
+@keyframes fundping { 0% { transform: scale(0.6); opacity: 0.5; } 100% { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fund-hero-dot::after { animation: none; } }
+.fund-hero-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-600); background: var(--surface); border: 1px solid var(--ink-200); border-radius: 9px; padding: 6px 10px; cursor: pointer; text-decoration: none; }
+.fund-hero-btn:disabled { opacity: 0.6; cursor: default; }
+.fund-hero-btn .ic { width: 14px; height: 14px; }
+.fund-hero-body { padding: 18px 16px; background: var(--surface); }
+.fund-hero-raised-l { font-size: 12.5px; font-weight: 600; color: var(--ink-500); }
+.fund-hero-raised { font-family: var(--font-display); font-weight: 700; font-size: 42px; letter-spacing: -0.02em; line-height: 1; color: var(--green-text); font-variant-numeric: tabular-nums; }
+.fund-hero-note { font-size: 11.5px; color: var(--ink-400); margin-top: 4px; }
+.fund-hero-goal { display: flex; align-items: baseline; justify-content: space-between; margin-top: 10px; font-size: 13px; color: var(--ink-500); }
+.fund-hero-goal b { font-size: 15px; font-family: var(--font-display); color: var(--ink-900); display: inline-flex; align-items: center; gap: 4px; }
+.fund-hero-goal button { background: none; border: none; font: inherit; cursor: pointer; color: var(--ink-900); display: inline-flex; align-items: center; gap: 4px; }
+.fund-hero-bar { height: 12px; border-radius: 999px; background: var(--ink-150); overflow: hidden; margin-top: 8px; }
+.fund-hero-bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-500), var(--gold-600)); }
+.fund-hero-bar.alt { height: 8px; }
+.fund-hero-bar.alt > i { background: linear-gradient(90deg, var(--blue-400), var(--green-500)); }
+.fund-hero-meta { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--ink-500); margin-top: 7px; }
+.fund-hero-tip { display: flex; align-items: flex-start; gap: 7px; margin-top: 13px; padding: 10px; border-radius: 12px; background: var(--blue-soft); font-size: 12.5px; line-height: 1.45; color: var(--ink-700); }
+.fund-hero-tip svg { flex: none; margin-top: 1px; color: var(--blue-text); }
+.fund-hero-tip b { color: var(--ink-900); }
+.fund-hero-campaign { margin-top: 13px; padding: 10px; border: 1px solid var(--ink-200); border-radius: 12px; }
+.fund-hero-campaign-l { display: flex; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 600; color: var(--ink-500); }
+.fund-hero-campaign-l b { color: var(--ink-900); font-variant-numeric: tabular-nums; }
+.fund-hero-campaign .fund-hero-bar { margin-top: 6px; }
+.fund-hero-warn { display: flex; align-items: flex-start; gap: 7px; margin-top: 11px; padding: 10px; border-radius: 12px; background: var(--gold-soft); font-size: 12.5px; line-height: 1.45; color: var(--ink-700); }
+.fund-hero-warn svg { flex: none; margin-top: 1px; color: var(--gold-text); }
 
 .fund-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-top: 14px; }
 .fund-stat { border: 1px solid var(--ink-200); background: var(--surface); border-radius: 15px; padding: 13px 12px; box-shadow: var(--shadow-sm); }

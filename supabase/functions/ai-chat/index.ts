@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
   ] = await Promise.all([
     supabase.rpc('get_hours_breakdowns', { p_member: null }),
     supabase.from('events').select('id, name, date, location, raised, hours, is_tentative, event_signups(member_id)').order('date'),
-    supabase.from('club_settings').select('raise_target, gofundme_raised, gofundme_goal, gofundme_donations').eq('id', true).single(),
+    supabase.from('club_settings').select('raise_target, donations_raised, donations_goal, donations_count, donations_legacy_raised, donations_legacy_label, donations_campaign_raised, donations_campaign_goal, donations_team_name').eq('id', true).single(),
     supabase.from('goals').select('id, title, detail, progress, status, target_date, owner:profiles!goals_owner_id_fkey(name)').order('created_at', { ascending: false }),
     supabase.from('locations').select('id, name, status, address').order('saved_at', { ascending: false }),
     supabase.from('terms').select('id, label, start_date, end_date').order('start_date', { ascending: false }),
@@ -120,9 +120,18 @@ Deno.serve(async (req) => {
     meetings: (meetings ?? []).filter((m: { canceled: boolean }) => !m.canceled).map((m: { id: string; title: string; date: string }) => ({ id: m.id, title: m.title, date: m.date })),
     fundraising: {
       target: Number(settings?.raise_target ?? 0),
-      gofundmeRaised: Number(settings?.gofundme_raised ?? 0),
-      gofundmeGoal: Number(settings?.gofundme_goal ?? 0),
-      gofundmeDonations: Number(settings?.gofundme_donations ?? 0),
+      // Online total = the club's Givebutter team amount + the finished
+      // GoFundMe run. Both are named so the model can cite either accurately.
+      onlineRaised:
+        Number(settings?.donations_raised ?? 0) + Number(settings?.donations_legacy_raised ?? 0),
+      currentPlatformRaised: Number(settings?.donations_raised ?? 0),
+      currentPlatformDonations: Number(settings?.donations_count ?? 0),
+      legacyPlatform: settings?.donations_legacy_label ?? 'GoFundMe',
+      legacyPlatformRaised: Number(settings?.donations_legacy_raised ?? 0),
+      // The wider Janyaa campaign the club's team sits inside.
+      janyaaCampaignRaised: Number(settings?.donations_campaign_raised ?? 0),
+      janyaaCampaignGoal: Number(settings?.donations_campaign_goal ?? 0),
+      teamName: settings?.donations_team_name ?? 'Bellarmine Youth Chapter',
       inPersonRaised: evList.reduce((s, e) => s + e.raised, 0),
     },
     goals: (goals ?? []).map((g: { id: string; title: string; detail: string; progress: number; status: string; target_date: string; owner: { name?: string } }) => ({

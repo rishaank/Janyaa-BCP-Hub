@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     // The canonical per-member totals (ledger + cutoff-filtered sign-ups +
     // meeting attendance + adjustments) — the same numbers every screen shows.
     supabase.rpc('get_hours_breakdowns', { p_member: null }),
-    supabase.from('club_settings').select('raise_target,gofundme_raised,gofundme_goal,gofundme_donations').eq('id', true).single(),
+    supabase.from('club_settings').select('raise_target,donations_raised,donations_count,donations_legacy_raised,donations_legacy_label,donations_campaign_raised,donations_campaign_goal,donations_team_name').eq('id', true).single(),
     supabase.from('locations').select('name,status'),
     supabase.from('meetings').select('title,date,start_time,canceled,meeting_attendees(member_id)'),
     supabase.from('goals').select('title,detail,progress,status,target_date'),
@@ -51,9 +51,16 @@ Deno.serve(async (req) => {
     today,
     fundraising: {
       goal: settings?.raise_target,
-      gofundmeRaised: settings?.gofundme_raised,
-      gofundmeGoal: settings?.gofundme_goal,
-      donations: settings?.gofundme_donations,
+      // Online total merges the current platform with the finished one.
+      onlineRaised:
+        Number(settings?.donations_raised ?? 0) + Number(settings?.donations_legacy_raised ?? 0),
+      currentPlatformRaised: settings?.donations_raised,
+      donations: settings?.donations_count,
+      legacyPlatform: settings?.donations_legacy_label ?? 'GoFundMe',
+      legacyPlatformRaised: settings?.donations_legacy_raised,
+      janyaaCampaignRaised: settings?.donations_campaign_raised,
+      janyaaCampaignGoal: settings?.donations_campaign_goal,
+      teamName: settings?.donations_team_name,
     },
     termStart: termStart ?? null,
     events: (events ?? []).map((e) => ({

@@ -163,7 +163,7 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   individually; **tagged links** (`meetings.links`) render as favicon+name chips (`LinkChip.jsx`); click
   any meeting for a **public full-screen view** at `/meetings/:id` (`MeetingView.jsx`, `get_public_meeting`
   RPC — mirrors the event view); a meeting flips **upcoming → past** and grants attendee hours once its
-  **end time passes in PST** — see Hours model), `Fundraising` (live GoFundMe + the **In-Person Fundraising
+  **end time passes in PST** — see Hours model), `Fundraising` (live Givebutter + the **In-Person Fundraising
   Over Time** graph: a navigable 6-month window ending on the current month, with prev/next arrows, a
   dashed year-boundary line, and a "Jump to current" button), `ClubTerms` (`/club-terms`, sidebar label **Terms** — every club term
   with an expandable breakdown: events, meetings, participants, profits, and a cached per-term **AI
@@ -514,8 +514,29 @@ lets any member **pin** an AI insight / suggestion / social idea so it survives 
 in `ui.jsx`; pinned cards render in a "Pinned" section on `Insights` + `AIStudio` (suggestions + social),
 de-duped from the live cards by title.
 
-**Fundraising:** `club_settings.raise_target` is the shared goal (anyone can edit). GoFundMe figures
-(`gofundme_raised/goal/donations`) are scraped server-side. Per-event in-person revenue is `events.raised`.
+**Fundraising:** `club_settings.raise_target` is the shared goal (anyone can edit). Online donation
+figures (`donations_*`, migration 0038) are scraped server-side by `sync-donations`. Per-event in-person
+revenue is `events.raised`.
+
+**Donation platform (migration 0038 — GoFundMe → Givebutter).** Donations now go through **Janyaa's
+official Givebutter campaign** (`https://givebutter.com/59uJ48`, goal $10,000). Janyaa BCP has **no
+Givebutter account** — the page belongs to Janyaa — so a donor credits the club by choosing
+**"Bellarmine Youth Chapter"** in the donate form's **"Credit a team"** field. Two consequences drive the
+whole design:
+- **No API key is obtainable**, so `sync-donations` scrapes the public pages, as `sync-gofundme` did.
+- **Only the team page reports the club's own total** — the campaign page can't be split by team. Until
+  `club_settings.donations_team_url` is filled in, `donations_raised` stays **NULL** and the UI says the
+  figure is incomplete rather than passing Janyaa's campaign total off as the club's.
+Columns are **provider-neutral** (`donations_*`, not `givebutter_*`) — this is the second platform in the
+Hub's life and the third should cost a settings edit. `donations_url` = campaign, `donations_team_url` =
+the club's team page, `donations_raised`/`_count` = the club's own figures, `donations_campaign_*` = the
+whole-Janyaa figures, `donations_legacy_*` = the **final GoFundMe numbers, merged into every displayed
+total** (so the headline didn't drop to zero at cutover) while staying a separate column so the two
+platforms remain distinguishable. `donations_sync_status` records which parse strategy worked (or the
+error) — the scraper reads someone else's HTML, so a break has to be visible from the table.
+The old `gofundme_*` columns and the `sync-gofundme` function are **deprecated but retained** as the
+rollback path (as 0037 did with `events.instagram_urls`); a later migration should drop both.
+The campaign QR code is `public/givebutter-qr.png`, offered on **Club Info** alongside the Linktree QR.
 
 **Avatars:** public `avatars` storage bucket, users can only write their own `uid/…` folder;
 `profiles.avatar_url` holds the public URL. Photos are square-cropped client-side
@@ -534,7 +555,22 @@ publication, so the admin `/history` page (which also merges in GitHub commits a
 
 Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 
-- **`sync-gofundme`** (`verify_jwt: false`) — scrapes the GoFundMe campaign in `club_settings.gofundme_url`
+- **`sync-donations`** (`verify_jwt: false`) — scrapes the club's online donation totals (Givebutter,
+  migration 0038) and writes the `donations_*` columns. Reads `donations_url` (the whole-Janyaa campaign)
+  and, when set, `donations_team_url` (the club's own credited total). Givebutter's markup isn't ours, so
+  **four independent parse strategies** run over the same HTML — `__NEXT_DATA__`, the App-Router
+  `self.__next_f` flight stream, other inline JSON state, and the rendered text — and are reconciled: the
+  structured data wins on completeness, but the page text is the authority on **units** (Givebutter's
+  payloads sometimes carry cents; "$1,234 raised" on the page never does), and if the two disagree by
+  anything other than a factor of 100 the *text* wins and the status says so. Whichever strategy answered
+  is recorded in `donations_sync_status`. Runs on the **`sync-donations-3h` pg_cron job** + the
+  Fundraising page load + the "Sync now" button; **self-throttled** to 60s like its predecessor, and it
+  refuses to fetch any host that isn't a donation platform (it would otherwise be an open fetch proxy).
+  A `{ probe: <url> }` call (**admin JWT required**) parses a page and reports what it found *without*
+  saving — that's how the team-page URL gets found and how a parse break gets diagnosed.
+- **`sync-gofundme`** (`verify_jwt: false`) — **DEPRECATED (0038)**, kept only as the rollback path while
+  the `gofundme_*` columns survive. Nothing invokes it and the cron no longer calls it.
+  Scrapes the GoFundMe campaign in `club_settings.gofundme_url`
   (parses the `__NEXT_DATA__` Apollo cache) and writes the totals back. Runs on a **pg_cron schedule
   (every 3h)** + on the Fundraising page load + a manual "Sync now" button. **Self-throttled**: a sync
   newer than 60s is returned as `cached: true` instead of re-scraping (the endpoint is public).
@@ -558,7 +594,7 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   **leadership goals** (with % progress), and flags **tentative** events as unconfirmed (so Gemini treats
   them as plans, never as earned hours/money). **Requires the `GEMINI_API_KEY` secret** (set in Supabase
   → Edge Functions → Secrets; free Gemini API tier). Admin can force-regenerate; auto-regenerates
-  (throttled ~10 min) when an event or the GoFundMe total changes. Falls back to a "not set up" message
+  (throttled ~10 min) when an event or the online donation total changes. Falls back to a "not set up" message
   if the key is missing.
 - **`ai-suggestions`** (`verify_jwt: true`) — Gemini next-event + location ideas from real history, cached in
   `club_settings.ai_suggestions`. Surfaced on `/studio` (AI Studio).
