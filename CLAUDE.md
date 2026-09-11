@@ -82,7 +82,12 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   the modal shows it with a Copy button afterwards. `admin-users` stamps
   **`user_metadata.must_set_password`** on any password an admin sets for *someone else* (create + the
   profile's Admin Controls field, which has the same generator); `AuthContext` exposes it as
-  `mustSetPassword`, and `SetPassword` clears the flag in the same `updateUser` call. **It is a
+  `mustSetPassword`, and `SetPassword` / `ChangePasswordCard` clear the flag in the same `updateUser`
+  call. **Only the Edge Function writes `true`; only the app writes `false`** — so a deploy of
+  `admin-users` older than this feature leaves the flag stuck at whatever the member last set, and the
+  nudge silently never fires. That is invisible from the UI, so `setPassword`/`create` return
+  `flagged: true` and the Password-controls modal shows a **redeploy `admin-users`** warning when it
+  comes back missing. **It is a
   recommendation, never a gate** — the admin who set that password may have meant it to stand, so
   `Layout` shows a dismissible `PasswordNudge` modal once per sign-in (Not now / Change password →
   `/members/<uid>?password=1`), keyed off `sessionStorage('janyaa-password-nudge')`. Nothing in the app is

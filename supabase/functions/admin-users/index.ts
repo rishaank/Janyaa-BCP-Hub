@@ -152,7 +152,10 @@ Deno.serve(async (req) => {
         })
         if (error) throw error
         if (name) await admin.from('profiles').update({ name }).eq('id', data.user.id)
-        return json({ ok: true, id: data.user.id })
+        // `flagged` tells the client this deploy understands must_set_password.
+        // Without it the member is never nudged to pick their own password, and
+        // nothing on screen would say why — the app warns the admin instead.
+        return json({ ok: true, id: data.user.id, flagged: true })
       }
 
       // `link: true` -> create the account but hand the set-password link BACK
@@ -226,7 +229,7 @@ Deno.serve(async (req) => {
         },
       })
       if (error) throw error
-      return json({ ok: true })
+      return json({ ok: true, flagged: id !== user.id })
     }
 
     if (action === 'setEmail') {
