@@ -33,6 +33,8 @@ const AIPlanning = lazy(() => import('./pages/AIPlanning'))
 const History = lazy(() => import('./pages/History'))
 const HoursRequests = lazy(() => import('./pages/HoursRequests'))
 const ClubInfo = lazy(() => import('./pages/ClubInfo'))
+// Unlisted diagnostic page — nothing links to it. See src/pages/WhoAmI.jsx.
+const WhoAmI = lazy(() => import('./pages/WhoAmI'))
 
 function RouteFallback() {
   return (
@@ -83,6 +85,7 @@ export default function App() {
                 <Route path="/history" element={<History />} />
                 <Route path="/requests" element={<HoursRequests />} />
                 <Route path="/club" element={<ClubInfo />} />
+                <Route path="/whoami" element={<WhoAmI />} />
               </Route>
             </Route>
 
