@@ -57,11 +57,18 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   gates **every other** page; the sidebar shows those locked (→ `/login`) and the account card becomes a
   Sign-in CTA for guests. Other public routes are `Login`, `SetPassword` (`/set-password` — the
   landing for invite + reset links; verifies the link's `token_hash` with `verifyOtp` then calls
-  `auth.updateUser`. **Never hand out Supabase's `/auth/v1/verify` URL** — it is spent by the first
-  GET, so an iMessage/Slack unfurl or a school mailbox's link scanner burns it and the member is told
-  "link expired"; both Edge Functions rewrite `generateLink`'s result to `…/set-password?token_hash=…&type=…`,
-  which is inert to a prefetch. The page also honours `error_code` in the URL rather than falling
-  through to whatever session the browser already holds), and the **`/privacy` + `/terms`**
+  `auth.updateUser`. **A one-time token must be spent by a tap, never by a page load.** Both Edge
+  Functions rewrite `generateLink`'s result to `…/set-password?token_hash=…&type=…` — never hand out
+  Supabase's `/auth/v1/verify` URL, which is spent by the first GET of it — and the page then holds
+  that token behind a **Continue** button. Anything that opens a link before its owner does kills it:
+  Apple's iMessage preview *runs the page's JavaScript*, Slack/WhatsApp fetch it, a school mailbox
+  scans it, and StrictMode mounts this page twice in dev. Never verify in an effect. The page also
+  honours `error_code` rather than falling through to whatever session the browser already holds.
+  **Verifying a link signs that member in** — that is what a recovery token is, and why it is worth
+  guarding — so the page names the account it is acting on, warns when it is about to displace
+  whoever is already signed in, and **signs the session back out if you leave without setting a
+  password** (an admin testing a member's link used to walk away signed in as that member). Only a
+  session this page opened is dropped that way, never one the browser already had), and the **`/privacy` + `/terms`**
   legal pages (`LegalPage.jsx`, linked from the Login screen + the `Layout` footer). **Signup is
   invite-only** — admins create accounts (the public Login is sign-in only); a member can **delete their
   own account + data** from their profile (`deleteOwnAccount` → admin-users `deleteSelf`, the California
