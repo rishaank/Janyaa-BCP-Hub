@@ -712,6 +712,11 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 ## Gotchas / house rules
 
 - Only commit or push when the user asks. Commit-message trailer: `Co-Authored-By: Claude …`.
+- **Work on `main` directly. No feature branches, no pull requests.** Commit to `main` and push to
+  `origin main`; Vercel deploys from there. If you find yourself on another branch (e.g. a leftover
+  `claude/…` branch), merge it into `main`, push `main`, and delete the branch rather than opening a PR.
+  Solo project, no review step — a branch only delays the deploy and leaves DB/function changes live
+  while the UI that uses them isn't.
 - Build is the gate (no tests). Most pages are behind auth, so you usually can't screenshot them in a
   preview — verify with `npm run build` + reasoning, and ask the user to eyeball auth'd screens.
 - `src/pages/Restaurants.jsx` is an **intentional placeholder** ("coming soon").
