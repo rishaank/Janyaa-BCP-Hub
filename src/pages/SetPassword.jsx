@@ -213,13 +213,11 @@ export default function SetPassword() {
               {link?.type === 'recovery' ? 'Reset your password' : 'Welcome to the Hub'}
             </h1>
             <p className="mt-1 text-sm text-ink-500">
-              Tap continue to set your password. This link works once, so only use it on the device
-              you want to sign in on.
+              Continue to set your password. The link works once, so use it on the device you sign in on.
             </p>
             {signedInAs && (
               <p className="mt-3 rounded-lg border border-gold-200 bg-gold-50 px-3 py-2 text-left text-xs text-gold-700">
-                {signedInAs} is signed in on this browser. Continuing signs them out and signs in the
-                member this link belongs to.
+                {signedInAs} is signed in on this browser. Continuing signs them out.
               </p>
             )}
             <Button onClick={verify} disabled={busy} className="mt-4 w-full justify-center py-3">
@@ -232,8 +230,7 @@ export default function SetPassword() {
           <div className="text-center">
             <h1 className="font-display text-h4 font-bold text-ink-900">Link expired</h1>
             <p className="mt-1 text-sm text-ink-500">
-              This invite or reset link is no longer valid. Each link works once and lasts an hour —
-              ask an admin to send a new one.
+              Each link works once and lasts an hour. Ask an admin for a new one.
             </p>
             {linkError && <p className="mt-2 text-xs text-ink-400">{linkError}</p>}
             <button
@@ -247,7 +244,7 @@ export default function SetPassword() {
 
         {status === 'done' && (
           <p className="flex flex-col items-center gap-2 py-6 text-center text-sm font-medium text-green-700">
-            <CheckCircle2 size={28} /> Password set — taking you in…
+            <CheckCircle2 size={28} /> Password set. Signing you in…
           </p>
         )}
 
@@ -263,8 +260,7 @@ export default function SetPassword() {
             )}
             {mustSetPassword && (
               <p className="rounded-lg border border-gold-200 bg-gold-50 px-3 py-2 text-xs text-gold-700">
-                You're signed in with the password an admin gave you. Pick your own so nobody else
-                knows it.
+                You are signed in with an admin-set password. Pick your own so nobody else knows it.
               </p>
             )}
             <div className="space-y-3">

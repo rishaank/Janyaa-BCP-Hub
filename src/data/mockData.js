@@ -17,10 +17,10 @@ export const eventTypes = [
 // AI Insights is not built yet. These describe what the feature WILL surface once
 // it's wired to the Claude API — shown as a labeled preview, never as real data.
 export const plannedInsights = [
-  'Best day & time to fundraise — which slots historically raise the most.',
-  'Crew size vs. dollars raised — the staffing level that actually pays off.',
-  'Members trending up or down on hours, and who to recognize this term.',
-  'Which sites and neighborhoods convert best, so outreach focuses there.',
-  'Pace to goal — a projected term total and whether you’re on track.',
-  'Suggested next events, based on what has worked before.',
+  'Best day and time to fundraise, by past results.',
+  'Crew size against dollars raised.',
+  'Members trending up or down on hours.',
+  'Which sites and neighborhoods raise the most.',
+  'Pace to goal, with a projected term total.',
+  'Next events worth running, based on past ones.',
 ]

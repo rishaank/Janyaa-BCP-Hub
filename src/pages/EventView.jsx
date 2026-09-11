@@ -437,7 +437,7 @@ function CrewCard({ event, attendees, session, userId, isAdmin, reload, onManage
 
       {event.is_tentative && (
         <p className="mt-3 text-xs text-ink-400">
-          Sign up to say you’re interested. Hours start counting once this event is confirmed.
+          Sign up to show interest. Hours start once the event is confirmed.
         </p>
       )}
     </div>

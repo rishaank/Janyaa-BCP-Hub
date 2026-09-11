@@ -52,8 +52,7 @@ export default function Login() {
         <div className="relative my-auto">
           <h1 className="max-w-md text-3xl font-bold leading-tight">The operational home for Janyaa BCP.</h1>
           <p className="mt-3 max-w-md text-white/75">
-            Members, events, and fundraising in one place — so the club can scale its STEM impact
-            without drowning in spreadsheets.
+            Members, events, and fundraising in one place. No more spreadsheets.
           </p>
           <div className="mt-8 flex flex-wrap gap-6 text-sm text-white/75">
             <span className="flex items-center gap-2"><Users size={16} /> Member hours</span>
@@ -170,8 +169,8 @@ function ForgotPasswordModal({ onClose, initialEmail }) {
               </>
             ) : (
               <>
-                Reset links are only sent to recovery emails, never to school emails. If you
-                haven&rsquo;t set one on your profile, ask an Admin to reset your password for you.
+                Reset links go to recovery emails only. If you have not set one, ask an admin to
+                reset your password.
               </>
             )}
           </p>

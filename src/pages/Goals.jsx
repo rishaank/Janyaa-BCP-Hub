@@ -476,7 +476,7 @@ function TargetsStrip({ targets, editable, onEdit }) {
       <span className="font-mono text-2xs font-semibold uppercase tracking-[0.08em] text-green-700">Semester targets</span>
       <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-2">
         {targets.length === 0 ? (
-          <span className="text-sm text-ink-400">None yet — add the club’s term targets.</span>
+          <span className="text-sm text-ink-400">No targets yet. Add the club’s term targets.</span>
         ) : (
           targets.map((t, i) => (
             <span key={i} className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-700">

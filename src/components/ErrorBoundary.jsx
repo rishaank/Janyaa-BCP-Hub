@@ -25,8 +25,8 @@ export default class ErrorBoundary extends Component {
           </h1>
           <p className="mx-auto mt-2 max-w-sm text-sm text-ink-500">
             {stale
-              ? 'The Hub was updated since this tab loaded. Reload to get the newest version.'
-              : 'An unexpected error broke this page. Reloading usually fixes it.'}
+              ? 'This tab is running an old version. Reload to update.'
+              : 'Something broke on this page. A reload usually fixes it.'}
           </p>
           <button
             onClick={() => window.location.reload()}

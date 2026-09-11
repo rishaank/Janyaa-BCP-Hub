@@ -100,7 +100,7 @@ export default function History() {
         <Card className="p-6 text-sm text-ink-500">Loading…</Card>
       ) : items.length === 0 ? (
         <EmptyState icon={HistoryIcon} title="Nothing yet">
-          Actions will show up here as members use the Hub.
+          Actions appear here as members use the Hub.
         </EmptyState>
       ) : (
         <div className="space-y-6">

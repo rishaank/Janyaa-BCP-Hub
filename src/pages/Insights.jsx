@@ -59,8 +59,7 @@ export default function Insights({ embedded = false }) {
             <p className="text-sm font-semibold">Powered by Gemini</p>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-white/80">
-            The Hub feeds your real attendance, hours, fundraising, and locations into Gemini to surface what's
-            working and what needs attention.
+            Built from your attendance, hours, fundraising, and locations.
             {settings?.ai_insights_at && ` Last generated ${timeAgo(settings.ai_insights_at)}.`}
           </p>
         </Card>
@@ -87,9 +86,9 @@ export default function Insights({ embedded = false }) {
           <h3 className="mt-4 font-display text-h4 font-semibold text-ink-900">No insights yet</h3>
           <p className="mt-1 text-sm text-ink-500">
             {isAdmin
-              ? 'Insights generate automatically — or use Regenerate on the AI tab.'
-              : 'Insights generate automatically as the club logs events and fundraising.'}{' '}
-            Gemini will look for things like:
+              ? 'Insights generate automatically. Regenerate on the AI tab to refresh.'
+              : 'Insights appear as the club logs events and fundraising.'}{' '}
+            Gemini looks for:
           </p>
           <ul className="mx-auto mt-4 max-w-md space-y-2 text-left text-sm text-ink-600">
             {plannedInsights.map((t, i) => (

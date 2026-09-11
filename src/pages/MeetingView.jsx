@@ -302,7 +302,7 @@ function AttendCard({ meeting, attendees, len, session, userId, isAdmin, reload,
             return (
               <div
                 key={a.id}
-                title={contributor ? `${a.name} — contributor (+1 hr)` : a.name}
+                title={contributor ? `${a.name} · contributor (+1 hr)` : a.name}
                 className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3 ${contributor ? 'bg-gold-100' : ''}`}
               >
                 <Avatar size="sm" initials={initials(a.name)} tone={roleTones[a.role] ?? 'blue'} src={a.avatar_url} />

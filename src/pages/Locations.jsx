@@ -234,7 +234,7 @@ export default function Locations() {
             </MapContainer>
           </div>
           <p className="px-4 py-2 text-xs text-ink-400">
-            Tip: search above, click anywhere to drop a pin, or use the blue dot to save where you are.
+            Search above, tap the map to drop a pin, or use the blue dot for your location.
           </p>
         </Card>
 
@@ -520,7 +520,7 @@ function SaveLocationModal({ pending, onClose, onReopen, onSaved }) {
     <Modal open={Boolean(pending)} onClose={rescue.close} title="Save location">
       <form onSubmit={submit} className="space-y-3">
         <p className="rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-500">
-          📍 {pending ? `${pending.lat.toFixed(4)}, ${pending.lng.toFixed(4)}` : ''} — address auto-filled from the map
+          📍 {pending ? `${pending.lat.toFixed(4)}, ${pending.lng.toFixed(4)}` : ''} · address filled in from the map
         </p>
         <LocationFields form={form} set={set} />
         <div className="flex justify-end gap-2 pt-1">

@@ -291,6 +291,38 @@ The brand system is grounded in the club logo (`public/janyaa-logo.png`). Source
   `<Avatar src={...}>`. **Inline references use initials in role color via `<MemberChip>`** (event
   attendees, to-do owners) — keep that consistent and clickable to `/members/:id`.
 
+### Writing (microcopy) — READ THIS BEFORE WRITING ANY UI TEXT
+
+The Hub is read by busy high-schoolers on a phone between classes. Copy is UI, not documentation.
+Every screen was swept once to this standard; keep it there.
+
+1. **Front-load.** The meaning lives in the first two or three words. People scan roughly a quarter
+   of what is on screen. "Where **Forgot password?** sends your reset link", not "For the day you're
+   locked out, the sign-in screen will mail…".
+2. **One idea per line.** Three ideas means three bullets, never one sentence joined by commas.
+3. **Parentheses carry examples**, not sentences: `a personal address (Gmail, iCloud)`,
+   `(message previews, mailbox scanners)`.
+4. **Cut what the label already says.** A card headed *Recovery Email* does not need a line saying it
+   is your recovery email. A field labelled *Ends* needs no helper text.
+5. **Cut the why.** Keep a reason only when the reader must act differently because of it. No threat
+   models, no mail-server history, no architecture. That belongs in this file, not on screen.
+6. **Ceiling: about 12 words a line, 2 lines a block.** Past that, bullet it or delete it.
+7. **No em dashes.** Use a period, a comma, a colon, or a bullet. They are the loudest AI tell, and
+   an audit found 296 of them in this repo. Only exception: a bare `—` as the "no value" glyph in a
+   table cell or an empty grid slot (`{m.name || '—'}`), which is a data placeholder, not prose.
+8. **Banned filler:** simply, just, easily, actually, seamlessly, please note, in order to, make sure,
+   anytime, and more, a full/complete/personal look at, handy, worth a glance.
+9. **Speak to the reader.** "You pick your own at first sign-in", not "The Hub asks them to choose
+   their own the first time they sign in".
+10. **Facts as facts.** `Single use, expires in 1 hour`, not a sentence explaining that the link may
+    only be used one time and will stop working after an hour.
+11. **Empty states** get what belongs here plus the one action, two lines maximum:
+    `No targets yet. Add the club's term targets.`
+12. **Status chips** use a colon, not a dash: `Pending: 4h · Bake sale`.
+
+Reference: NN/g on concise + scannable + objective writing, GOV.UK content design, Shopify Polaris
+and Atlassian content guidelines.
+
 ### Theming (light / dark / custom)
 
 `src/context/ThemeContext.jsx` toggles `light | dark | system | custom` (default system), persisted to

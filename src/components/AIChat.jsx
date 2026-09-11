@@ -167,8 +167,8 @@ export default function AIChat() {
                 <Sparkles size={24} />
               </span>
               <p className="mt-3 max-w-sm text-sm text-ink-600">
-                Ask about Janyaa BCP — events, hours, fundraising, members, goals — or about the Janyaa
-                Foundation. Answers cite live cards you can open.
+                Ask about events, hours, fundraising, members, goals, or the Janyaa Foundation.
+                Answers link to live cards.
               </p>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (
@@ -224,7 +224,7 @@ export default function AIChat() {
         </div>
       </Card>
       <p className="mt-2 text-xs text-ink-400">
-        The assistant can be wrong — double-check anything important. It reads live club data each time you ask.
+        Reads live club data on every question. Check anything important.
       </p>
     </section>
   )

@@ -101,7 +101,7 @@ export default function ClubTerms() {
               Auto terming <EditAccessChip />
             </p>
             <p className="mt-0.5 text-xs text-ink-500">
-              Creates the seasonal terms (Winter · Spring · Summer · Fall) automatically. Turn off to manage terms by hand.
+              Creates each season’s term automatically (Winter, Spring, Summer, Fall). Turn off to add terms by hand.
             </p>
           </div>
           <Switch
@@ -119,7 +119,7 @@ export default function ClubTerms() {
         <Card className="p-6 text-sm text-ink-500">Loading terms…</Card>
       ) : rows.length === 0 ? (
         <Card className="p-8 text-center text-sm text-ink-500">
-          No terms yet{isAdmin ? ' — add one, or turn auto terming on.' : '.'}
+          No terms yet{isAdmin ? '. Add one, or turn on auto terming.' : '.'}
         </Card>
       ) : (
         <div className="ja-stagger space-y-4">
@@ -363,7 +363,7 @@ function TermModal({ open, term, onClose, onReopen, onSaved }) {
           </FormField>
         </div>
         <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-          The current term drives “this term” hours on the dashboard and profiles, so date changes apply everywhere.
+          Changing these dates moves “this term” hours on the dashboard and profiles.
         </p>
         {err && <p className="text-sm text-coral-700">{err}</p>}
         <div className="flex justify-end gap-2 pt-1">

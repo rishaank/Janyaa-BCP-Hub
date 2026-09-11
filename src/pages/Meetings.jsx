@@ -146,7 +146,7 @@ export function MeetingCard({ meeting, myId, isAdmin = false, isPast: isPastProp
                 name={a.profiles?.name}
                 role={a.profiles?.role}
                 highlight={a.role === 'contributor'}
-                title={a.role === 'contributor' ? `${a.profiles?.name} — contributor (+1 hr)` : a.profiles?.name}
+                title={a.role === 'contributor' ? `${a.profiles?.name} · contributor (+1 hr)` : a.profiles?.name}
               />
             ))}
           </div>
@@ -304,8 +304,8 @@ export function MeetingFormModal({ open, meeting, onClose, onReopen, onSaved }) 
               <span className="block text-sm font-semibold text-ink-800">Repeat weekly</span>
               <span className="mt-0.5 block text-xs text-ink-500">
                 {form.date
-                  ? `Auto-creates this meeting every ${repeatDay} for the next two months. You can still cancel or edit any single one.`
-                  : 'Pick a date first — it repeats on that weekday.'}
+                  ? `Repeats every ${repeatDay} for the next two months. Cancel or edit any single meeting.`
+                  : 'Pick a date first. It repeats on that weekday.'}
               </span>
             </span>
           </label>
@@ -427,8 +427,7 @@ export function SeriesModal({ open, onClose, onReopen, onChange }) {
     <Modal open={open} onClose={rescue.close} title="Recurring Meetings">
       <div className="space-y-4">
         <p className="text-sm text-ink-600">
-          Set a weekly schedule (like every Thursday) and the Hub auto-creates the meetings for the next two
-          months. You can still cancel or edit any single one on the Meetings page.
+          Set a weekly schedule and meetings are created for the next two months. Cancel or edit any single one.
         </p>
 
         {series.length > 0 && (

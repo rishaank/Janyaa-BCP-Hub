@@ -290,8 +290,8 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
           ) : (
             <p className="mt-1 text-sm text-ink-500">
               {busy
-                ? 'Reading the volunteering history — this takes ~10 seconds.'
-                : 'A personal look at progress and what to try next appears here once generated.'}
+                ? 'Reading the volunteering history. About 10 seconds.'
+                : 'Progress and what to try next appear here once generated.'}
             </p>
           )}
         </div>
@@ -368,7 +368,7 @@ function ChangePasswordCard() {
         <h3 className="font-display text-h4 font-semibold text-ink-900">Password</h3>
       </div>
       <p className="text-sm text-ink-600">
-        Change the password you sign in with. No email needed — you're already signed in.
+        Change the password you sign in with. No email needed.
       </p>
       <div className="mt-3 flex items-center gap-3">
         <Button variant="soft" type="button" onClick={() => setOpen(true)}>
@@ -462,9 +462,8 @@ function RecoveryEmailCard({ memberId }) {
         <h3 className="font-display text-h4 font-semibold text-ink-900">Recovery Email</h3>
       </div>
       <p className="text-sm text-ink-600">
-        For the day you're locked out. <b>Forgot password?</b> on the sign-in screen mails a reset
-        link here — never to your school email, which quarantines our mail. You still sign in with
-        the school address, and while you're signed in you change your password above, not by email.
+        Where <b>Forgot password?</b> sends your reset link. Use a personal address (Gmail, iCloud).
+        School email will not receive it.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
@@ -482,7 +481,7 @@ function RecoveryEmailCard({ memberId }) {
       {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
       {!saved && !msg && (
         <p className="mt-2 text-xs text-gold-700">
-          No recovery email set — if you forget your password, nobody can mail you a reset link.
+          No address saved. Reset links cannot be sent.
         </p>
       )}
     </Card>
@@ -518,8 +517,8 @@ function SelfDangerZone({ onDeleted }) {
         <h3 className="font-display text-h4 font-semibold text-ink-900">Delete Your Account</h3>
       </div>
       <p className="text-sm text-ink-600">
-        Permanently delete your account and personal data — your profile, photo, event sign-ups, and
-        meeting attendance. This can&rsquo;t be undone.
+        Permanently deletes your profile, photo, event sign-ups, and meeting attendance. This
+        can&rsquo;t be undone.
       </p>
       {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
       <button
@@ -651,8 +650,8 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
       {canRequest && (
         <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-700">
           {isOwn
-            ? 'Request hours for activities outside events & meetings — the operations lead'
-            : `Submit a request on ${memberName || 'this member'}’s behalf — the operations lead`}
+            ? 'For anything outside events and meetings. The operations lead'
+            : `Submitting on ${memberName || 'this member'}’s behalf. The operations lead`}
           {opsLead && (
             <>
               {' '}
@@ -728,9 +727,8 @@ function HoursBreakdown({ breakdown, canDirectEdit, canRequest, isOwn, memberId,
       )}
       {canDirectEdit && (
         <p className="mt-3 text-xs text-ink-400">
-          Logged, role, and imported entries can be edited here. Event sign-ups and meeting attendance
-          are managed on the Events &amp; Meetings page. Hover any row to copy those hours onto another
-          member — handy when several people did the same thing.
+          Logged, role, and imported entries are editable here. Sign-ups and meeting attendance are
+          managed on the Events &amp; Meetings page. Hover a row to copy those hours to another member.
         </p>
       )}
       <HoursEntryModal
@@ -817,15 +815,15 @@ function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, on
           </div>
           <p className="font-semibold text-ink-900">Request sent</p>
           <p className="mt-1 text-sm text-ink-600">
-            The operations lead will review it. The hours show up here once they&rsquo;re approved.
+            The operations lead reviews it. Approved hours appear here.
           </p>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-3">
           <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
             {onBehalf
-              ? `You’re submitting this on ${targetName || 'this member'}’s behalf. It goes to the operations lead to approve.`
-              : 'Your request goes to the operations lead to approve. If it’s denied, you’ll see why on your dashboard.'}
+              ? `Submitting on ${targetName || 'this member'}’s behalf. Goes to the operations lead to approve.`
+              : 'Goes to the operations lead to approve. If denied, the reason shows on your dashboard.'}
           </p>
           <FormField label="Activity">
             <input className={inputClass} value={activity} onChange={(e) => setActivity(e.target.value)} required placeholder="e.g. Sunday Friends outreach" />
@@ -1002,8 +1000,7 @@ function CopyHoursModal({ entry, fromId, fromName, onClose, onCopied }) {
           </p>
         </div>
         <p className="text-xs text-ink-500">
-          Each member picked gets their own editable entry — worth a glance that they aren&rsquo;t already
-          credited for it.
+          Each member picked gets their own entry. Check they are not already credited.
         </p>
         <FormField label="Copy to">
           <div className="relative">
@@ -1417,7 +1414,7 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      setError('Clipboard blocked — copy it by hand from above.')
+      setError('Clipboard blocked. Copy it by hand from above.')
     }
   }
 
@@ -1461,8 +1458,8 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
           </p>
           <p className="text-xs text-ink-500">
             {applied
-              ? 'This password is live — send it over with the login email.'
-              : 'Nothing changes until you set it. Then send it over with their login email.'}
+              ? 'This password is live. Send it with the login email.'
+              : 'Nothing changes until you set it. Then send it with their login email.'}
           </p>
           {error && <p className="text-sm text-coral-700">{error}</p>}
           <div className="flex flex-wrap justify-end gap-2 pt-1">

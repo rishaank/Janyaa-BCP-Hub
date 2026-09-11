@@ -38,7 +38,7 @@ export function PinButton({ pinned, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      title={pinned ? 'Unpin' : 'Pin — keeps this through refreshes'}
+      title={pinned ? 'Unpin' : 'Pin to keep this after a refresh'}
       aria-label={pinned ? 'Unpin' : 'Pin'}
       className={`rounded-md p-1 transition-colors ${
         pinned ? 'text-gold-600 hover:bg-gold-100' : 'text-ink-300 hover:bg-ink-100 hover:text-ink-600'

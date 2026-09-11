@@ -160,7 +160,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 rounded-full border border-gold-200 bg-gold-50 px-3 py-1.5 text-sm text-gold-700"
             >
               <Clock size={14} className="shrink-0" />
-              <span>Hours request pending — <b className="tabular-nums">{num(r.hours)}h</b> for {r.activity}</span>
+              <span>Hours request pending: <b className="tabular-nums">{num(r.hours)}h</b> for {r.activity}</span>
             </span>
           ))}
           {approvedReqs.map((r) => (
@@ -169,7 +169,7 @@ export default function Dashboard() {
               className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-sm text-green-700"
             >
               <Check size={14} className="shrink-0" />
-              <span>Hours request approved — <b className="tabular-nums">{num(r.hours)}h</b> for {r.activity}</span>
+              <span>Hours request approved: <b className="tabular-nums">{num(r.hours)}h</b> for {r.activity}</span>
               <button
                 onClick={() => dismissRequest(r.id)}
                 className="-mr-1 shrink-0 rounded-full p-0.5 text-green-700/70 transition-colors hover:bg-green-100 hover:text-green-700"
@@ -211,8 +211,8 @@ export default function Dashboard() {
       {isGuest && (
         <Card className="mb-6 flex flex-col items-start justify-between gap-3 border-blue-200 bg-blue-50/60 p-4 sm:flex-row sm:items-center">
           <p className="text-sm text-ink-700">
-            You’re viewing the <span className="font-semibold">public dashboard</span>. Sign in to sign up for
-            events, log hours, manage meetings, and more.
+            This is the <span className="font-semibold">public dashboard</span>. Sign in to join events, log
+            hours, and manage meetings.
           </p>
           <Link to="/login" className="shrink-0">
             <Button icon={LogIn}>Sign in</Button>
@@ -575,7 +575,7 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
       {isGuest && (
         <div className="jh-card jh-card-pad" style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <p style={{ fontSize: 13, color: 'var(--ink-700)', lineHeight: 1.5 }}>
-            You’re viewing the public dashboard. Sign in to sign up for events, log hours, and more.
+            This is the public dashboard. Sign in to join events and log hours.
           </p>
           <Link to="/login" className="jh-btn-primary"><LogIn size={16} /> Sign in</Link>
         </div>
@@ -594,12 +594,12 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 14 }}>
           {pendingReqs.map((r) => (
             <span key={r.id} className="badge badge-gold" style={{ padding: '6px 11px', fontSize: 12 }}>
-              <Clock size={13} /> Pending — {num(r.hours)}h · {r.activity}
+              <Clock size={13} /> Pending: {num(r.hours)}h · {r.activity}
             </span>
           ))}
           {approvedReqs.map((r) => (
             <span key={r.id} className="badge badge-green" style={{ padding: '6px 11px', fontSize: 12 }}>
-              <Check size={13} /> Approved — {num(r.hours)}h
+              <Check size={13} /> Approved: {num(r.hours)}h
               <button onClick={() => onDismiss(r.id)} aria-label="Dismiss" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', marginLeft: 2 }}><X size={12} /></button>
             </span>
           ))}

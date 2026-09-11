@@ -80,16 +80,12 @@ export default function AutoHours() {
       <Card className="mb-6 flex items-start gap-3 border-blue-200 bg-blue-50/60 p-4 text-sm text-ink-700">
         <Info size={16} className="mt-0.5 shrink-0 text-blue-600" />
         <div className="space-y-1">
-          <p><span className="font-semibold">How it works.</span> These hours are added automatically, on top of event sign-ups.</p>
+          <p>Added on top of event and meeting hours.</p>
           <ul className="list-disc space-y-0.5 pl-5 text-ink-600">
-            <li><span className="font-medium text-ink-800">Every month</span> grants on the 1st — or use a role’s <span className="font-medium text-ink-800">Grant Now</span> to grant it early.</li>
-            <li><span className="font-medium text-ink-800">Per new event</span> grants the moment an event is created.</li>
-            <li>Role hours accrue going forward — set each member’s accurate hours so far from their profile.</li>
+            <li><span className="font-medium text-ink-800">Monthly:</span> granted on the 1st. <span className="font-medium text-ink-800">Grant Now</span> grants it early.</li>
+            <li><span className="font-medium text-ink-800">Per event:</span> granted when the event is created.</li>
+            <li><span className="font-medium text-ink-800">Starts from now.</span> Add earlier hours on the member’s profile.</li>
           </ul>
-          <p className="pt-1 text-ink-600">
-            <span className="font-semibold text-ink-800">Events &amp; meetings are separate.</span> Hours from signing
-            up for an event or attending a meeting are added automatically once that event or meeting has taken place.
-          </p>
         </div>
       </Card>
 

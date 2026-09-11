@@ -9,7 +9,7 @@ export default function Privacy() {
     <LegalPage title="Privacy Policy" updated="June 2026">
       <p className="text-sm leading-relaxed text-ink-600">
         This policy explains what the Janyaa BCP Hub (“the Hub”, “we”, “us”) collects, how we use it, and
-        the choices you have. Janyaa BCP is a student-run STEM-education nonprofit — the BCP chapter of the
+        the choices you have. Janyaa BCP is a student-run STEM-education nonprofit, the BCP chapter of the
         Janyaa Foundation. Questions or requests? Email{' '}
         <a href={`mailto:${CONTACT}`} className="font-medium text-blue-600 hover:text-blue-700">{CONTACT}</a>.
       </p>
@@ -36,7 +36,7 @@ export default function Privacy() {
           The dashboard at the site’s home page can be viewed without signing in. It shows aggregate club
           statistics, fundraising totals, the volunteer-hours leaderboard (member names, optional profile
           photos, roles, and hours), active leadership goals, and AI-generated insights. <span className="font-medium text-ink-800">Everything
-          else — the member directory, events, meetings, profiles, and more — requires signing in.</span> Please
+          else requires signing in: the member directory, events, meetings, and profiles.</span> Please
           don’t upload a profile photo you wouldn’t want shown publicly.
         </p>
       </Section>
@@ -44,8 +44,8 @@ export default function Privacy() {
       <Section title="AI insights">
         <p>
           We use Google’s Gemini API to turn club activity into short written insights. We send only
-          abbreviated names (first name and last initial), roles, and numeric statistics — never email
-          addresses or full names. We never send anyone’s contact information to the AI.
+          abbreviated names (first name and last initial), roles, and numeric statistics. We never send
+          email addresses, full names, or contact information.
         </p>
       </Section>
 
@@ -60,9 +60,9 @@ export default function Privacy() {
       <Section title="Service providers">
         <p>We rely on a few vendors that process data on our behalf to provide the Hub:</p>
         <ul className="list-disc space-y-1 pl-5">
-          <li><span className="font-medium text-ink-800">Supabase</span> — database, authentication, and photo storage.</li>
-          <li><span className="font-medium text-ink-800">Vercel</span> — website hosting.</li>
-          <li><span className="font-medium text-ink-800">Google (Gemini API)</span> — generating AI insights from abbreviated, non-identifying data.</li>
+          <li><span className="font-medium text-ink-800">Supabase</span>: database, authentication, and photo storage.</li>
+          <li><span className="font-medium text-ink-800">Vercel</span>: website hosting.</li>
+          <li><span className="font-medium text-ink-800">Google (Gemini API)</span>: AI insights from abbreviated, non-identifying data.</li>
         </ul>
       </Section>
 
@@ -81,7 +81,7 @@ export default function Privacy() {
           <li>Review and update your profile any time after signing in.</li>
           <li>Add or remove your profile photo from your profile page.</li>
           <li>
-            <span className="font-medium text-ink-800">Delete your account and data yourself</span> — go to your profile and choose
+            <span className="font-medium text-ink-800">Delete your account and data yourself</span>: go to your profile and choose
             “Delete my account”. This permanently removes your profile, photo, sign-ups, and attendance.
           </li>
           <li>Or email <a href={`mailto:${CONTACT}`} className="font-medium text-blue-600 hover:text-blue-700">{CONTACT}</a> and we’ll handle any access or deletion request.</li>

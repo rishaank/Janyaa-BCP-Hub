@@ -9,7 +9,7 @@ export default function Restaurants() {
     <>
       <PageHeader title="Restaurant Affiliates" />
       <EmptyState icon={UtensilsCrossed} title="Coming soon">
-        The restaurant affiliate program will live here. Nothing to show yet.
+        The restaurant affiliate program will live here.
       </EmptyState>
     </>
   )

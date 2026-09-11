@@ -52,8 +52,8 @@ export function CalendarSubscribeModal({ open, onClose }) {
     <Modal open={open} onClose={onClose} title="Subscribe to the Janyaa calendar">
       <div className="space-y-4">
         <p className="text-sm text-ink-600">
-          Add every Janyaa <span className="font-medium text-ink-800">event and club meeting</span> to your own
-          calendar. It stays in sync — new items and changes show up automatically, no re-adding.
+          Adds every Janyaa <span className="font-medium text-ink-800">event and club meeting</span> to your own
+          calendar. New events and changes appear automatically.
         </p>
         <a
           href={webcalUrl}

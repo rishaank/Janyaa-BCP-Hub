@@ -134,7 +134,7 @@ export default function Members() {
             ))}
           </div>
         ) : members.length === 0 ? (
-          <p className="p-6 text-sm text-ink-500">No members yet. The first person to sign up shows up here.</p>
+          <p className="p-6 text-sm text-ink-500">No members yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -261,7 +261,7 @@ function MembersMobile({ members, loading, isAdmin, exporting, onExport, addOpen
         {loading ? (
           <p style={{ padding: '14px 0', fontSize: 13, color: 'var(--ink-400)' }}>Loading…</p>
         ) : members.length === 0 ? (
-          <p style={{ padding: '14px 0', fontSize: 13, color: 'var(--ink-500)' }}>No members yet. The first person to sign up shows up here.</p>
+          <p style={{ padding: '14px 0', fontSize: 13, color: 'var(--ink-500)' }}>No members yet.</p>
         ) : (
           ranked.map((m, i) => (
             <button key={m.id} className="mem-row" onClick={() => navigate(`/members/${m.id}`)}>
@@ -420,7 +420,7 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
       return setInvite({
         link: res.data.link,
         copied: await copyToClipboard(res.data.link),
-        note: `The invite email didn’t send (${res.data.mailError}) — send them this link instead.`,
+        note: `The invite email didn’t send (${res.data.mailError}). Send them this link instead.`,
       })
     }
     if (mode === 'password') {
@@ -456,7 +456,7 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
     if (!res.data?.link) {
       onAdded()
       return setError(
-        'No link came back — the account was probably still created and sent an invite email instead. Check the members list, and ask for the admin-users function to be redeployed.',
+        'No link came back. The account was probably created and sent an invite email. Check the members list, then ask for admin-users to be redeployed.',
       )
     }
     onAdded()
@@ -468,10 +468,10 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
     return (
       <Modal open={open} onClose={close} title={isPassword ? 'Account ready' : 'Invite link ready'}>
         <p className="text-sm text-ink-700">
-          {name.trim() || email.trim()}’s account is created.{' '}
+          {name.trim() || email.trim()}’s account is ready.{' '}
           {isPassword
-            ? 'Give them this temporary password with their email address. The Hub asks them to choose their own the first time they sign in.'
-            : 'Send them this link — it lets them set their own password and sign in.'}
+            ? 'Send this password with their email address.'
+            : 'Send this link so they can set a password.'}
         </p>
         {invite.note && (
           <p className="mt-3 rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{invite.note}</p>
@@ -489,8 +489,8 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
             which is exactly why it's the default path. */}
         <p className="mt-2 text-xs text-ink-500">
           {isPassword
-            ? 'No expiry and nothing to click, so it survives being texted. It stops working the moment they set their own.'
-            : 'Single use, and expires in 1 hour. After that, open their profile → Admin Controls → Copy reset link for a fresh one.'}
+            ? 'No expiry. Stops working once they set their own.'
+            : 'Single use, expires in 1 hour. For a new one: their profile → Admin Controls → Copy reset link.'}
         </p>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button
@@ -554,15 +554,13 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
               </Button>
             </div>
             <span className="mt-1 block text-xs text-ink-500">
-              Read it out or text it with their email address. The Hub makes them choose their own the first
-              time they sign in — nothing to click, nothing to expire.
+              Text or read it out with their email. They pick their own at first sign-in.
             </span>
           </FormField>
         ) : (
           <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            They get a one-time link to set their own password, valid for an hour. Email it, or copy it and hand
-            it over. A link can be spent by whatever opens it first (a message preview, a mailbox scanner), so
-            prefer a temporary password when you're handing it over in person or by text.
+            One-time link, valid 1 hour. Anything that opens it first uses it up (message previews, mailbox
+            scanners), so a password is safer for text.
           </p>
         )}
 

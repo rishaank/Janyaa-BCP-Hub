@@ -50,7 +50,7 @@ const stats = [
 
 const facts = [
   { text: 'Janyaa is a registered 501(c)(3) nonprofit (Tax ID 01-0922892) headquartered in Fremont, CA, focused on building creative problem-solving skills in rural children in India. "Janyaa" translates to "life." It was founded in 2009 by Venu Nadella.', source: 'janyaa.org', url: 'https://janyaa.org/' },
-  { text: "Janyaa's core philosophy is experiential, hands-on STEM learning rather than lectures — based on the finding that people retain ~5% of a lecture, 50% of what they see and hear, and 80% of what they experience.", source: 'projectworldimpact.com', url: 'https://www.projectworldimpact.com/organization/janyaa-ca' },
+  { text: "Janyaa's core philosophy is experiential, hands-on STEM learning rather than lectures, based on the finding that people retain about 5% of a lecture, 50% of what they see and hear, and 80% of what they experience.", source: 'projectworldimpact.com', url: 'https://www.projectworldimpact.com/organization/janyaa-ca' },
   { text: 'Its flagship program is Janyaa Lab in a Box (JLIB): 600+ curriculum-aligned science and math experiments developed by Stanford professors, government teachers, and STEM experts, taught to children in grades 6–10.', source: 'millenniumpost.in', url: 'https://www.millenniumpost.in/opinion/nexus-of-good-driven-by-motivation-445803' },
   { text: "Janyaa's cumulative reach is large: 1,900 schools, 800,000 students, and 22,000 teachers.", source: 'janyaa.org', url: 'https://janyaa.org/' },
   { text: 'A 2015 ISB (Indian School of Business) evaluation found Janyaa students performed 50% better than non-Janyaa students.', source: 'janyaa.org', url: 'https://janyaa.org/janyaas-impact/' },
@@ -59,7 +59,7 @@ const facts = [
   { text: 'In the 2015 ISB study, 94% of students said they liked teachers showing the experiments and 92% wanted to practice them.', source: 'millenniumpost.in', url: 'https://www.millenniumpost.in/opinion/nexus-of-good-driven-by-motivation-445803' },
   { text: 'Janyaa launched its online Learning Hub in April 2020 to offset pandemic STEM learning losses; it enrolled 852 children across 65 schools in Telangana, while 1,126 public-school teachers received 52.6 hours of online STEM training between April 2020 and March 2021.', source: 'janyaa.org', url: 'https://janyaa.org/jlh/' },
   { text: 'More than 98% of donations go directly to the cause, and as a 501(c)(3) organization all donations are tax-deductible.', source: 'janyaafoundation.org', url: 'https://janyaafoundation.org/' },
-  { text: 'Janyaa runs multiple Bay Area student-led youth chapters — including Almaden, Cupertino, and Palo Alto — that raise funds and awareness for STEM education for underprivileged kids in India.', source: 'janyaa.org', url: 'https://janyaa.org/janyaa-youth/' },
+  { text: 'Janyaa runs multiple Bay Area student-led youth chapters, including Almaden, Cupertino, and Palo Alto, that raise funds and awareness for STEM education for underprivileged kids in India.', source: 'janyaa.org', url: 'https://janyaa.org/janyaa-youth/' },
 ]
 
 const cardTones = {

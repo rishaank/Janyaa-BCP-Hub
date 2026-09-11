@@ -70,7 +70,7 @@ export default function AIPlanning() {
       >
         <span className="flex items-center gap-2 text-sm font-bold"><Sparkles size={17} /> Powered by Gemini</span>
         <p className="mt-2 text-[13px] leading-relaxed text-white/85">
-          The Hub feeds your real attendance, hours, fundraising, and locations into Gemini to surface what’s working — refreshed monthly.
+          Built from your attendance, hours, fundraising, and locations. Refreshed monthly.
         </p>
       </div>
       {/* The whole page cascades in on load — Insights, planning, chat, social. */}
@@ -148,7 +148,7 @@ function RegenerateModal({ open, onClose, onChanged }) {
     <Modal open={open} onClose={running ? () => {} : onClose} title="Regenerate AI">
       <div className="space-y-4">
         <p className="text-sm text-ink-600">
-          Pick which AI sections to rebuild from the latest club data. Gemini runs each one, so this can take a bit.
+          Pick the sections to rebuild from the latest club data. This can take a minute.
         </p>
 
         <div className="space-y-2">
@@ -190,7 +190,7 @@ function RegenerateModal({ open, onClose, onChanged }) {
 
         <div className="flex items-center justify-between gap-2 pt-1">
           {done && !running ? (
-            <span className="text-xs text-green-700">Done — the page updated below.</span>
+            <span className="text-xs text-green-700">Done. Updated below.</span>
           ) : (
             <span className="text-xs text-ink-400">{running ? 'Working through the list…' : `${sel.size} selected`}</span>
           )}

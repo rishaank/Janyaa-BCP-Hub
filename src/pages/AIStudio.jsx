@@ -44,8 +44,7 @@ export default function AIStudio({ embedded = false }) {
             <p className="text-sm font-semibold">Powered by Gemini</p>
           </div>
           <p className="mt-2 max-w-2xl text-sm text-white/80">
-            Everything here is generated from your actual events, locations, and fundraising. Review before you act —
-            AI can be wrong.
+            Built from your events, locations, and fundraising. Check before you act.
           </p>
         </Card>
       )}
@@ -102,15 +101,14 @@ function Planner() {
       </h2>
       <Card className="flex flex-1 flex-col p-5">
         <p className="mb-4 text-sm text-ink-600">
-          Answer what you know and leave the rest blank — AI fills in the gaps, then drafts a full plan with a
-          timeline and to-dos you can create in one click.
+          Fill in what you know and leave the rest blank. You get a draft event, timeline, and to-dos.
         </p>
         <form onSubmit={generate} className="grid gap-3 sm:grid-cols-2">
           {cadenceQs.map((q) => (
             <FormField key={q.key} label={q.label}>
               {q.type === 'select' ? (
                 <select className={inputClass} value={answers[q.key] ?? ''} onChange={set(q.key)}>
-                  <option value="">No preference — you decide</option>
+                  <option value="">No preference</option>
                   {q.options.map((o) => (
                     <option key={o} value={o}>{o}</option>
                   ))}
@@ -129,7 +127,7 @@ function Planner() {
             </Button>
           </div>
         </form>
-        {busy && <p className="mt-2 text-xs text-ink-400">Designing your event — this takes ~15 seconds.</p>}
+        {busy && <p className="mt-2 text-xs text-ink-400">Drafting your plan. About 15 seconds.</p>}
         {error && <p className="mt-3 rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-700">{error}</p>}
 
         {plan && !created && <PlanResult plan={plan} onCreated={setCreated} onDiscard={() => setPlan(null)} />}
@@ -233,7 +231,7 @@ function PlanResult({ plan, onCreated, onDiscard }) {
         </Button>
         <Button variant="soft" type="button" onClick={onDiscard} disabled={busy}>Discard</Button>
       </div>
-      <p className="mt-2 text-xs text-ink-400">Creates the event (tentative if no date) with the timeline in its notes and every to-do pre-added.</p>
+      <p className="mt-2 text-xs text-ink-400">Creates the event with the timeline in its notes and every to-do added. Tentative if there is no date.</p>
     </div>
   )
 }
@@ -262,7 +260,7 @@ function Suggestions({ settings, pins, pin, unpin }) {
 
       {events.length === 0 && locations.length === 0 && pins.length === 0 ? (
         <Card className="flex-1 p-6 text-center text-sm text-ink-500">
-          Event + location ideas appear here — generate them anytime from Regenerate on this tab.
+          Event and location ideas appear here. Use Regenerate on this tab.
         </Card>
       ) : (
         <div className="grid gap-4">
@@ -346,7 +344,7 @@ function Social({ settings, pins, pin, unpin }) {
 
       <Card className="mb-4 flex items-start gap-2 border-gold-200 bg-gold-50/60 p-3 text-xs text-gold-800">
         <TrendingUp size={14} className="mt-0.5 shrink-0" />
-        <span>Trend + audio hints are directional. There’s no public API for exact Instagram trending audio, so treat these as starting points and check what’s actually trending in the app.</span>
+        <span>Trend and audio hints are guesses. Check Instagram for what is actually trending.</span>
       </Card>
 
       {posts.length === 0 && pins.length === 0 ? (

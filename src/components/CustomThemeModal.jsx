@@ -87,7 +87,7 @@ export default function CustomThemeModal({ open, onClose }) {
     <Modal open={open} onClose={onClose} title="Custom theme">
       <div className="space-y-4">
         <p className="text-sm text-ink-600">
-          Upload a background image — we&rsquo;ll pick matching colors for the best contrast, and you can fine-tune each one.
+          Upload a background. Colors are matched for contrast, and you can adjust each one.
         </p>
 
         {!draft?.image ? (
