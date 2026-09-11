@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Outlet, useLocation, Link, Navigate } from 'react-router-dom'
+import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import MobileShell from './mobile/MobileShell'
 import { useIsDesktop } from '../lib/useMediaQuery'
 import { useAuth } from '../context/AuthContext'
+import { Button, Modal } from './ui'
 
 // App shell. Desktop (lg+) keeps the fixed sidebar + top bar; below lg it swaps to
 // the mobile redesign's bottom-tab shell. Both render the active page via <Outlet />.
@@ -14,15 +15,22 @@ export default function Layout() {
   const location = useLocation()
   const { mustSetPassword } = useAuth()
 
-  // Signed in on a password an admin chose — nothing in the app opens until
-  // they've set their own. /set-password sits outside this shell, so there's no
-  // loop to guard against.
-  if (mustSetPassword) return <Navigate to="/set-password" replace />
+  // Signed in on a password an admin chose. This is a RECOMMENDATION, not a
+  // gate: the admin who set that password had a reason to, so the member is
+  // asked, not forced.
+  const nudge = mustSetPassword ? <PasswordNudge /> : null
 
-  if (!isDesktop) return <MobileShell />
+  if (!isDesktop)
+    return (
+      <>
+        {nudge}
+        <MobileShell />
+      </>
+    )
 
   return (
     <div className="min-h-screen bg-paper">
+      {nudge}
       <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="lg:pl-64">
         <Topbar onMenu={() => setMenuOpen(true)} />
@@ -42,5 +50,55 @@ export default function Layout() {
         </footer>
       </div>
     </div>
+  )
+}
+
+
+// Shown once per sign-in to a member whose password was set by an admin. It
+// recommends they take the account over — their own password, plus the recovery
+// email that lets them reset it later without asking anyone. Dismissable: the
+// admin-set password keeps working either way.
+const NUDGE_KEY = 'janyaa-password-nudge'
+
+function PasswordNudge() {
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem(NUDGE_KEY) !== 'dismissed'
+    } catch {
+      return true // storage blocked — showing it twice beats never showing it
+    }
+  })
+
+  function close() {
+    setOpen(false)
+    try {
+      sessionStorage.setItem(NUDGE_KEY, 'dismissed')
+    } catch {
+      /* best effort */
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={close} title="Make this account yours">
+      <p className="text-sm text-ink-700">
+        You're signed in with a password an admin set for you. Choose your own so nobody else knows
+        it, and add a recovery email on your profile so you can reset it yourself later.
+      </p>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button variant="soft" type="button" onClick={close}>
+          Not now
+        </Button>
+        <Button
+          type="button"
+          onClick={() => {
+            close()
+            navigate('/set-password')
+          }}
+        >
+          Change password
+        </Button>
+      </div>
+    </Modal>
   )
 }

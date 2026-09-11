@@ -32,6 +32,7 @@ import {
   adminSetEmail,
   adminSendReset,
   getRecoveryEmail,
+  requestPasswordReset,
   setRecoveryEmail,
   adminDeleteUser,
   deleteOwnAccount,
@@ -307,6 +308,7 @@ function RecoveryEmailCard({ memberId }) {
   const [email, setEmail] = useState('')
   const [saved, setSaved] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sending, setSending] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
@@ -331,6 +333,16 @@ function RecoveryEmailCard({ memberId }) {
     setMsg(next ? 'Recovery email saved.' : 'Recovery email removed.')
   }
 
+  async function sendReset() {
+    setErr('')
+    setMsg('')
+    setSending(true)
+    const res = await requestPasswordReset(saved)
+    setSending(false)
+    if (!res.ok) return setErr(res.error || 'Could not send the reset link.')
+    setMsg(`Reset link sent to ${res.data?.sentTo || saved}. It works once and lasts an hour.`)
+  }
+
   return (
     <Card className="mt-6 p-5">
       <div className="mb-2 flex items-center gap-2">
@@ -353,6 +365,18 @@ function RecoveryEmailCard({ memberId }) {
           {busy ? 'Saving…' : saved && !email.trim() ? 'Remove' : 'Save'}
         </Button>
       </div>
+      {/* The only way a member changes their own password without asking an
+          admin. Off until an address is SAVED — mail goes to the stored one,
+          not whatever is typed in the box above. */}
+      <Button
+        variant="soft"
+        type="button"
+        onClick={sendReset}
+        disabled={!saved || busy || sending}
+        className="mt-2"
+      >
+        {sending ? 'Sending…' : 'Email me a password reset link'}
+      </Button>
       {msg && <p className="mt-2 text-xs font-medium text-green-700">{msg}</p>}
       {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
       {!saved && !msg && (
@@ -1017,39 +1041,9 @@ function ProfileGoalCard({ goal }) {
   )
 }
 
-// Warn before unsaved Admin Controls edits are lost. `beforeunload` covers tab
-// close / reload / leaving the site; the capture-phase click handler covers
-// in-app navigation — every `<Link>`/`<NavLink>` renders an anchor, and the two
-// nav controls that are plain buttons (this page's Back, the mobile tab bar)
-// carry `data-nav-guard`. The app mounts `BrowserRouter`, not a data router, so
-// React Router's `useBlocker` isn't available here.
-function useUnsavedGuard(dirty) {
-  useEffect(() => {
-    if (!dirty) return
-    const onUnload = (e) => {
-      e.preventDefault()
-      e.returnValue = ''
-    }
-    const onClick = (e) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-      const el = e.target.closest?.('a[href], [data-nav-guard]')
-      if (!el || el.target === '_blank') return
-      // Not navigation: the .xlsx export on this very page downloads through a
-      // synthetic anchor, and in-page/scheme links never leave the route.
-      const href = el.getAttribute?.('href') ?? ''
-      if (el.hasAttribute?.('download') || /^(#|blob:|data:|mailto:|tel:)/.test(href)) return
-      if (window.confirm('You have unsaved changes. Leave without saving?')) return
-      e.preventDefault()
-      e.stopPropagation()
-    }
-    window.addEventListener('beforeunload', onUnload)
-    document.addEventListener('click', onClick, true)
-    return () => {
-      window.removeEventListener('beforeunload', onUnload)
-      document.removeEventListener('click', onClick, true)
-    }
-  }, [dirty])
-}
+// Whole enough to send to the auth API — not a spec-complete check, just the
+// difference between a finished address and one still being typed.
+const looksLikeEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)
 
 function AdminControls({ member, isSelf, onSaved, onDeleted }) {
   const [name, setName] = useState(member.name ?? '')
@@ -1089,17 +1083,32 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
     admin !== base.admin ||
     email.trim() !== base.email ||
     recovery.trim() !== base.recovery
-  useUnsavedGuard(dirty)
 
-  // One button commits the whole card: profile fields, login email, recovery
-  // address, and a new password — each only when it actually changed.
+  // Auto-save: there's no Save button to forget. A short pause after the last
+  // keystroke commits the card, and an address that isn't whole yet just waits —
+  // half of "name@bcp.org" is a plausible-looking "name@bcp" that would
+  // otherwise be written to the account mid-type.
+  useEffect(() => {
+    if (!dirty || busy) return
+    const nextEmail = email.trim().toLowerCase()
+    const nextRecovery = recovery.trim().toLowerCase()
+    if (nextEmail !== base.email && !looksLikeEmail(nextEmail)) return
+    if (nextRecovery !== base.recovery && nextRecovery && !looksLikeEmail(nextRecovery)) return
+    const t = setTimeout(save, 1200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, busy, name, role, admin, email, recovery])
+
+  // Commits the whole card — profile fields, login email, recovery address —
+  // each only when it actually changed. Passwords aren't here: they have their
+  // own modal, because a password has to be written the moment it's shown.
   async function save() {
     setAcctErr('')
     setLinkSent(false)
     const nextEmail = email.trim().toLowerCase()
     const nextRecovery = recovery.trim().toLowerCase()
-    if (nextEmail !== base.email && !nextEmail.includes('@')) return setAcctErr('Enter a valid email address.')
-    if (nextRecovery && !nextRecovery.includes('@')) return setAcctErr('Enter a valid recovery email.')
+    if (nextEmail !== base.email && !looksLikeEmail(nextEmail)) return setAcctErr('Enter a valid email address.')
+    if (nextRecovery && !looksLikeEmail(nextRecovery)) return setAcctErr('Enter a valid recovery email.')
 
     setBusy(true)
     if (name !== base.name || role !== base.role || admin !== base.admin) {
@@ -1234,9 +1243,7 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
               {acctBusy === 'reset' ? 'Sending…' : 'Email reset link (legacy)'}
             </Button>
             {!base.recovery && (
-              <span className="text-xs text-ink-500">
-                Email resets need a non-BCP recovery email set
-              </span>
+              <span className="text-xs text-ink-500">Needs recovery email.</span>
             )}
           </div>
           {acctErr && <p className="mt-2 text-xs text-coral-700">{acctErr}</p>}
@@ -1252,11 +1259,10 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
           )}
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-end gap-3">
+      <div className="mt-4 flex h-5 items-center justify-end gap-3">
         {linkSent && <span className="text-sm font-medium text-green-700">Link sent</span>}
-        {saved && <span className="text-sm font-medium text-green-700">Saved</span>}
-        {dirty && !saved && <span className="text-sm text-ink-500">Unsaved changes</span>}
-        <Button onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
+        {busy && <span className="text-sm text-ink-500">Saving…</span>}
+        {saved && !busy && <span className="text-sm font-medium text-green-700">Saved</span>}
       </div>
       <PasswordModal
         mode={pwModal}
@@ -1314,7 +1320,7 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
 
   const note = isSelf
     ? 'This replaces your own password straight away.'
-    : `${member.name || 'They'} will be asked to choose their own the next time they sign in.`
+    : 'This replaces their password straight away. Send it with their login email.'
 
   return (
     <Modal
@@ -1352,7 +1358,7 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
           </p>
           <p className="text-xs text-ink-500">
             {applied
-              ? `This password is live — send it over with the login email. ${note}`
+              ? 'This password is live — send it over with the login email.'
               : 'Nothing changes until you set it. Then send it over with their login email.'}
           </p>
           {error && <p className="text-sm text-coral-700">{error}</p>}

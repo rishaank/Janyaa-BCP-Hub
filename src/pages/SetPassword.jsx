@@ -56,9 +56,10 @@ function stripLinkParams() {
 
 export default function SetPassword() {
   const navigate = useNavigate()
-  // Set when an admin created this account with a temporary password: the app
-  // shell parks them here until they choose their own, so this screen is the
-  // last step of onboarding rather than a link landing.
+  // Set when an admin created this account with a temporary password. It only
+  // changes the wording here and drives the one-per-sign-in nudge in Layout —
+  // the member is never forced, since the admin who set that password may well
+  // have meant it to stand.
   const { mustSetPassword } = useAuth()
   // verifying | confirm | ready | expired | done
   const [status, setStatus] = useState('verifying')
@@ -262,8 +263,8 @@ export default function SetPassword() {
             )}
             {mustSetPassword && (
               <p className="rounded-lg border border-gold-200 bg-gold-50 px-3 py-2 text-xs text-gold-700">
-                You're signed in with the temporary password an admin gave you. Pick your own to
-                finish setting up your account — the rest of the Hub opens once you do.
+                You're signed in with the password an admin gave you. Pick your own so nobody else
+                knows it.
               </p>
             )}
             <div className="space-y-3">
@@ -300,13 +301,10 @@ export default function SetPassword() {
             {mustSetPassword ? (
               <button
                 type="button"
-                onClick={async () => {
-                  await supabase.auth.signOut()
-                  navigate('/login')
-                }}
+                onClick={() => navigate('/')}
                 className="mx-auto block text-xs font-medium text-ink-400 hover:text-ink-700"
               >
-                Sign out instead
+                Keep the one I have
               </button>
             ) : (
               <p className="text-center text-xs text-ink-400">

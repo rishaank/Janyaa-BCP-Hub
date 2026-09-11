@@ -82,25 +82,30 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   the modal shows it with a Copy button afterwards. `admin-users` stamps
   **`user_metadata.must_set_password`** on any password an admin sets for *someone else* (create + the
   profile's Admin Controls field, which has the same generator); `AuthContext` exposes it as
-  `mustSetPassword`, `Layout` parks that member on `/set-password` until they choose their own, and
-  `SetPassword` clears the flag in the same `updateUser` call. It's a prompt, not a security boundary
-  (the member can write their own metadata) — what protects the account is that only they and the
-  admin know the temporary password. Invite links still exist as the second tab.
+  `mustSetPassword`, and `SetPassword` clears the flag in the same `updateUser` call. **It is a
+  recommendation, never a gate** — the admin who set that password may have meant it to stand, so
+  `Layout` shows a dismissible `PasswordNudge` modal once per sign-in (Not now / Change password →
+  `/set-password`), keyed off `sessionStorage('janyaa-password-nudge')`. Nothing in the app is
+  withheld. Invite links still exist as the second tab.
 - **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose
   tenant quarantines/badly delays our mail — so reset links do **not** go there by default. Each member
   can save a personal **recovery email** (`member_recovery`, migration 0033; own-row + admin RLS, its own
   table so it isn't exposed by the all-members-read `profiles` policy) on their profile. **Reset mail is
   only ever sent to a recovery address — there is deliberately no fallback to the school login address**,
   since a link sent there usually never arrives and the member is left assuming the reset itself failed.
-  A member with no recovery address on file therefore can't receive a reset email at all: an admin uses
-  **Copy reset link** instead. The Dashboard shows a gold **"Set a recovery email"** chip (desktop stat-pill
+  A member with no recovery address on file therefore can't receive a reset email at all: an admin sets
+  them a password instead. Once an address **is saved**, the member's own Recovery Email card has an
+  **Email me a password reset link** button (`requestPasswordReset`, disabled until then) — the only
+  way a member changes their own password without asking an admin. The Dashboard shows a gold **"Set a recovery email"** chip (desktop stat-pill
   row + mobile chip row) linking to the member's own profile whenever they haven't set one. The Login
   screen has a **Forgot password?** modal → `requestPasswordReset()`, which accepts *either* the login or
   the recovery address to identify the member; it reports a masked destination **only** when mail actually
   went out, so "no account" and "no recovery address" are indistinguishable. Members edit their recovery email on their own profile — **except admins**, who edit theirs
   inside Admin Controls (the standalone card is hidden for them). The profile's admin **Account** section
-  is a single form: login email and recovery email are drafts committed by **Save changes** (which also
-  saves name/role/admin), with an unsaved-changes prompt on tab close and on in-app navigation.
+  **auto-saves**: name/role/admin, login email and recovery email commit 1.2 s after the last
+  keystroke (status line reads Saving… → Saved), so there is no Save button and no unsaved-changes
+  prompt. An address still being typed waits — `looksLikeEmail()` gates the write, because half of
+  `name@bcp.org` is a plausible `name@bcp` that would otherwise land on the account mid-type.
   **Passwords are deliberately NOT part of that draft** — a generated password sitting in a field looks
   set but isn't, and the admin only finds out when the member can't sign in. They live in **Password
   controls** below it: **Set new** and **Generate temporary**, each opening a modal that commits the
