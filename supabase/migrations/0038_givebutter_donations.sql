@@ -106,6 +106,11 @@ create trigger enforce_admin_raise_target
   before update on public.club_settings
   for each row execute function public.enforce_admin_raise_target();
 
+-- PostgREST exposes every function in public, and this one is SECURITY DEFINER;
+-- same treatment as log_activity(). (A trigger function can't be called via RPC
+-- anyway, but the advisor flags it and the intent should be explicit.)
+revoke execute on function public.enforce_admin_raise_target() from public, anon, authenticated;
+
 -- ---- Dashboard RPC -------------------------------------------------------
 -- Re-declared in full (copied from 0032) with only the 'fundraising' key changed:
 -- it now reads the provider-neutral columns and adds the legacy total.

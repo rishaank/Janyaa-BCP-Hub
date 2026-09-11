@@ -20,8 +20,10 @@
 //
 // HOW IT PARSES
 // Givebutter's markup is not ours and will change without warning, so this does
-// not depend on one shape. Four independent strategies run over the same HTML
-// and the results are reconciled; whichever produced the answer is recorded in
+// not depend on one shape. Givebutter's own blobs are read first — the inline
+// `window.GB_CAMPAIGN` object for a campaign, the `data-active-team` attribute
+// for a team page — and when neither is there, four generic strategies run over
+// the same HTML and are reconciled. Whichever produced the answer is recorded in
 // club_settings.donations_sync_status, so a break is diagnosable from the table
 // instead of from the function logs.
 
@@ -143,6 +145,76 @@ function tryJson(text: string): unknown | null {
   }
 }
 
+// Slice one brace-balanced {...} object out of `text`, starting at `start`.
+function balancedObject(text: string, start: number): string | null {
+  if (text[start] !== '{') return null
+  let depth = 0
+  let inStr = false
+  let esc = false
+  for (let j = start; j < text.length && j - start < 400_000; j++) {
+    const c = text[j]
+    if (esc) { esc = false; continue }
+    if (c === '\\') { esc = true; continue }
+    if (c === '"') { inStr = !inStr; continue }
+    if (inStr) continue
+    if (c === '{') depth++
+    else if (c === '}') {
+      depth--
+      if (depth === 0) return text.slice(start, j + 1)
+    }
+  }
+  return null
+}
+
+const unescapeAttr = (s: string) =>
+  s.replace(/&quot;/g, '"').replace(/&#039;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+
+// --- strategy 0a: Givebutter's own campaign blob -------------------------
+// Givebutter is a Laravel app, not Next. Every campaign page (and every team
+// page under it) inlines `window.GB_CAMPAIGN = {...};` carrying the WHOLE
+// campaign's `raised` (a string, in dollars) and `goal`. This is the campaign
+// figure even when read off a team page, so it is only trusted in campaign scope.
+function fromGbCampaign(html: string): Figures {
+  const m = /window\.GB_CAMPAIGN\s*=\s*\{/.exec(html)
+  if (!m) return EMPTY
+  const raw = balancedObject(html, m.index + m[0].length - 1)
+  const data = raw ? tryJson(raw) : null
+  if (!data || typeof data !== 'object') return EMPTY
+  const o = data as Record<string, unknown>
+  const raised = asNumber(o.raised)
+  if (raised == null) return EMPTY
+  return {
+    raised,
+    goal: asNumber(o.goal),
+    donations: asNumber(o.donations_count ?? o.supporters_count ?? o.donors_count),
+    title: typeof o.title === 'string' ? o.title : null,
+    strategy: 'gb-campaign',
+  }
+}
+
+// --- strategy 0b: Givebutter's team blob ----------------------------------
+// A team page carries its team as an HTML-escaped JSON attribute,
+// `data-active-team="{&quot;id&quot;:…,&quot;raised&quot;:8,…}"`. The parent
+// campaign page has the same attribute for whichever team is first, so this is
+// only trusted in team scope (a URL with a team slug after the campaign code).
+function fromGbTeam(html: string): Figures {
+  const m = /data-active-team="([^"]*)"/.exec(html)
+  if (!m) return EMPTY
+  const data = tryJson(unescapeAttr(m[1]))
+  if (!data || typeof data !== 'object') return EMPTY
+  const o = data as Record<string, unknown>
+  const raised = asNumber(o.raised)
+  if (raised == null) return EMPTY
+  const goal = asNumber(o.goal)
+  return {
+    raised,
+    goal: goal && goal > 0 ? goal : null, // teams without a goal carry 0
+    donations: asNumber(o.supporters_count ?? o.donations_count),
+    title: typeof o.name === 'string' ? o.name : null,
+    strategy: 'gb-team',
+  }
+}
+
 // --- strategy 1: the classic Next.js Pages-Router blob -------------------
 function fromNextData(html: string): Figures {
   const m = html.match(/id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)
@@ -174,24 +246,10 @@ function fromFlight(html: string): Figures {
   // Scan for balanced {...} regions and try each as JSON.
   for (let i = 0; i < blob.length; i++) {
     if (blob[i] !== '{') continue
-    let depth = 0
-    let inStr = false
-    let esc = false
-    let end = -1
-    for (let j = i; j < blob.length && j - i < 400_000; j++) {
-      const c = blob[j]
-      if (esc) { esc = false; continue }
-      if (c === '\\') { esc = true; continue }
-      if (c === '"') { inStr = !inStr; continue }
-      if (inStr) continue
-      if (c === '{') depth++
-      else if (c === '}') {
-        depth--
-        if (depth === 0) { end = j; break }
-      }
-    }
-    if (end < 0) continue
-    const candidate = tryJson(blob.slice(i, end + 1))
+    const raw = balancedObject(blob, i)
+    if (!raw) continue
+    const end = i + raw.length - 1
+    const candidate = tryJson(raw)
     if (candidate) {
       const got = harvest(candidate)
       if (got.raised != null) {
@@ -257,7 +315,16 @@ function fromText(html: string): Figures {
 // the rendered text is the authority on UNITS: Givebutter's internal payloads
 // sometimes carry cents, and "$1,234 raised" on the page never does. When the
 // structured figure is exactly 100x the text figure, the payload was in cents.
-function parseGivebutter(html: string): Figures {
+//
+// `scope` says which figure the page is being read FOR: a team page carries both
+// its own team blob and the whole campaign's, so without it the generic
+// strategies would happily report Janyaa's $1,700 as the club's.
+type Scope = 'team' | 'campaign'
+
+function parseGivebutter(html: string, scope: Scope): Figures {
+  const own = scope === 'team' ? fromGbTeam(html) : fromGbCampaign(html)
+  if (own.raised != null) return own
+
   const text = fromText(html)
   const structured = [fromNextData(html), fromFlight(html), fromInlineState(html)].filter(
     (f) => f.raised != null,
@@ -290,13 +357,19 @@ function parseGivebutter(html: string): Figures {
   return best
 }
 
-async function scrape(url: string): Promise<Figures> {
+// givebutter.com/<campaign> is a campaign; givebutter.com/<campaign>/<team> is a team.
+function scopeOf(url: string): Scope {
+  const segs = new URL(url).pathname.split('/').filter(Boolean)
+  return segs.length >= 2 ? 'team' : 'campaign'
+}
+
+async function scrape(url: string, scope: Scope = scopeOf(url)): Promise<Figures> {
   const res = await fetch(url, {
     headers: { 'User-Agent': UA, Accept: 'text/html,application/xhtml+xml' },
     redirect: 'follow',
   })
   if (!res.ok) throw new Error(`${new URL(url).hostname} responded ${res.status}`)
-  return parseGivebutter(await res.text())
+  return parseGivebutter(await res.text(), scope)
 }
 
 // Only ever fetch the donation platform. Without this the function is an open
@@ -389,7 +462,7 @@ Deno.serve(async (req) => {
     // failure here fails the sync even if the campaign scrape succeeded.
     let clubOk = false
     try {
-      const c = await scrape(clubUrl)
+      const c = await scrape(clubUrl, 'team')
       if (c.raised == null) throw new Error('no raised figure on the club page')
       update.donations_raised = c.raised
       update.donations_count = c.donations
@@ -405,7 +478,7 @@ Deno.serve(async (req) => {
     if (campaignUrl) {
       try {
         assertAllowed(campaignUrl)
-        const c = await scrape(campaignUrl)
+        const c = await scrape(campaignUrl, 'campaign')
         if (c.raised == null) throw new Error('no raised figure on the campaign page')
         update.donations_campaign_raised = c.raised
         update.donations_campaign_donations = c.donations

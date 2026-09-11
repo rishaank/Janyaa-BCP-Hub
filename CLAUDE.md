@@ -569,8 +569,13 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 
 - **`sync-donations`** (`verify_jwt: false`) — scrapes the club's online donation totals (Givebutter,
   migration 0038) and writes the `donations_*` columns. Reads `donations_url` (**the club's own page**)
-  and `donations_campaign_url` (Janyaa's parent campaign, context only). Givebutter's markup isn't ours, so
-  **four independent parse strategies** run over the same HTML — `__NEXT_DATA__`, the App-Router
+  and `donations_campaign_url` (Janyaa's parent campaign, context only). Givebutter is a **Laravel** app
+  (not Next): its own blobs are read first — the inline `window.GB_CAMPAIGN = {…}` object for a campaign,
+  the HTML-escaped `data-active-team="{…}"` attribute for a team page — **scoped** to what the page is
+  being read *for* (a team page carries both, and the parent page has a `data-active-team` for whichever
+  team is first, so `scope: 'team' | 'campaign'` decides which is trusted; without it the club would report
+  Janyaa's whole-campaign total as its own). Only when neither is present do **four generic strategies**
+  run over the same HTML — `__NEXT_DATA__`, the App-Router
   `self.__next_f` flight stream, other inline JSON state, and the rendered text — and are reconciled: the
   structured data wins on completeness, but the page text is the authority on **units** (Givebutter's
   payloads sometimes carry cents; "$1,234 raised" on the page never does), and if the two disagree by
