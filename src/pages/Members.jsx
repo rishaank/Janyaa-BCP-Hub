@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Users, Clock, Trophy, Shield, UserPlus, Crown, Download, Loader2 } from 'lucide-react'
 import { PageHeader, Card, StatPill, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
 import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUser, adminCreateUserLink } from '../lib/api'
+import { generateTempPassword } from '../lib/tempPassword'
 import { exportAllHours } from '../lib/exportHours'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../lib/useRealtime'
@@ -345,13 +346,15 @@ const tab = (active) =>
     active ? 'border-green-500 bg-green-50 text-green-700' : 'border-ink-200 text-ink-600 hover:bg-ink-50'
   }`
 
-const blankMember = { name: '', email: '', mode: 'invite', password: '' }
+const blankMember = { name: '', email: '', mode: 'password', password: '' }
 
 function AddMemberModal({ open, onClose, onReopen, onAdded }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [mode, setMode] = useState('invite') // 'invite' | 'password'
-  const [password, setPassword] = useState('')
+  // Temporary password first: it's the one handover that can't be spent,
+  // scanned or expired on the way to the member (see lib/tempPassword.js).
+  const [mode, setMode] = useState('password') // 'password' | 'invite'
+  const [password, setPassword] = useState(generateTempPassword)
   const [busy, setBusy] = useState('') // '' | 'submit' | 'link'
   const [error, setError] = useState('')
   const [okMsg, setOkMsg] = useState('')
@@ -374,16 +377,20 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
   useEffect(() => {
     if (!open) return
     if (rescue.consumeRestore()) return // Undo — keep the rescued draft on screen
-    reset()
-    rescue.setBaseline(blankMember)
+    // The generated password is part of the pristine form, so it has to be in
+    // the baseline too — otherwise closing an untouched form would offer to
+    // rescue a "draft" nobody typed.
+    const pw = generateTempPassword()
+    reset(pw)
+    rescue.setBaseline({ ...blankMember, password: pw })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  function reset() {
+  function reset(pw = generateTempPassword()) {
     setName('')
     setEmail('')
-    setPassword('')
-    setMode('invite')
+    setPassword(pw)
+    setMode('password')
     setError('')
     setOkMsg('')
     setInvite(null)
@@ -416,7 +423,16 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
         note: `The invite email didn’t send (${res.data.mailError}) — send them this link instead.`,
       })
     }
-    setOkMsg(mode === 'password' ? 'Account created.' : 'Invite email sent.')
+    if (mode === 'password') {
+      onAdded()
+      setOkMsg('Account created.')
+      return setInvite({
+        kind: 'password',
+        value: password,
+        copied: await copyToClipboard(password),
+      })
+    }
+    setOkMsg('Invite email sent.')
     onAdded()
     setTimeout(close, 1200)
   }
@@ -448,32 +464,43 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
   }
 
   if (invite) {
+    const isPassword = invite.kind === 'password'
     return (
-      <Modal open={open} onClose={close} title="Invite link ready">
+      <Modal open={open} onClose={close} title={isPassword ? 'Account ready' : 'Invite link ready'}>
         <p className="text-sm text-ink-700">
-          {name.trim() || email.trim()}’s account is created. Send them this link — it lets them set their own
-          password and sign in.
+          {name.trim() || email.trim()}’s account is created.{' '}
+          {isPassword
+            ? 'Give them this temporary password with their email address. The Hub asks them to choose their own the first time they sign in.'
+            : 'Send them this link — it lets them set their own password and sign in.'}
         </p>
         {invite.note && (
           <p className="mt-3 rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{invite.note}</p>
         )}
-        <p className="mt-3 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">
-          {invite.link}
+        <p
+          className={`mt-3 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-ink-600 ${
+            isPassword ? 'text-center text-lg tracking-widest text-ink-900' : 'text-[11px]'
+          }`}
+        >
+          {invite.link ?? invite.value}
         </p>
         {/* Invite links expire per the same Auth → Providers → Email → Email OTP
             Expiration setting as reset links (keep it at 3600s = the 1 hour both
-            this line and the reset email promise). */}
+            this line and the reset email promise). A password has no such clock,
+            which is exactly why it's the default path. */}
         <p className="mt-2 text-xs text-ink-500">
-          Single use, and expires in 1 hour. After that, open their profile → Admin Controls → Copy reset link for a
-          fresh one.
+          {isPassword
+            ? 'No expiry and nothing to click, so it survives being texted. It stops working the moment they set their own.'
+            : 'Single use, and expires in 1 hour. After that, open their profile → Admin Controls → Copy reset link for a fresh one.'}
         </p>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button
             variant="soft"
             type="button"
-            onClick={async () => setInvite({ ...invite, copied: await copyToClipboard(invite.link) })}
+            onClick={async () =>
+              setInvite({ ...invite, copied: await copyToClipboard(invite.link ?? invite.value) })
+            }
           >
-            {invite.copied ? 'Copied!' : 'Copy link'}
+            {invite.copied ? 'Copied!' : isPassword ? 'Copy password' : 'Copy link'}
           </Button>
           <Button type="button" onClick={close}>
             Done
@@ -503,30 +530,39 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
         <div>
           <span className="mb-1 block text-sm font-semibold text-ink-800">How should they get in?</span>
           <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => setMode('password')} className={tab(mode === 'password')}>
+              Temporary password
+            </button>
             <button type="button" onClick={() => setMode('invite')} className={tab(mode === 'invite')}>
               Invite link
-            </button>
-            <button type="button" onClick={() => setMode('password')} className={tab(mode === 'password')}>
-              Set a password
             </button>
           </div>
         </div>
 
         {mode === 'password' ? (
           <FormField label="Temporary password">
-            <input
-              type="text"
-              className={inputClass}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-            />
-            <span className="mt-1 block text-xs text-ink-500">Share this with the member; they can change it later.</span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                className={`${inputClass} font-mono tracking-wide`}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+              />
+              <Button variant="soft" type="button" onClick={() => setPassword(generateTempPassword())}>
+                New
+              </Button>
+            </div>
+            <span className="mt-1 block text-xs text-ink-500">
+              Read it out or text it with their email address. The Hub makes them choose their own the first
+              time they sign in — nothing to click, nothing to expire.
+            </span>
           </FormField>
         ) : (
           <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            They get a link to set their own password. Email it (needs SMTP configured), or copy it and hand it over
-            by text or in person — useful when a school mailbox is swallowing our mail.
+            They get a one-time link to set their own password, valid for an hour. Email it, or copy it and hand
+            it over. A link can be spent by whatever opens it first (a message preview, a mailbox scanner), so
+            prefer a temporary password when you're handing it over in person or by text.
           </p>
         )}
 

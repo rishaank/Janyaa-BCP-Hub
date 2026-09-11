@@ -69,6 +69,10 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     loading,
+    // Set when an admin created the account with a temporary password (or reset
+    // one from a profile). The app shell parks the member on /set-password
+    // until they choose their own — see admin-users.
+    mustSetPassword: Boolean(session?.user?.user_metadata?.must_set_password),
     signIn: (email, password) =>
       supabase.auth.signInWithPassword({ email, password }),
     signUp: (email, password, name) =>

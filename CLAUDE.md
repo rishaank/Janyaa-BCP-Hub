@@ -74,6 +74,18 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   own account + data** from their profile (`deleteOwnAccount` → admin-users `deleteSelf`, the California
   SB 568 "eraser" right). Email/password with **auto-confirm ON** (no email step). `profile.is_admin` drives admin UI; admin-only pages (e.g. `/history`) are gated
   in the sidebar nav **and** by RLS.
+- **Onboarding a member: hand over a temporary password, not a link.** A one-time link is the
+  fragile option — anything that opens it first spends it (a message preview that runs JS, a mailbox
+  scanner, a tapped-and-abandoned tab), and it dies in an hour. So **Add member** defaults to
+  **Temporary password**: `generateTempPassword()` (`src/lib/tempPassword.js`, unambiguous alphabet,
+  `XXXX-XXXX-XXXX`) fills the field, the admin reads it out or texts it with the member's email, and
+  the modal shows it with a Copy button afterwards. `admin-users` stamps
+  **`user_metadata.must_set_password`** on any password an admin sets for *someone else* (create + the
+  profile's Admin Controls field, which has the same generator); `AuthContext` exposes it as
+  `mustSetPassword`, `Layout` parks that member on `/set-password` until they choose their own, and
+  `SetPassword` clears the flag in the same `updateUser` call. It's a prompt, not a security boundary
+  (the member can write their own metadata) — what protects the account is that only they and the
+  admin know the temporary password. Invite links still exist as the second tab.
 - **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose
   tenant quarantines/badly delays our mail — so reset links do **not** go there by default. Each member
   can save a personal **recovery email** (`member_recovery`, migration 0033; own-row + admin RLS, its own

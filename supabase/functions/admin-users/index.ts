@@ -137,11 +137,18 @@ Deno.serve(async (req) => {
       if (!email) return json({ error: 'Email required' }, 400)
 
       if (password) {
+        // must_set_password marks a password the ADMIN chose: the app sends the
+        // member straight to /set-password on their first sign-in and keeps
+        // them there until they pick their own. It lives in user_metadata (the
+        // member can write their own) rather than profiles, which is
+        // admin-only to edit. It's a prompt, not a security boundary — what
+        // protects the account is that only the admin and the member know the
+        // temporary password.
         const { data, error } = await admin.auth.admin.createUser({
           email,
           password,
           email_confirm: true,
-          user_metadata: { name },
+          user_metadata: { name, must_set_password: true },
         })
         if (error) throw error
         if (name) await admin.from('profiles').update({ name }).eq('id', data.user.id)
@@ -206,7 +213,18 @@ Deno.serve(async (req) => {
     if (action === 'setPassword') {
       const { id, password } = body
       if (!id || !password) return json({ error: 'id and password required' }, 400)
-      const { error } = await admin.auth.admin.updateUserById(id, { password })
+      // Same flag as create: a password an admin typed for SOMEONE ELSE is
+      // temporary by definition, so that member is asked to replace it when
+      // they sign in. An admin changing their own password already knows it.
+      // Merge rather than assign — user_metadata also carries `name`.
+      const { data: existing } = await admin.auth.admin.getUserById(id)
+      const { error } = await admin.auth.admin.updateUserById(id, {
+        password,
+        user_metadata: {
+          ...(existing?.user?.user_metadata ?? {}),
+          must_set_password: id !== user.id,
+        },
+      })
       if (error) throw error
       return json({ ok: true })
     }

@@ -22,6 +22,7 @@ import {
   AccessChip,
 } from '../components/ui'
 import { toneMeta } from '../components/InsightCard'
+import { generateTempPassword } from '../lib/tempPassword'
 import {
   getProfileDetails,
   adminUpdateProfile,
@@ -1230,13 +1231,27 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
               />
             </FormField>
             <FormField label="New password">
-              <input
-                type="text"
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                placeholder="Leave blank to keep"
-                className={inputClass}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pw}
+                  onChange={(e) => setPw(e.target.value)}
+                  placeholder="Leave blank to keep"
+                  className={`${inputClass} font-mono tracking-wide`}
+                />
+                <Button variant="soft" type="button" onClick={() => setPw(generateTempPassword())}>
+                  New
+                </Button>
+              </div>
+              {/* The member is asked to replace it on their next sign-in
+                  (admin-users stamps must_set_password) — unless they're
+                  setting their own, which isn't temporary. */}
+              {!isSelf && (
+                <span className="mt-1 block text-xs text-ink-500">
+                  Hand this over instead of a link when a mailbox is eating our mail. They're asked to
+                  choose their own the next time they sign in.
+                </span>
+              )}
             </FormField>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">

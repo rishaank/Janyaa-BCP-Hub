@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle2, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 import { Logo, Button, inputClass } from '../components/ui'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
@@ -55,6 +56,10 @@ function stripLinkParams() {
 
 export default function SetPassword() {
   const navigate = useNavigate()
+  // Set when an admin created this account with a temporary password: the app
+  // shell parks them here until they choose their own, so this screen is the
+  // last step of onboarding rather than a link landing.
+  const { mustSetPassword } = useAuth()
   // verifying | confirm | ready | expired | done
   const [status, setStatus] = useState('verifying')
   const [link, setLink] = useState(null) // the token waiting for a tap
@@ -176,7 +181,10 @@ export default function SetPassword() {
     if (password.length < 8) return setError('Use at least 8 characters.')
     if (password !== confirm) return setError('Passwords don’t match.')
     setBusy(true)
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: { must_set_password: false },
+    })
     setBusy(false)
     if (error) return setError(error.message)
     claimed.current = false // the password proves the session is theirs to keep
@@ -245,11 +253,17 @@ export default function SetPassword() {
         {status === 'ready' && (
           <form onSubmit={submit} className="space-y-4">
             <h1 className="text-center text-2xl font-bold tracking-tight text-ink-900">
-              Set your password
+              {mustSetPassword ? 'Choose your own password' : 'Set your password'}
             </h1>
             {account && (
               <p className="text-center text-sm text-ink-500">
                 for <span className="font-medium text-ink-700">{account}</span>
+              </p>
+            )}
+            {mustSetPassword && (
+              <p className="rounded-lg border border-gold-200 bg-gold-50 px-3 py-2 text-xs text-gold-700">
+                You're signed in with the temporary password an admin gave you. Pick your own to
+                finish setting up your account — the rest of the Hub opens once you do.
               </p>
             )}
             <div className="space-y-3">
@@ -283,9 +297,22 @@ export default function SetPassword() {
             <Button type="submit" disabled={busy} className="w-full justify-center py-3">
               {busy ? 'Saving…' : 'Set password & continue'}
             </Button>
-            <p className="text-center text-xs text-ink-400">
-              You stay signed out until a password is set.
-            </p>
+            {mustSetPassword ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  navigate('/login')
+                }}
+                className="mx-auto block text-xs font-medium text-ink-400 hover:text-ink-700"
+              >
+                Sign out instead
+              </button>
+            ) : (
+              <p className="text-center text-xs text-ink-400">
+                You stay signed out until a password is set.
+              </p>
+            )}
           </form>
         )}
       </div>

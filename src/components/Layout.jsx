@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Outlet, useLocation, Link } from 'react-router-dom'
+import { Outlet, useLocation, Link, Navigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import MobileShell from './mobile/MobileShell'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useAuth } from '../context/AuthContext'
 
 // App shell. Desktop (lg+) keeps the fixed sidebar + top bar; below lg it swaps to
 // the mobile redesign's bottom-tab shell. Both render the active page via <Outlet />.
@@ -11,6 +12,12 @@ export default function Layout() {
   const isDesktop = useIsDesktop()
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const { mustSetPassword } = useAuth()
+
+  // Signed in on a password an admin chose — nothing in the app opens until
+  // they've set their own. /set-password sits outside this shell, so there's no
+  // loop to guard against.
+  if (mustSetPassword) return <Navigate to="/set-password" replace />
 
   if (!isDesktop) return <MobileShell />
 
