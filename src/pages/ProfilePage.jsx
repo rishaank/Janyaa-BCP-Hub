@@ -1468,13 +1468,19 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
                 Regenerate
               </Button>
             )}
-            <Button variant="soft" type="button" onClick={copy}>
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
+            {/* Copy appears only once the password is live. Offering it beside
+                an unset password is how an admin ends up texting a password the
+                member can't sign in with — the failure this modal exists to
+                prevent. Nothing to copy until there's something real to copy. */}
             {applied ? (
-              <Button type="button" onClick={onClose}>
-                Done
-              </Button>
+              <>
+                <Button variant="soft" type="button" onClick={copy}>
+                  {copied ? 'Copied!' : 'Copy'}
+                </Button>
+                <Button type="button" onClick={onClose}>
+                  Done
+                </Button>
+              </>
             ) : (
               <Button type="button" onClick={() => apply(generated)} disabled={busy}>
                 {busy ? 'Setting…' : 'Set this password'}

@@ -129,8 +129,9 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   **Passwords are deliberately NOT part of that draft** — a generated password sitting in a field looks
   set but isn't, and the admin only finds out when the member can't sign in. They live in **Password
   controls** below it: **Set new** and **Generate temporary**, each opening a modal that commits the
-  moment it's confirmed (`adminSetPassword`), the generate one showing the password with Copy after it
-  is live. Beside them, **Email reset link (legacy)** — labelled that way because the temporary password
+  moment it's confirmed (`adminSetPassword`), the generate one showing **Copy only after the password is live**
+  (a Copy button beside an unset password is how an admin texts a password the member can't sign in
+  with — the exact failure the modal exists to prevent). Beside them, **Email reset link (legacy)** — labelled that way because the temporary password
   is the path that can't expire or be spent in transit; it runs through the `password-recovery` Edge
   Function and stays disabled until a recovery address is saved. **Copy reset link is gone from the UI**
   (the `adminLink` action remains in the function): a temporary password does the same job without a
