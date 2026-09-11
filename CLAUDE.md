@@ -99,11 +99,17 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   the recovery address to identify the member; it reports a masked destination **only** when mail actually
   went out, so "no account" and "no recovery address" are indistinguishable. Members edit their recovery email on their own profile — **except admins**, who edit theirs
   inside Admin Controls (the standalone card is hidden for them). The profile's admin **Account** section
-  is a single form: login email, recovery email, and a new password are all drafts committed by **Save
-  changes** (which also saves name/role/admin), with an unsaved-changes prompt on tab close and on in-app
-  navigation. Beside it, **Email reset link** and **Copy reset link** — the latter a one-use link to hand
-  over by text/in person, skipping email entirely, which is the fix when a mailbox is swallowing
-  everything. All of it runs through the `password-recovery` Edge Function. Reset links are **single-use**
+  is a single form: login email and recovery email are drafts committed by **Save changes** (which also
+  saves name/role/admin), with an unsaved-changes prompt on tab close and on in-app navigation.
+  **Passwords are deliberately NOT part of that draft** — a generated password sitting in a field looks
+  set but isn't, and the admin only finds out when the member can't sign in. They live in **Password
+  controls** below it: **Set new** and **Generate temporary**, each opening a modal that commits the
+  moment it's confirmed (`adminSetPassword`), the generate one showing the password with Copy after it
+  is live. Beside them, **Email reset link (legacy)** — labelled that way because the temporary password
+  is the path that can't expire or be spent in transit; it runs through the `password-recovery` Edge
+  Function and stays disabled until a recovery address is saved. **Copy reset link is gone from the UI**
+  (the `adminLink` action remains in the function): a temporary password does the same job without a
+  token to lose. Reset links are **single-use**
   and expire per Supabase's **Auth → Providers → Email → Email OTP Expiration** (the reset email states
   1 hour, so keep that setting at 3600s).
 - **Routing:** `src/App.jsx`. Providers wrap as `ThemeProvider > ErrorBoundary > AuthProvider >

@@ -31,7 +31,6 @@ import {
   adminSetPassword,
   adminSetEmail,
   adminSendReset,
-  adminResetLink,
   getRecoveryEmail,
   setRecoveryEmail,
   adminDeleteUser,
@@ -1058,11 +1057,12 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
   const [admin, setAdmin] = useState(!!member.is_admin)
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [pw, setPw] = useState('')
   const [email, setEmail] = useState(member.email ?? '')
   const [recovery, setRecovery] = useState('')
-  const [resetLink, setResetLink] = useState('')
-  const [copied, setCopied] = useState(false)
+  // Passwords are committed by their own modal, never by "Save changes" — a
+  // generated password that sits in a draft field looks set but isn't, and the
+  // admin finds out when the member can't sign in.
+  const [pwModal, setPwModal] = useState('') // '' | 'set' | 'generate'
   const [linkSent, setLinkSent] = useState(false)
   const [acctBusy, setAcctBusy] = useState('')
   const [acctErr, setAcctErr] = useState('')
@@ -1075,8 +1075,6 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
     setRole(member.role ?? 'member')
     setAdmin(!!member.is_admin)
     setEmail(member.email ?? '')
-    setPw('')
-    setResetLink('')
     setLinkSent(false)
     getRecoveryEmail(member.id).then((e) => {
       setRecovery(e)
@@ -1090,8 +1088,7 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
     role !== base.role ||
     admin !== base.admin ||
     email.trim() !== base.email ||
-    recovery.trim() !== base.recovery ||
-    pw.length > 0
+    recovery.trim() !== base.recovery
   useUnsavedGuard(dirty)
 
   // One button commits the whole card: profile fields, login email, recovery
@@ -1103,7 +1100,6 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
     const nextRecovery = recovery.trim().toLowerCase()
     if (nextEmail !== base.email && !nextEmail.includes('@')) return setAcctErr('Enter a valid email address.')
     if (nextRecovery && !nextRecovery.includes('@')) return setAcctErr('Enter a valid recovery email.')
-    if (pw && pw.length < 8) return setAcctErr('Password must be at least 8 characters.')
 
     setBusy(true)
     if (name !== base.name || role !== base.role || admin !== base.admin) {
@@ -1117,14 +1113,9 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
       const { error } = await setRecoveryEmail(member.id, nextRecovery)
       if (error) return finish(error.message)
     }
-    if (pw) {
-      const res = await adminSetPassword(member.id, pw)
-      if (!res.ok) return finish(res.error || 'Could not set the password.')
-    }
     setBusy(false)
     setEmail(nextEmail)
     setRecovery(nextRecovery)
-    setPw('')
     setBase({ name, role, admin, email: nextEmail, recovery: nextRecovery })
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
@@ -1142,22 +1133,6 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
     setAcctBusy('')
     if (!res.ok) return setAcctErr(res.error || 'Could not send the reset email.')
     setLinkSent(true)
-  }
-  // No email at all: hand the link over by text/DM/in person. Fastest fix when
-  // the member's school mailbox is swallowing our mail.
-  async function doCopyLink() {
-    setAcctErr('')
-    setAcctBusy('link')
-    const res = await adminResetLink(member.id)
-    setAcctBusy('')
-    if (!res.ok) return setAcctErr(res.error || 'Could not generate a reset link.')
-    try {
-      await navigator.clipboard.writeText(res.data.link)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setResetLink(res.data.link) // clipboard blocked — show it to copy by hand
-    }
   }
   async function doDelete() {
     if (!window.confirm(`Permanently delete ${member.name || 'this member'}'s account? This can't be undone.`)) return
@@ -1226,34 +1201,26 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
                 type="email"
                 value={recovery}
                 onChange={(e) => setRecovery(e.target.value)}
-                placeholder="Needed to email reset links"
+                placeholder="Personal (non-BCP) address"
                 className={inputClass}
               />
             </FormField>
-            <FormField label="New password">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={pw}
-                  onChange={(e) => setPw(e.target.value)}
-                  placeholder="Leave blank to keep"
-                  className={`${inputClass} font-mono tracking-wide`}
-                />
-                <Button variant="soft" type="button" onClick={() => setPw(generateTempPassword())}>
-                  New
-                </Button>
-              </div>
-              {/* The member is asked to replace it on their next sign-in
-                  (admin-users stamps must_set_password) — unless they're
-                  setting their own, which isn't temporary. */}
-              {!isSelf && (
-                <span className="mt-1 block text-xs text-ink-500">
-                  Hand this over instead of a link when a mailbox is eating our mail. They're asked to
-                  choose their own the next time they sign in.
-                </span>
-              )}
-            </FormField>
           </div>
+
+          {/* Password controls. Each button commits on its own — nothing here is
+              a draft waiting on Save changes. */}
+          <p className="mb-2 mt-4 text-sm font-semibold text-ink-800">Password controls</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button variant="soft" type="button" onClick={() => setPwModal('set')}>
+              Set new
+            </Button>
+            <Button variant="soft" type="button" onClick={() => setPwModal('generate')}>
+              Generate temporary
+            </Button>
+          </div>
+          {!isSelf && (
+            <p className="mt-1 text-xs text-ink-500">Set a temporary password to login with.</p>
+          )}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {/* Reset mail only ever goes to a SAVED recovery address, so this is
                 off until one exists in the database (a typed-but-unsaved one
@@ -1264,22 +1231,14 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
               onClick={doSendReset}
               disabled={acctBusy === 'reset' || !base.recovery}
             >
-              {acctBusy === 'reset' ? 'Sending…' : 'Email reset link'}
-            </Button>
-            <Button variant="soft" type="button" onClick={doCopyLink} disabled={acctBusy === 'link'}>
-              {acctBusy === 'link' ? 'Generating…' : copied ? 'Copied!' : 'Copy reset link'}
+              {acctBusy === 'reset' ? 'Sending…' : 'Email reset link (legacy)'}
             </Button>
             {!base.recovery && (
               <span className="text-xs text-ink-500">
-                Save a recovery email to enable emailing — reset links never go to school addresses.
+                Email resets need a non-BCP recovery email set
               </span>
             )}
           </div>
-          {resetLink && (
-            <p className="mt-2 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">
-              {resetLink}
-            </p>
-          )}
           {acctErr && <p className="mt-2 text-xs text-coral-700">{acctErr}</p>}
           {!isSelf && (
             <button
@@ -1299,6 +1258,125 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
         {dirty && !saved && <span className="text-sm text-ink-500">Unsaved changes</span>}
         <Button onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Button>
       </div>
+      <PasswordModal
+        mode={pwModal}
+        member={member}
+        isSelf={isSelf}
+        onClose={() => setPwModal('')}
+      />
     </Card>
+  )
+}
+
+// Both password actions, each committing the moment it's confirmed. Keeping
+// them out of the card's draft is the point: a password you can see but that
+// hasn't been written is indistinguishable from one that has, until the member
+// tries to sign in with it.
+function PasswordModal({ mode, member, isSelf, onClose }) {
+  const [typed, setTyped] = useState('')
+  const [generated, setGenerated] = useState('')
+  const [applied, setApplied] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const open = mode === 'set' || mode === 'generate'
+
+  useEffect(() => {
+    if (!open) return
+    setTyped('')
+    setGenerated(mode === 'generate' ? generateTempPassword() : '')
+    setApplied('')
+    setCopied(false)
+    setError('')
+    setBusy(false)
+  }, [open, mode])
+
+  async function apply(value) {
+    if (value.length < 8) return setError('Use at least 8 characters.')
+    setError('')
+    setBusy(true)
+    const res = await adminSetPassword(member.id, value)
+    setBusy(false)
+    if (!res.ok) return setError(res.error || 'Could not set the password.')
+    setApplied(value)
+    if (mode === 'set') onClose()
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(applied || generated)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setError('Clipboard blocked — copy it by hand from above.')
+    }
+  }
+
+  const note = isSelf
+    ? 'This replaces your own password straight away.'
+    : `${member.name || 'They'} will be asked to choose their own the next time they sign in.`
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={mode === 'generate' ? 'Temporary password' : 'Set a new password'}
+    >
+      {mode === 'set' ? (
+        <div className="space-y-3">
+          <FormField label="New password">
+            <input
+              type="text"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder="At least 8 characters"
+              className={`${inputClass} font-mono tracking-wide`}
+              autoFocus
+            />
+          </FormField>
+          <p className="text-xs text-ink-500">{note}</p>
+          {error && <p className="text-sm text-coral-700">{error}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="soft" type="button" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => apply(typed)} disabled={busy}>
+              {busy ? 'Setting…' : 'Set password'}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="break-all rounded-lg border border-ink-200 bg-ink-50 p-3 text-center font-mono text-lg tracking-widest text-ink-900">
+            {applied || generated}
+          </p>
+          <p className="text-xs text-ink-500">
+            {applied
+              ? `This password is live — send it over with the login email. ${note}`
+              : 'Nothing changes until you set it. Then send it over with their login email.'}
+          </p>
+          {error && <p className="text-sm text-coral-700">{error}</p>}
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            {!applied && (
+              <Button variant="soft" type="button" onClick={() => setGenerated(generateTempPassword())}>
+                Regenerate
+              </Button>
+            )}
+            <Button variant="soft" type="button" onClick={copy}>
+              {copied ? 'Copied!' : 'Copy'}
+            </Button>
+            {applied ? (
+              <Button type="button" onClick={onClose}>
+                Done
+              </Button>
+            ) : (
+              <Button type="button" onClick={() => apply(generated)} disabled={busy}>
+                {busy ? 'Setting…' : 'Set this password'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Modal>
   )
 }
