@@ -32,6 +32,7 @@ import {
 } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
 import { useIsDesktop } from '../lib/useMediaQuery'
+import { useAuth } from '../context/AuthContext'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 import BestDaysChart from '../components/BestDaysChart'
 import { num, money } from '../lib/format'
@@ -94,6 +95,8 @@ export default function Fundraising() {
   // Seasonal mirror as the instant value; the terms-table-aware RPC corrects it.
   const [termStart, setTermStart] = useState(currentTermStart())
   const isDesktop = useIsDesktop()
+  const { profile } = useAuth()
+  const canEditGoal = !!profile?.is_admin
 
   const loadSettings = () => getSettings().then(setSettings)
 
@@ -129,9 +132,9 @@ export default function Fundraising() {
     setSyncing(false)
   }
 
-  const target = Number(settings?.raise_target ?? 500)
+  const target = Number(settings?.raise_target ?? 10000)
 
-  // The club's online total = its Givebutter team amount + the finished GoFundMe
+  // The club's online total = its own Givebutter page + the finished GoFundMe
   // run. The legacy figure is merged in so the headline number doesn't fall off a
   // cliff the day the platform changed; it stays a separate column so the two
   // platforms remain distinguishable in the data.
@@ -151,11 +154,10 @@ export default function Fundraising() {
   const providerLabel = PROVIDER_LABELS[settings?.donations_provider] ?? 'Givebutter'
   const legacyLabel = settings?.donations_legacy_label || 'GoFundMe'
   const teamName = settings?.donations_team_name || 'Bellarmine Youth Chapter'
-  const campaignUrl = settings?.donations_url
-  const teamUrl = settings?.donations_team_url
-  // No team page on file yet: only that page reports the club's own credited
-  // total, so say the number is incomplete instead of quietly showing less.
-  const teamPending = !!settings && !teamUrl
+  // The club's own page: what members share, what the QR encodes, and what the
+  // scraper reads for our figures. The parent campaign is context only.
+  const clubUrl = settings?.donations_url
+  const campaignUrl = settings?.donations_campaign_url
   const syncFailed = String(settings?.donations_sync_status || '').startsWith('error')
 
   const total = events.reduce((s, e) => s + Number(e.raised), 0)
@@ -219,8 +221,8 @@ export default function Fundraising() {
           <div className="fund-hero-top">
             <span className="fund-hero-live"><span className="fund-hero-dot" /> {providerLabel} · live</span>
             <span style={{ display: 'flex', gap: 7 }}>
-              {campaignUrl && (
-                <a className="fund-hero-btn" href={campaignUrl} target="_blank" rel="noreferrer" aria-label={`View the campaign on ${providerLabel}`}>
+              {clubUrl && (
+                <a className="fund-hero-btn" href={clubUrl} target="_blank" rel="noreferrer" aria-label={`Donate on ${providerLabel}`}>
                   <ExternalLink size={14} />
                 </a>
               )}
@@ -237,7 +239,7 @@ export default function Fundraising() {
             )}
             <div className="fund-hero-goal">
               <span>Shared goal</span>
-              <b><EditableGoal target={target} editable={!!settings} onSaved={loadSettings} /></b>
+              <b><EditableGoal target={target} editable={!!settings && canEditGoal} onSaved={loadSettings} /></b>
             </div>
             <div className="fund-hero-bar"><i style={{ width: `${Math.min(100, pctFunded)}%` }} /></div>
             <div className="fund-hero-meta">
@@ -248,11 +250,11 @@ export default function Fundraising() {
               </span>
             </div>
 
-            {/* Crediting the team is the one step that turns a Janyaa donation
-                into a Janyaa BCP one, so it leads. */}
+            {/* Our own link credits the club automatically. On Janyaa's campaign
+                page it does not, which is the whole reason to share ours. */}
             <div className="fund-hero-tip">
               <Users size={14} />
-              <span>Donors pick <b>{teamName}</b> under Credit a team. Otherwise it counts for Janyaa.</span>
+              <span>Share our link. On Janyaa's page, donors must pick <b>{teamName}</b>.</span>
             </div>
 
             {campaignRaised != null && (
@@ -265,14 +267,10 @@ export default function Fundraising() {
               </div>
             )}
 
-            {(teamPending || syncFailed) && (
+            {syncFailed && (
               <div className="fund-hero-warn">
                 <AlertTriangle size={14} />
-                <span>
-                  {teamPending
-                    ? `Team page not linked yet. Above is ${legacyLabel} history only.`
-                    : 'Last sync failed. These figures may be out of date.'}
-                </span>
+                <span>Last sync failed. These figures may be out of date.</span>
               </div>
             )}
           </div>
@@ -396,26 +394,13 @@ export default function Fundraising() {
             <span className="truncate">{providerLabel} campaign · live</span>
           </div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-            {teamUrl && (
+            {clubUrl && (
               <a
-                href={teamUrl}
+                href={clubUrl}
                 target="_blank"
                 rel="noreferrer"
-                title={`View the ${teamName} team page`}
-                aria-label={`View the ${teamName} team page`}
-                className="inline-flex items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 sm:px-2.5 sm:py-1.5 sm:text-sm sm:font-medium"
-              >
-                <Users size={16} className="shrink-0" />
-                <span className="hidden sm:inline">Our team</span>
-              </a>
-            )}
-            {campaignUrl && (
-              <a
-                href={campaignUrl}
-                target="_blank"
-                rel="noreferrer"
-                title={`View the campaign on ${providerLabel}`}
-                aria-label={`View the campaign on ${providerLabel}`}
+                title={`Donate on ${providerLabel}`}
+                aria-label={`Donate on ${providerLabel}`}
                 className="inline-flex items-center gap-1 rounded-lg p-2 text-green-700 transition-colors hover:bg-green-100 sm:px-2.5 sm:py-1.5 sm:text-sm sm:font-medium"
               >
                 <ExternalLink size={16} className="shrink-0" />
@@ -449,7 +434,7 @@ export default function Fundraising() {
             <div className="text-right">
               <p className="text-sm font-medium text-ink-500">Shared Goal</p>
               <div className="mt-0.5 text-2xl font-bold text-ink-900">
-                <EditableGoal target={target} editable={!!settings} onSaved={loadSettings} />
+                <EditableGoal target={target} editable={!!settings && canEditGoal} onSaved={loadSettings} />
               </div>
             </div>
           </div>
@@ -470,13 +455,18 @@ export default function Fundraising() {
             </div>
           </div>
 
-          {/* Crediting the team is the one step that turns a Janyaa donation into
-              a Janyaa BCP one, so it leads. */}
+          {/* Our own link credits the club automatically. Janyaa's campaign page
+              does not, which is the whole reason to share ours. */}
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
-            <Users size={16} className="mt-0.5 shrink-0 text-blue-500" />
             <p>
-              Donors pick <span className="font-semibold text-ink-900">{teamName}</span> under Credit a
-              team. Otherwise it counts for Janyaa, not us.
+              <Users size={16} className="mr-1.5 inline align-text-bottom text-blue-500" />
+              Share our link above. It credits the club on its own.
+              {campaignUrl && (
+                <>
+                  {' '}On Janyaa's main page, donors must pick{' '}
+                  <span className="font-semibold text-ink-900">{teamName}</span> under Credit a team.
+                </>
+              )}
             </p>
           </div>
 
@@ -498,26 +488,14 @@ export default function Fundraising() {
             </div>
           )}
 
-          {(teamPending || syncFailed) && (
+          {syncFailed && (
             <div className="mt-4 flex items-start gap-2 rounded-xl bg-gold-50 p-3 text-sm text-ink-700">
               <AlertTriangle size={16} className="mt-0.5 shrink-0 text-gold-600" />
               <div>
-                {teamPending ? (
-                  <>
-                    <p>Team page not linked yet. Above is {legacyLabel} history only.</p>
-                    <p className="mt-1 text-xs text-ink-500">
-                      Admin: set{' '}
-                      <code className="rounded bg-ink-100 px-1">club_settings.donations_team_url</code>
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p>Last sync failed. These figures may be out of date.</p>
-                    <p className="mt-1 text-xs text-ink-500">
-                      <code className="rounded bg-ink-100 px-1">{settings?.donations_sync_status}</code>
-                    </p>
-                  </>
-                )}
+                <p>Last sync failed. These figures may be out of date.</p>
+                <p className="mt-1 text-xs text-ink-500">
+                  <code className="rounded bg-ink-100 px-1">{settings?.donations_sync_status}</code>
+                </p>
               </div>
             </div>
           )}

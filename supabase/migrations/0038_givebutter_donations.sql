@@ -1,14 +1,19 @@
 -- ============================================================
 -- 0038 — GoFundMe → Givebutter
 --
---   The club has left GoFundMe. Donations now go through Janyaa's official
---   Givebutter campaign (https://givebutter.com/59uJ48, goal $10,000), where a
---   donor picks "Bellarmine Youth Chapter" in the "Credit a team" field and the
---   amount is attributed to Janyaa BCP.
+--   The club has left GoFundMe. Donations now go through Givebutter, on Janyaa's
+--   campaign (https://givebutter.com/59uJ48, goal $10,000). Janyaa BCP has its
+--   own page inside that campaign:
 --
---   Janyaa BCP does NOT own that Givebutter account, so there is no API key to
---   read. The `sync-donations` Edge Function scrapes the public campaign page
---   (and the team page, when its URL is known) exactly as `sync-gofundme` did.
+--       https://givebutter.com/59uJ48/bellarmine-youth-chapter
+--
+--   That team page is the club's public donate link: it is what members share,
+--   what the QR code points at, and what reports the club's own credited total.
+--   A donor arriving on the parent campaign instead has to pick "Bellarmine
+--   Youth Chapter" under "Credit a team", which is why the UI says so.
+--
+--   Janyaa BCP does NOT own the Givebutter account, so there is no API key to
+--   read. `sync-donations` scrapes the public pages, as `sync-gofundme` did.
 --
 --   Naming is deliberately PROVIDER-NEUTRAL (`donations_*`, not `givebutter_*`).
 --   This is the second fundraising platform in the Hub's life; the third should
@@ -16,33 +21,31 @@
 --
 --   Columns:
 --     donations_provider          'givebutter' — picks the scraper adapter
---     donations_url               the campaign page (whole-Janyaa figures)
---     donations_team_url          the Bellarmine Youth Chapter team page, when
---                                 known. NULL until someone fills it in; the app
---                                 then shows the campaign, clearly labelled as
---                                 Janyaa-wide, rather than passing Janyaa's total
---                                 off as the club's own.
---     donations_raised            THE CLUB'S OWN online total (team page)
---     donations_count             the club's own donation count
---     donations_campaign_*        the whole-campaign figures (context + $10k goal)
+--     donations_url               THE CLUB'S PAGE. Shared, QR'd, and scraped for
+--                                 the club's own figures.
+--     donations_campaign_url      Janyaa's parent campaign, for context only
+--     donations_raised / _count   the club's own totals
+--     donations_campaign_*        the whole-campaign figures
 --     donations_legacy_*          the final GoFundMe figures, kept separately in
 --                                 the data and MERGED into every displayed total
---     donations_sync_status       'ok:<strategy>' or 'error: …' — the scraper is
---                                 parsing someone else's HTML, so when it breaks
---                                 the reason has to be visible without log diving
+--     donations_sync_status       'ok …' or 'error …' — the scraper is parsing
+--                                 someone else's HTML, so when it breaks the
+--                                 reason has to be visible without log diving
 --
 --   The old gofundme_* columns are LEFT IN PLACE as the rollback path (the same
 --   way 0037 kept events.instagram_urls). They are deprecated and no longer
 --   written; a later migration should drop them.
+--
+--   Also: the shared goal moves to $10,000 to match the campaign, and becomes
+--   ADMIN-ONLY to change (it was editable by any signed-in member).
 -- ============================================================
 
 alter table public.club_settings
   add column if not exists donations_provider           text default 'givebutter',
   add column if not exists donations_url                text,
-  add column if not exists donations_team_url           text,
+  add column if not exists donations_campaign_url       text,
   add column if not exists donations_team_name          text,
   add column if not exists donations_raised             numeric,
-  add column if not exists donations_goal               numeric,
   add column if not exists donations_count              int,
   add column if not exists donations_synced_at          timestamptz,
   add column if not exists donations_campaign_raised    numeric,
@@ -58,20 +61,50 @@ alter table public.club_settings
 -- a 0 would read as "the club has raised nothing" rather than "not synced yet".
 update public.club_settings set
   donations_provider       = 'givebutter',
-  donations_url            = 'https://givebutter.com/59uJ48',
+  donations_url            = 'https://givebutter.com/59uJ48/bellarmine-youth-chapter',
+  donations_campaign_url   = 'https://givebutter.com/59uJ48',
   donations_team_name      = 'Bellarmine Youth Chapter',
   donations_campaign_goal  = 10000,
   donations_legacy_raised  = gofundme_raised,
   donations_legacy_label   = 'GoFundMe',
-  donations_legacy_url     = gofundme_url
+  donations_legacy_url     = gofundme_url,
+  raise_target             = 10000
 where id;
 
-comment on column public.club_settings.donations_raised is
-  'The club''s own online total, scraped from the Givebutter team page. NULL = never synced.';
+comment on column public.club_settings.donations_url is
+  'The club''s own Givebutter page: shared with donors, encoded in the QR, and scraped for donations_raised.';
 comment on column public.club_settings.donations_legacy_raised is
   'Final GoFundMe total. Merged into every displayed total; kept separate so the two platforms stay distinguishable.';
 comment on column public.club_settings.gofundme_raised is
   'DEPRECATED (0038) — superseded by donations_legacy_raised. Kept as the rollback path; no longer written.';
+
+-- ---- The shared goal is now admin-only ----------------------------------
+-- club_settings stays member-writable (term targets, auto-terming and the AI
+-- caches all live here and that permissiveness is deliberate), so the goal is
+-- guarded by column instead of by policy: RLS has no way to say "this one field
+-- is admin-only", and `with check` cannot see the OLD row to detect a change.
+-- auth.uid() is NULL for the service role, which is how the sync function and
+-- the cron keep writing the donations_* columns untouched by this.
+create or replace function public.enforce_admin_raise_target()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if NEW.raise_target is distinct from OLD.raise_target
+     and auth.uid() is not null
+     and not public.is_admin() then
+    raise exception 'Only an admin can change the fundraising goal';
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists enforce_admin_raise_target on public.club_settings;
+create trigger enforce_admin_raise_target
+  before update on public.club_settings
+  for each row execute function public.enforce_admin_raise_target();
 
 -- ---- Dashboard RPC -------------------------------------------------------
 -- Re-declared in full (copied from 0032) with only the 'fundraising' key changed:
@@ -147,16 +180,16 @@ as $function$
     'total_hours',       (select coalesce(sum(hours), 0) from member_hours),
     'term_hours',        (select coalesce(sum(term_hours), 0) from member_hours),
     'term_start',        (select start from term),
-    -- Fundraising: the club's online total is the Givebutter team amount PLUS the
-    -- final GoFundMe figure (migration 0038 merged the legacy platform in, so the
-    -- headline number never drops when the platform changes). `raised` + `target`
-    -- keep their old shape so existing dashboard clients are unaffected.
+    -- Fundraising: the club's online total is its own Givebutter page PLUS the
+    -- final GoFundMe figure (0038 merged the retired platform in, so the headline
+    -- never drops when the platform changes). `raised` + `target` keep their old
+    -- shape so existing dashboard clients are unaffected.
     'fundraising',       (select jsonb_build_object(
                             'raised',          coalesce(donations_raised, 0) + coalesce(donations_legacy_raised, 0),
-                            'target',          coalesce(raise_target, 500),
+                            'target',          coalesce(raise_target, 10000),
                             'provider',        coalesce(donations_provider, 'givebutter'),
                             'url',             donations_url,
-                            'team_url',        donations_team_url,
+                            'campaign_url',    donations_campaign_url,
                             'team_name',       donations_team_name,
                             'online_raised',   donations_raised,
                             'legacy_raised',   donations_legacy_raised,

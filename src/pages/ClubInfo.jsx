@@ -227,9 +227,11 @@ function PlatformBadge({ tone }) {
 // right page AND have the money land on the club's own ledger — which on a
 // shared Janyaa campaign is not automatic: it depends on the team field.
 function GivebutterCard({ settings }) {
-  const url = settings?.donations_url || 'https://givebutter.com/59uJ48'
+  // The club's own page credits us automatically. The parent campaign does not,
+  // so it is shown second and carries the credit-a-team instruction.
+  const url = settings?.donations_url || 'https://givebutter.com/59uJ48/bellarmine-youth-chapter'
+  const campaignUrl = settings?.donations_campaign_url || 'https://givebutter.com/59uJ48'
   const teamName = settings?.donations_team_name || 'Bellarmine Youth Chapter'
-  const teamUrl = settings?.donations_team_url
   const goal = Number(settings?.donations_campaign_goal ?? 10000)
   const raised = settings?.donations_campaign_raised
 
@@ -238,29 +240,18 @@ function GivebutterCard({ settings }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-ink-900">Givebutter donation page</h3>
+            <h3 className="font-semibold text-ink-900">Our Givebutter page</h3>
             <PlatformBadge tone="live" />
           </div>
           <p className="mt-1 text-sm text-ink-500">
-            Run by Janyaa's account. Goal {money(goal)}
-            {raised != null ? ` · ${money(raised)} raised` : ''}
+            Donations here are credited to {teamName}.
           </p>
         </div>
         <img
           src="/givebutter-qr.png"
-          alt={`QR code for the Janyaa Givebutter donation page (${url})`}
+          alt={`QR code for the Janyaa BCP donation page (${url})`}
           className="h-24 w-24 shrink-0 rounded-lg border border-ink-200 bg-white p-1"
         />
-      </div>
-
-      {/* The single step that decides whether a donation counts for the club. */}
-      <div className="mt-3 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
-        <Users size={16} className="mt-0.5 shrink-0 text-blue-500" />
-        <p>
-          Tell donors to pick <span className="font-semibold text-ink-900">{teamName}</span> under{' '}
-          <span className="font-semibold text-ink-900">Credit a team</span>. Without it, the gift counts
-          for Janyaa, not us.
-        </p>
       </div>
 
       <div className="mt-3">
@@ -268,20 +259,34 @@ function GivebutterCard({ settings }) {
           link={url}
           qr="/givebutter-qr.png"
           qrFileName="janyaa-bcp-givebutter-qr.png"
-          openLabel="Open donation page"
+          openLabel="Open our page"
         />
       </div>
 
-      {teamUrl && (
+      {/* The one step that decides whether a donation counts for the club. */}
+      <div className="mt-3 flex items-start gap-2 rounded-xl bg-blue-50 p-3 text-sm text-ink-700">
+        <Users size={16} className="mt-0.5 shrink-0 text-blue-500" />
+        <p>
+          Sent Janyaa's main page instead? Donors must pick{' '}
+          <span className="font-semibold text-ink-900">{teamName}</span> under{' '}
+          <span className="font-semibold text-ink-900">Credit a team</span>.
+        </p>
+      </div>
+
+      <div className="mt-3 border-t border-ink-100 pt-3">
+        <p className="text-sm text-ink-500">
+          Janyaa campaign. Goal {money(goal)}
+          {raised != null ? ` · ${money(raised)} raised` : ''}
+        </p>
         <a
-          href={teamUrl}
+          href={campaignUrl}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
+          className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
         >
-          Open our {teamName} page <ExternalLink size={12} />
+          Open the Janyaa campaign <ExternalLink size={12} />
         </a>
-      )}
+      </div>
     </Card>
   )
 }

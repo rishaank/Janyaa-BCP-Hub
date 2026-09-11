@@ -111,7 +111,7 @@ export default function Dashboard() {
   }
 
   const fundRaised = Number(d.fundraising?.raised ?? 0)
-  const fundTarget = Number(d.fundraising?.target ?? 500)
+  const fundTarget = Number(d.fundraising?.target ?? 10000)
   const insights = Array.isArray(d.insights) ? d.insights : []
   const pinnedTitles = new Set(pins.map((p) => p.payload?.title))
   const goals = Array.isArray(d.goals) ? d.goals : []
@@ -557,7 +557,7 @@ function DashboardMobile({ d, isGuest, pendingReqs, approvedReqs, deniedReqs, on
   const [lbView, setLbView] = useState('term')
 
   const fundRaised = Number(d.fundraising?.raised ?? 0)
-  const fundTarget = Number(d.fundraising?.target ?? 500)
+  const fundTarget = Number(d.fundraising?.target ?? 10000)
   const events = d.upcoming_events_list ?? []
   const meetings = d.upcoming_meetings_list ?? []
   const goals = Array.isArray(d.goals) ? d.goals : []

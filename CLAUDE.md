@@ -518,25 +518,37 @@ de-duped from the live cards by title.
 figures (`donations_*`, migration 0038) are scraped server-side by `sync-donations`. Per-event in-person
 revenue is `events.raised`.
 
-**Donation platform (migration 0038 — GoFundMe → Givebutter).** Donations now go through **Janyaa's
-official Givebutter campaign** (`https://givebutter.com/59uJ48`, goal $10,000). Janyaa BCP has **no
-Givebutter account** — the page belongs to Janyaa — so a donor credits the club by choosing
-**"Bellarmine Youth Chapter"** in the donate form's **"Credit a team"** field. Two consequences drive the
-whole design:
-- **No API key is obtainable**, so `sync-donations` scrapes the public pages, as `sync-gofundme` did.
-- **Only the team page reports the club's own total** — the campaign page can't be split by team. Until
-  `club_settings.donations_team_url` is filled in, `donations_raised` stays **NULL** and the UI says the
-  figure is incomplete rather than passing Janyaa's campaign total off as the club's.
+**Donation platform (migration 0038 — GoFundMe → Givebutter).** Donations go through Givebutter, on
+Janyaa's campaign (`https://givebutter.com/59uJ48`, goal $10,000). The club has **its own page inside
+that campaign**:
+
+    https://givebutter.com/59uJ48/bellarmine-youth-chapter
+
+**That team page is the club's donate link everywhere** — shared by members, encoded in the QR, opened by
+the Donate button, and scraped for the club's own credited total. A donor who lands on the *parent*
+campaign instead has to pick **"Bellarmine Youth Chapter"** under **"Credit a team"**, which is the only
+reason the UI mentions that field at all. Janyaa BCP does **not** own the Givebutter account, so there is
+no API key to obtain and `sync-donations` scrapes the public pages, as `sync-gofundme` did.
 Columns are **provider-neutral** (`donations_*`, not `givebutter_*`) — this is the second platform in the
-Hub's life and the third should cost a settings edit. `donations_url` = campaign, `donations_team_url` =
-the club's team page, `donations_raised`/`_count` = the club's own figures, `donations_campaign_*` = the
-whole-Janyaa figures, `donations_legacy_*` = the **final GoFundMe numbers, merged into every displayed
-total** (so the headline didn't drop to zero at cutover) while staying a separate column so the two
-platforms remain distinguishable. `donations_sync_status` records which parse strategy worked (or the
-error) — the scraper reads someone else's HTML, so a break has to be visible from the table.
+Hub's life and the third should cost a settings edit. `donations_url` = **the club's page** (ours,
+scraped for `donations_raised`/`_count`), `donations_campaign_url` = Janyaa's parent campaign (context
+only, `donations_campaign_*`), `donations_legacy_*` = the **final GoFundMe numbers, merged into every
+displayed total** (so the headline didn't drop to zero at cutover) while staying a separate column so the
+two platforms remain distinguishable. `donations_sync_status` records which parse strategy worked (or the
+error) — the scraper reads someone else's HTML, so a break has to be visible from the table. A failure on
+the club's page fails the sync; a failure on the parent campaign costs only a context bar.
 The old `gofundme_*` columns and the `sync-gofundme` function are **deprecated but retained** as the
 rollback path (as 0037 did with `events.instagram_urls`); a later migration should drop both.
-The campaign QR code is `public/givebutter-qr.png`, offered on **Club Info** alongside the Linktree QR.
+The QR code is `public/givebutter-qr.png` (it encodes the **club's** page, not the campaign), offered on
+**Club Info** alongside the Linktree QR.
+
+**The shared goal is admin-only (0038).** `raise_target` moved to **$10,000** to match the campaign, and
+only an admin can change it. `club_settings` stays member-writable on purpose (term targets, auto-terming
+and the AI caches live there), so the goal is guarded **by column, with a trigger**
+(`enforce_admin_raise_target`): RLS has no way to say "this one field is admin-only", and a `with check`
+clause cannot see the OLD row to detect a change. `auth.uid()` is NULL for the service role, so the sync
+function and the crons write the `donations_*` columns untouched by the guard. The Fundraising page's
+`EditableGoal` is gated on `profile.is_admin` to match, so a member sees the figure as plain text.
 
 **Avatars:** public `avatars` storage bucket, users can only write their own `uid/…` folder;
 `profiles.avatar_url` holds the public URL. Photos are square-cropped client-side
@@ -556,8 +568,8 @@ publication, so the admin `/history` page (which also merges in GitHub commits a
 Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 
 - **`sync-donations`** (`verify_jwt: false`) — scrapes the club's online donation totals (Givebutter,
-  migration 0038) and writes the `donations_*` columns. Reads `donations_url` (the whole-Janyaa campaign)
-  and, when set, `donations_team_url` (the club's own credited total). Givebutter's markup isn't ours, so
+  migration 0038) and writes the `donations_*` columns. Reads `donations_url` (**the club's own page**)
+  and `donations_campaign_url` (Janyaa's parent campaign, context only). Givebutter's markup isn't ours, so
   **four independent parse strategies** run over the same HTML — `__NEXT_DATA__`, the App-Router
   `self.__next_f` flight stream, other inline JSON state, and the rendered text — and are reconciled: the
   structured data wins on completeness, but the page text is the authority on **units** (Givebutter's
@@ -567,7 +579,7 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   Fundraising page load + the "Sync now" button; **self-throttled** to 60s like its predecessor, and it
   refuses to fetch any host that isn't a donation platform (it would otherwise be an open fetch proxy).
   A `{ probe: <url> }` call (**admin JWT required**) parses a page and reports what it found *without*
-  saving — that's how the team-page URL gets found and how a parse break gets diagnosed.
+  saving — that's how a parse break gets diagnosed.
 - **`sync-gofundme`** (`verify_jwt: false`) — **DEPRECATED (0038)**, kept only as the rollback path while
   the `gofundme_*` columns survive. Nothing invokes it and the cron no longer calls it.
   Scrapes the GoFundMe campaign in `club_settings.gofundme_url`

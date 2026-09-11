@@ -8,16 +8,15 @@
 //          `sync-donations-3h` pg_cron job (migration 0038).
 //
 // WHY A SCRAPER AND NOT THE API
-// Donations go through Janyaa's official Givebutter campaign. Janyaa BCP does
-// not own that account, so there is no API key the club can issue for itself.
-// This reads the same public pages a donor sees.
+// Donations go through Givebutter on Janyaa's campaign. Janyaa BCP does not own
+// that account, so there is no API key the club can issue for itself. This reads
+// the same public pages a donor sees.
 //
 // WHAT IT READS
-//   club_settings.donations_url       the campaign page — whole-Janyaa figures
-//   club_settings.donations_team_url  the "Bellarmine Youth Chapter" team page —
-//                                     the club's OWN credited total. Optional:
-//                                     until it is filled in, the club total stays
-//                                     NULL rather than borrowing Janyaa's.
+//   club_settings.donations_url           the club's own Givebutter page
+//                                         (…/59uJ48/bellarmine-youth-chapter) —
+//                                         the club's OWN credited total
+//   club_settings.donations_campaign_url  Janyaa's parent campaign, for context
 //
 // HOW IT PARSES
 // Givebutter's markup is not ours and will change without warning, so this does
@@ -330,7 +329,7 @@ Deno.serve(async (req) => {
     const { data: settings, error: readErr } = await supabase
       .from('club_settings')
       .select(
-        'donations_url, donations_team_url, donations_raised, donations_goal, donations_count, ' +
+        'donations_url, donations_campaign_url, donations_raised, donations_count, ' +
           'donations_synced_at, donations_campaign_raised, donations_campaign_goal, donations_campaign_donations',
       )
       .eq('id', true)
@@ -367,7 +366,6 @@ Deno.serve(async (req) => {
           ok: true,
           cached: true,
           raised: settings.donations_raised,
-          goal: settings.donations_goal,
           donations: settings.donations_count,
           campaign_raised: settings.donations_campaign_raised,
         }),
@@ -375,51 +373,50 @@ Deno.serve(async (req) => {
       )
     }
 
-    const campaignUrl = settings?.donations_url
-    if (!campaignUrl) {
+    const clubUrl = settings?.donations_url
+    if (!clubUrl) {
       return new Response(JSON.stringify({ ok: false, error: 'No donations_url set' }), {
         status: 400,
         headers: CORS,
       })
     }
-    assertAllowed(campaignUrl)
+    assertAllowed(clubUrl)
 
     const update: Record<string, unknown> = { donations_synced_at: new Date().toISOString() }
     const notes: string[] = []
 
-    // The whole-Janyaa campaign: always available, gives the $10,000 context.
+    // The club's own page. This is the figure the Hub reports as ours, so a
+    // failure here fails the sync even if the campaign scrape succeeded.
+    let clubOk = false
     try {
-      const c = await scrape(campaignUrl)
-      if (c.raised == null) throw new Error('no raised figure on the campaign page')
-      update.donations_campaign_raised = c.raised
-      update.donations_campaign_donations = c.donations
-      if (c.goal != null) update.donations_campaign_goal = c.goal
-      notes.push(`campaign:${c.strategy}`)
+      const c = await scrape(clubUrl)
+      if (c.raised == null) throw new Error('no raised figure on the club page')
+      update.donations_raised = c.raised
+      update.donations_count = c.donations
+      notes.push(`club:${c.strategy}`)
+      clubOk = true
     } catch (e) {
-      notes.push(`campaign-error:${(e as Error).message}`)
+      notes.push(`club-error:${(e as Error).message}`)
     }
 
-    // The club's own credited total. Only the team page can report this — the
-    // campaign page cannot be split by team — so without that URL the club total
-    // is left untouched rather than filled with a number that isn't the club's.
-    const teamUrl = settings?.donations_team_url
-    if (teamUrl) {
+    // Janyaa's parent campaign, for the $10,000 context bar. Optional: losing it
+    // costs a progress bar, not the club's own number.
+    const campaignUrl = settings?.donations_campaign_url
+    if (campaignUrl) {
       try {
-        assertAllowed(teamUrl)
-        const t = await scrape(teamUrl)
-        if (t.raised == null) throw new Error('no raised figure on the team page')
-        update.donations_raised = t.raised
-        update.donations_count = t.donations
-        if (t.goal != null) update.donations_goal = t.goal
-        notes.push(`team:${t.strategy}`)
+        assertAllowed(campaignUrl)
+        const c = await scrape(campaignUrl)
+        if (c.raised == null) throw new Error('no raised figure on the campaign page')
+        update.donations_campaign_raised = c.raised
+        update.donations_campaign_donations = c.donations
+        if (c.goal != null) update.donations_campaign_goal = c.goal
+        notes.push(`campaign:${c.strategy}`)
       } catch (e) {
-        notes.push(`team-error:${(e as Error).message}`)
+        notes.push(`campaign-error:${(e as Error).message}`)
       }
-    } else {
-      notes.push('team:not-configured')
     }
 
-    const failedEverything = notes.every((n) => n.includes('error') || n === 'team:not-configured')
+    const failedEverything = !clubOk
     update.donations_sync_status = (failedEverything ? 'error ' : 'ok ') + notes.join(' · ')
 
     const { error: writeErr } = await supabase.from('club_settings').update(update).eq('id', true)
