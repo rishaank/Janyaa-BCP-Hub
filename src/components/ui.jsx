@@ -383,27 +383,62 @@ export function FormField({ label, children }) {
   )
 }
 
-// The square X that removes a repeatable row (a link, an optional field). It
-// fires on **pointerdown**, not click: on iOS the first tap after typing in a
-// field goes to dismissing the keyboard, and the layout shifts as the keyboard
-// slides away, so the click that follows lands somewhere else entirely — which
-// is why removing a link you had just typed into did nothing. preventDefault
-// also keeps focus where it is, so the keyboard doesn't flap shut and open.
+// Swallow exactly one trailing click, wherever it lands.
+//
+// This lives at module scope on purpose: the button that arms it is usually
+// removed from the page by the very action it is guarding (the row goes, the
+// button goes with it), so a guard owned by the component tears itself down on
+// unmount before the click it was meant to eat ever arrives.
+let standDown = null
+
+function swallowNextClick() {
+  standDown?.()
+  const kill = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.stopImmediatePropagation()
+    standDown?.()
+  }
+  // If the press never becomes a click (a cancelled touch, a drag away), stand
+  // down rather than eating an unrelated click later on.
+  const timer = setTimeout(() => standDown?.(), 700)
+  standDown = () => {
+    window.removeEventListener('click', kill, true)
+    clearTimeout(timer)
+    standDown = null
+  }
+  window.addEventListener('click', kill, true)
+}
+
+// The square X that removes a repeatable row (a link, an optional field).
+//
+// Two iOS problems, one button:
+//   1. The first tap after typing in a field goes to dismissing the keyboard,
+//      and the layout shifts as the keyboard slides away — so the click that
+//      follows lands somewhere else entirely. Hence acting on `pointerdown`,
+//      with preventDefault so focus (and the keyboard) stays put.
+//   2. Removing the row shifts everything below it upward, and the click that
+//      still trails that press is hit-tested against the NEW layout: it landed
+//      on "Add a Link", which put the row straight back the instant it went.
+//      Hence swallowNextClick() above.
+// Keyboard activation arrives as a plain click with no press before it, and is
+// left alone.
 export function RemoveRowButton({ label, onClick, className = '' }) {
-  const firedOnPointer = useRef(false)
+  const pointerHandled = useRef(false)
   return (
     <button
       type="button"
       onPointerDown={(e) => {
         e.preventDefault()
-        firedOnPointer.current = true
+        pointerHandled.current = true
+        swallowNextClick()
         onClick()
       }}
-      onPointerCancel={() => { firedOnPointer.current = false }}
-      // Keyboard activation (Enter / Space) still arrives as a plain click.
       onClick={() => {
-        if (firedOnPointer.current) {
-          firedOnPointer.current = false
+        // Only reached when the guard let it through (keyboard, or a browser
+        // that skipped the press) — never twice for one press.
+        if (pointerHandled.current) {
+          pointerHandled.current = false
           return
         }
         onClick()

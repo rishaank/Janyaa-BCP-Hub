@@ -95,7 +95,9 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   toggle, active goals, top AI-insight chips), `Members` / `ProfilePage` (**Founder** + **Admin** badges,
   avatar cropping, admin Account controls), `Events` (**List ↔ Calendar** toggle via `EventsCalendar.jsx`;
   times, Maps link, linked Instagram posts, to-dos; **Tentative events** — a `Tentative` flag + “TBD”
-  date/time/location, and members **can sign up for one** (it's how the club gauges interest before
+  date/time/location (they bucket into their own **Tentative** section, which is the only label they
+  need: there is deliberately no Tentative chip on the cards, only on the full-screen event view
+  where nothing else says so), and members **can sign up for one** (it's how the club gauges interest before
   confirming); the two event screens used to disagree on that, and `EventView` was the one that blocked
   it. An undated event sorts last wherever events are ordered — never dereference `e.date`;
   click any event for a **public, shareable full-screen view** at `/events/:id`
@@ -195,12 +197,18 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     none` would otherwise strip). Belt and braces, two-column date/time rows are
     `grid-cols-1 gap-3 min-[22rem]:grid-cols-2` so they stack rather than clip on a very narrow
     phone (the event, meeting, term and hours-entry forms) — use that, not a bare `grid-cols-2`.
-  - **Row-removal X buttons fire on pointerdown, not click** — `RemoveRowButton` in `ui.jsx`
-    (links, optional fields). On iOS the first tap after typing in a field goes to dismissing the
-    keyboard, and the layout shifts as it slides away, so the click that follows lands somewhere
-    else: removing a link you had just typed into did nothing at all. The shared button acts on
-    `pointerdown` (with `preventDefault`, so focus stays put) and guards the trailing click so it
-    can't fire twice, while keyboard activation still works. Use it for any new removable row.
+  - **Row-removal X buttons fire on pointerdown, then eat the trailing click** —
+    `RemoveRowButton` in `ui.jsx` (links, optional fields). Two iOS problems: the first tap after
+    typing in a field goes to dismissing the keyboard (so act on `pointerdown`, with
+    `preventDefault` so focus stays put), and removing the row shifts everything below it upward,
+    so the click that still trails the press is hit-tested against the **new** layout — on Safari
+    it landed on “Add a Link”, which put the row straight back the instant it went. Hence
+    `swallowNextClick()`, which eats exactly one click wherever it lands. That guard lives at
+    **module scope on purpose**: the button is usually unmounted by the very action it guards, so
+    a guard owned by the component tears itself down before the click it was meant to eat arrives.
+    Keyboard activation (a plain click with no press) is left alone. Use it for any new removable
+    row. All four paths are worth re-checking with a throwaway probe page against a real browser
+    if you touch it — reasoning about this one twice got it wrong twice.
   - **Numbers on screen go through `src/lib/format.js`** — `num(v)` and `money(v)` round to at most
     the hundredths place (a maximum, so whole numbers stay whole) and add thousands separators.
     Hours are derived, not typed — a 50-minute meeting is `0.8333…` hours — so any raw `{x.hours}`

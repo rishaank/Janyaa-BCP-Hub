@@ -312,10 +312,7 @@ function MobileEventItem({ event }) {
     <Link to={`/events/${event.id}`} className="jh-item">
       <DateBox date={event.date} />
       <span className="jh-item-main">
-        <span className="jh-item-t">
-          {event.name}
-          {tentative && <span className="jh-item-tag tag-gold">Tentative</span>}
-        </span>
+        <span className="jh-item-t">{event.name}</span>
         <span className="jh-item-s">{sub || 'No details yet'}</span>
       </span>
       <ChevronRight size={18} className="jh-item-chev" />

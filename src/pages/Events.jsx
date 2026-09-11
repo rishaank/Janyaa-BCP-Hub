@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus, MapPin, Users, DollarSign, Clock, Hourglass, Copy, CalendarPlus, Check, TrendingUp, ExternalLink, Link2, Pencil } from 'lucide-react'
-import { Card, Button, Badge, ProgressBar, Modal, FormField, RemoveRowButton, inputClass } from '../components/ui'
+import { Card, Button, ProgressBar, Modal, FormField, RemoveRowButton, inputClass } from '../components/ui'
 import {
   getLocations,
   signUpForEvent,
@@ -127,7 +127,6 @@ export function EventCard({ event, myId, isAdmin = false, onChange }) {
             >
               {event.name}
             </Link>
-            {event.is_tentative && <Badge tone="gold">Tentative</Badge>}
           </div>
           {(event.location || event.is_tentative) && (
             <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
