@@ -405,6 +405,17 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
         : await adminInviteUser({ email: email.trim(), name: name.trim() })
     setBusy('')
     if (!res.ok) return setError(res.error || 'Something went wrong.')
+    // The invite path creates the account first and mails the link second, so a
+    // mail failure still leaves a usable account — it hands the link back
+    // instead. Show that panel rather than claiming an email went out.
+    if (res.data?.mailError && res.data?.link) {
+      onAdded()
+      return setInvite({
+        link: res.data.link,
+        copied: await copyToClipboard(res.data.link),
+        note: `The invite email didn’t send (${res.data.mailError}) — send them this link instead.`,
+      })
+    }
     setOkMsg(mode === 'password' ? 'Account created.' : 'Invite email sent.')
     onAdded()
     setTimeout(close, 1200)
@@ -443,6 +454,9 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
           {name.trim() || email.trim()}’s account is created. Send them this link — it lets them set their own
           password and sign in.
         </p>
+        {invite.note && (
+          <p className="mt-3 rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{invite.note}</p>
+        )}
         <p className="mt-3 break-all rounded-lg border border-ink-200 bg-ink-50 p-2 font-mono text-[11px] text-ink-600">
           {invite.link}
         </p>

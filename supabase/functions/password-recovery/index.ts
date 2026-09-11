@@ -95,7 +95,20 @@ Deno.serve(async (req) => {
       options: { redirectTo },
     })
     if (error) throw error
-    return data?.properties?.action_link as string
+    const props = data?.properties as Record<string, string> | undefined
+    // Point the member at OUR /set-password page carrying the one-time token,
+    // not at Supabase's /auth/v1/verify URL. That URL is spent by the first GET,
+    // so a link preview (iMessage, Slack) or a mail scanner that follows links
+    // (Outlook Safe Links — exactly what a school mailbox runs) burns it before
+    // the member taps it, and they land on "link expired". Our page is inert to
+    // a prefetch: the token is only spent by verifyOtp() in their browser.
+    if (props?.hashed_token && redirectTo) {
+      const u = new URL(redirectTo)
+      u.searchParams.set('token_hash', props.hashed_token)
+      u.searchParams.set('type', props.verification_type ?? 'recovery')
+      return u.toString()
+    }
+    return props?.action_link as string
   }
 
   async function deliver(to: string, link: string) {

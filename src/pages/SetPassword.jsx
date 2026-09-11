@@ -5,12 +5,49 @@ import { supabase } from '../lib/supabase'
 import { Logo, Button, inputClass } from '../components/ui'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
-// Landing page for invite + password-reset email links. The link carries a token
-// that supabase-js exchanges for a short-lived session on load; we then let the
-// member set their password (auth.updateUser). Public route (outside the app shell).
+// Landing page for invite + password-reset links. Three shapes can arrive here:
+//
+//  1. ?token_hash=…&type=invite|recovery — what the admin-users and
+//     password-recovery functions now hand out. The token is spent HERE, by
+//     verifyOtp() in the member's own browser. Supabase's /auth/v1/verify URL
+//     used to be handed out instead, and it is spent by the first GET of it —
+//     so an iMessage/Slack link preview, or a school mailbox's link scanner,
+//     burned the invite before the member ever tapped it and they were told
+//     "link expired". A link to this page is inert to those prefetches.
+//  2. #access_token=… — the implicit-grant callback an older link still
+//     produces; supabase-js picks it up on load and we just wait for it.
+//  3. #error=…&error_code=otp_expired — a genuinely dead link. Previously
+//     ignored, which was worse than it sounds: on a shared/already-signed-in
+//     browser the leftover session made this page look ready, and the member
+//     set a password on somebody else's account.
+//
+// Public route (outside the app shell).
+
+// Auth params land in the query string (token_hash) or the hash (implicit
+// grant + error callbacks), so read both.
+function linkParams() {
+  const search = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const get = (k) => search.get(k) || hash.get(k)
+  return {
+    tokenHash: get('token_hash'),
+    type: get('type'),
+    accessToken: get('access_token'),
+    errorCode: get('error_code') || get('error'),
+    errorDescription: get('error_description'),
+  }
+}
+
+// Drop the one-time token from the address bar once it's been used, so a
+// refresh doesn't re-verify a spent token (and it stays out of history).
+function stripLinkParams() {
+  window.history.replaceState({}, '', window.location.pathname)
+}
+
 export default function SetPassword() {
   const navigate = useNavigate()
   const [status, setStatus] = useState('verifying') // verifying | ready | expired | done
+  const [linkError, setLinkError] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
@@ -18,17 +55,59 @@ export default function SetPassword() {
   useDocumentTitle('Set your password')
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setStatus('ready')
-    })
+    let cancelled = false
+    let timer
+    const { tokenHash, type, accessToken, errorCode, errorDescription } = linkParams()
+
+    const fail = (msg) => {
+      if (cancelled) return
+      setLinkError(msg || '')
+      setStatus('expired')
+      stripLinkParams()
+    }
+    const ok = () => {
+      if (cancelled) return
+      setStatus('ready')
+      stripLinkParams()
+    }
+
+    // The link itself says it's dead — don't fall through to whatever session
+    // happens to be in this browser.
+    if (errorCode) {
+      fail(errorDescription ? errorDescription.replace(/\+/g, ' ') : '')
+      return () => {
+        cancelled = true
+      }
+    }
+
+    // 1. Token link: exchange it for a session right here.
+    if (tokenHash) {
+      supabase.auth
+        .verifyOtp({ token_hash: tokenHash, type: type || 'invite' })
+        .then(({ error }) => (error ? fail(error.message) : ok()))
+      return () => {
+        cancelled = true
+      }
+    }
+
+    // 2. Implicit-grant callback (older links): supabase-js reads the hash on
+    //    load, so wait for the session to materialize.
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) setStatus('ready')
+      if (session) ok()
     })
-    // If no session materializes from the link, treat it as invalid/expired.
-    const t = setTimeout(() => setStatus((s) => (s === 'verifying' ? 'expired' : s)), 4000)
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) return ok()
+      // 3. No token, no session, nothing to wait for — this page was opened
+      //    without a working link.
+      if (!accessToken) fail()
+    })
+    if (accessToken) {
+      timer = setTimeout(() => setStatus((s) => (s === 'verifying' ? 'expired' : s)), 15000)
+    }
     return () => {
+      cancelled = true
       sub.subscription.unsubscribe()
-      clearTimeout(t)
+      clearTimeout(timer)
     }
   }, [])
 
@@ -62,8 +141,10 @@ export default function SetPassword() {
           <div className="text-center">
             <h1 className="font-display text-h4 font-bold text-ink-900">Link expired</h1>
             <p className="mt-1 text-sm text-ink-500">
-              This invite or reset link is no longer valid. Ask an admin to send a new one.
+              This invite or reset link is no longer valid. Each link works once and lasts an hour — ask
+              an admin to send a new one.
             </p>
+            {linkError && <p className="mt-2 text-xs text-ink-400">{linkError}</p>}
             <button onClick={() => navigate('/login')} className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700">
               Back to sign in
             </button>
@@ -86,6 +167,7 @@ export default function SetPassword() {
                 <span className="mb-1 block text-sm font-medium text-ink-700">New password</span>
                 <input
                   type="password"
+                  autoComplete="new-password"
                   className={inputClass}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -97,6 +179,7 @@ export default function SetPassword() {
                 <span className="mb-1 block text-sm font-medium text-ink-700">Confirm password</span>
                 <input
                   type="password"
+                  autoComplete="new-password"
                   className={inputClass}
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}

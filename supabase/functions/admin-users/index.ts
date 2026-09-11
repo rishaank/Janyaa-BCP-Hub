@@ -8,6 +8,7 @@
 // (profiles.is_admin) before doing anything. Never trust the client's word for it.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,82 @@ const CORS = {
   'Content-Type': 'application/json',
 }
 const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: CORS })
+
+// Turn a generateLink() result into a link that lands on OUR set-password page
+// carrying the one-time token, instead of Supabase's /auth/v1/verify URL.
+//
+// Why: /auth/v1/verify CONSUMES the token on the very first GET. An invite link
+// pasted into iMessage/Slack/WhatsApp, or mailed through a scanner that follows
+// links (Outlook Safe Links), gets fetched by the unfurler before the member
+// ever taps it — so their tap lands on "Email link is invalid or has expired".
+// A link to our own page is inert to a prefetch (it is just the SPA's HTML);
+// the token is only spent when the page runs verifyOtp() in the member's
+// browser. Falls back to the raw action_link if anything is missing.
+function appLink(props: Record<string, string> | undefined, redirectTo?: string) {
+  const token = props?.hashed_token
+  const type = props?.verification_type
+  if (!token || !type || !redirectTo) return props?.action_link
+  const u = new URL(redirectTo)
+  u.searchParams.set('token_hash', token)
+  u.searchParams.set('type', type)
+  return u.toString()
+}
+
+// The app's own origin, taken from the redirect the client asked for (the same
+// helper `password-recovery` uses), so the logo isn't a hardcoded host.
+function siteOrigin(redirectTo: string | undefined) {
+  try {
+    return new URL(redirectTo!).origin
+  } catch {
+    return 'https://hub.janyaabcp.org'
+  }
+}
+
+// NOTE: every line is emitted without trailing whitespace — denomailer encodes
+// the body as quoted-printable, where a space before a line break is delivered
+// as a literal "=20" (which is what an indentation-only line in a template
+// literal produces).
+function inviteHtml(link: string, name: string | null, origin: string) {
+  const safeName = name?.replace(/[<>&"]/g, '') ?? null
+  return [
+    '<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:8px 0;color:#374151;text-align:center">',
+    `<p style="margin:0 0 22px"><img src="${origin}/janyaa-logo.png" width="34" height="34" alt="" style="vertical-align:middle;border:0"><span style="vertical-align:middle;margin-left:9px;font-size:18px;font-weight:700;color:#1f2937">Janyaa BCP Hub</span></p>`,
+    `<h2 style="margin:0 0 20px;font-size:21px;color:#15803d">${safeName ? `Welcome, ${safeName}` : 'Welcome to the Hub'}</h2>`,
+    '<p style="margin:0 0 22px;font-size:14px">An admin created your Janyaa BCP Hub account. Set a password to sign in.</p>',
+    `<p style="margin:0 0 22px"><a href="${link}" style="display:inline-block;background:#15803d;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:600">Set your password</a></p>`,
+    '<p style="margin:0 0 6px;font-size:13px;color:#6b7280">Or paste this into your browser:</p>',
+    `<p style="margin:0 0 24px;font-size:12px;word-break:break-all;color:#9ca3af">${link}</p>`,
+    '<p style="margin:0;font-size:13px;color:#9ca3af">This link is single use and expires in 1 hour.</p>',
+    '</div>',
+  ].join('\n')
+}
+
+async function sendInvite(to: string, link: string, name: string | null, redirectTo?: string) {
+  const smtpUser = Deno.env.get('SMTP_USER')
+  const smtpPass = Deno.env.get('SMTP_PASS')
+  const from = Deno.env.get('FROM_EMAIL') ?? smtpUser
+  if (!smtpUser || !smtpPass) throw new Error('SMTP secrets not set (SMTP_USER / SMTP_PASS)')
+
+  const client = new SMTPClient({
+    connection: {
+      hostname: Deno.env.get('SMTP_HOST') ?? 'smtp.gmail.com',
+      port: Number(Deno.env.get('SMTP_PORT') ?? 465),
+      tls: true,
+      auth: { username: smtpUser, password: smtpPass },
+    },
+  })
+  try {
+    await client.send({
+      from: from!,
+      to,
+      subject: 'Your Janyaa BCP Hub account',
+      content: `An admin created your Janyaa BCP Hub account. Set a password to sign in:\n\n${link}\n\nThis link is single use and expires in 1 hour.`,
+      html: inviteHtml(link, name, siteOrigin(redirectTo)),
+    })
+  } finally {
+    await client.close()
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -85,17 +162,45 @@ Deno.serve(async (req) => {
         if (error) throw error
         const id = data?.user?.id
         if (name && id) await admin.from('profiles').update({ name }).eq('id', id)
-        return json({ ok: true, id, link: data?.properties?.action_link })
+        return json({
+          ok: true,
+          id,
+          link: appLink(data?.properties as Record<string, string>, redirectTo),
+        })
       }
 
       // No password -> email them an invite with a set-password link.
-      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { name },
-        redirectTo,
+      //
+      // We generate the link and send it over the club Gmail ourselves, rather
+      // than letting inviteUserByEmail mail Supabase's own /auth/v1/verify URL:
+      // that URL is spent by the first GET, and a school Microsoft mailbox runs
+      // every link through Safe Links before the member sees it, so the invite
+      // arrived already "expired". The link we send points at our own page and
+      // is only spent when the member's browser verifies it. Same reason as the
+      // copied link above and as `password-recovery`.
+      const { data, error } = await admin.auth.admin.generateLink({
+        type: 'invite',
+        email,
+        options: { data: { name }, redirectTo },
       })
       if (error) throw error
-      if (name && data?.user) await admin.from('profiles').update({ name }).eq('id', data.user.id)
-      return json({ ok: true, id: data?.user?.id, invited: true })
+      const newId = data?.user?.id
+      if (name && newId) await admin.from('profiles').update({ name }).eq('id', newId)
+
+      const link = appLink(data?.properties as Record<string, string>, redirectTo)
+      try {
+        await sendInvite(email, link!, name, redirectTo)
+      } catch (mailErr) {
+        // The account exists either way — hand the link back so the admin can
+        // pass it on instead of leaving a member who can never sign in.
+        return json({
+          ok: true,
+          id: newId,
+          link,
+          mailError: String((mailErr as Error)?.message ?? mailErr),
+        })
+      }
+      return json({ ok: true, id: newId, invited: true })
     }
 
     if (action === 'setPassword') {

@@ -56,7 +56,12 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   leaderboard, insights, goals, upcoming events/meetings — no emails, no raw tables). `ProtectedRoute`
   gates **every other** page; the sidebar shows those locked (→ `/login`) and the account card becomes a
   Sign-in CTA for guests. Other public routes are `Login`, `SetPassword` (`/set-password` — the
-  landing for invite + reset email links; calls `auth.updateUser`), and the **`/privacy` + `/terms`**
+  landing for invite + reset links; verifies the link's `token_hash` with `verifyOtp` then calls
+  `auth.updateUser`. **Never hand out Supabase's `/auth/v1/verify` URL** — it is spent by the first
+  GET, so an iMessage/Slack unfurl or a school mailbox's link scanner burns it and the member is told
+  "link expired"; both Edge Functions rewrite `generateLink`'s result to `…/set-password?token_hash=…&type=…`,
+  which is inert to a prefetch. The page also honours `error_code` in the URL rather than falling
+  through to whatever session the browser already holds), and the **`/privacy` + `/terms`**
   legal pages (`LegalPage.jsx`, linked from the Login screen + the `Layout` footer). **Signup is
   invite-only** — admins create accounts (the public Login is sign-in only); a member can **delete their
   own account + data** from their profile (`deleteOwnAccount` → admin-users `deleteSelf`, the California
@@ -499,7 +504,11 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
   admin Account section. The **Copy invite link** button (`link: true` → `generateLink({type:'invite'})`,
   which creates the account exactly like `inviteUserByEmail` minus the send) mirrors the profile page's
   **Copy reset link**: it returns the set-password link for the admin to hand over by text/DM/in person,
-  the path that works when the member's school mailbox swallows our mail. The modal then swaps to a
+  the path that works when the member's school mailbox swallows our mail. Both that link and the
+  emailed invite are **`…/set-password?token_hash=…&type=invite`**, not Supabase's `/auth/v1/verify`
+  URL (see `SetPassword`). The **emailed** invite also goes out over the club Gmail SMTP from this
+  function (same `SMTP_*` secrets as `send-reminders`) instead of via `inviteUserByEmail`; if the send
+  fails the account still exists, so the function returns the link and the modal shows it. The modal then swaps to a
   link panel (the account can't be created twice); a stale link is re-issued from that member's profile
   via Copy reset link. Invite links are single-use and expire per the same **Auth → Providers → Email →
   Email OTP Expiration** setting as reset links (keep it at 3600s — the modal says 1 hour). Password
@@ -508,7 +517,9 @@ Deployed via the Supabase MCP (`deploy_edge_function`) or the Supabase CLI.
 - **`password-recovery`** (`verify_jwt: false`) — all password resets. Supabase's own
   `resetPasswordForEmail()` can only mail the **login** address (a school Microsoft mailbox that
   quarantines us), so this generates the link itself with `auth.admin.generateLink({ type: 'recovery' })`
-  — which returns the link instead of sending it — and delivers it over the club Gmail SMTP to the
+  — which returns the link instead of sending it — rewrites it to `…/set-password?token_hash=…&type=recovery`
+  (see `SetPassword`: the raw `/auth/v1/verify` URL is spent by the first GET, so a link scanner
+  expires it in transit) and delivers it over the club Gmail SMTP to the
   member's `member_recovery` address when they have one. Actions: `request` (public, from the Login
   screen's Forgot-password modal — matches the typed address against login **and** recovery emails with
   an exact `eq`, never `ilike`, so a typed `%` can't wildcard-match a member; rate-limited via
