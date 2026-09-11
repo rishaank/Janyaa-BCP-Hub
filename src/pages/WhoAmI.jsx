@@ -73,7 +73,8 @@ export default function WhoAmI() {
             type="button"
             onClick={() => {
               try {
-                sessionStorage.removeItem('janyaa-setup-nudge')
+                // Keyed per member — see SetupNudge in Layout.jsx.
+                sessionStorage.removeItem(`janyaa-setup-nudge:${user.id}`)
               } catch {
                 /* ignore */
               }

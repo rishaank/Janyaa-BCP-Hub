@@ -7,6 +7,7 @@ import { useIsDesktop } from '../lib/useMediaQuery'
 import { useAuth } from '../context/AuthContext'
 import { Button, Modal } from './ui'
 import { getRecoveryEmail } from '../lib/api'
+import { supabase } from '../lib/supabase'
 
 // App shell. Desktop (lg+) keeps the fixed sidebar + top bar; below lg it swaps to
 // the mobile redesign's bottom-tab shell. Both render the active page via <Outlet />.
@@ -48,41 +49,78 @@ export default function Layout() {
 }
 
 
-// Shown once per sign-in to a member who hasn't finished setting their account
-// up — no recovery email saved, or still on a password an admin handed them.
+// Shown to a member who hasn't finished setting their account up — no recovery
+// email saved, or still on a password an admin handed them.
 //
-// The recovery check is what makes this reliable. The admin-set flag lives in
-// auth user_metadata and only the admin-users Edge Function can write it, so it
-// is silently absent whenever that function lags the app; a member with no
-// recovery address is the same population and the app can see it for itself.
-// Either signal is enough, and both point at the same two tasks.
+// Every rule here is scar tissue from a nudge that never appeared:
+//   - The dismissal is keyed PER MEMBER. sessionStorage is scoped to the tab,
+//     not to the account, so one shared key meant an admin dismissing it in the
+//     tab they then signed out of silenced it for the member who signed in next.
+//   - It reads user_metadata from getUser() (the server), not from the session
+//     in localStorage. An admin setting a member's password does not revoke that
+//     member's sessions, so a phone already signed in holds a snapshot of the
+//     metadata from whenever its token was issued — and never sees the flag.
+//   - The veil does not dismiss it. This is the app's only popup that appears
+//     unprompted, and on iOS the click that trails a touch arrives ~300ms later,
+//     lands on a veil that wasn't there when the finger went down, and would arm
+//     a dismissal the member never made.
+//   - The recovery lookup can't hang the decision. iOS suspends in-flight
+//     requests when the app is backgrounded — which is exactly what a member does
+//     to copy the password out of Messages — so an unsettled promise used to mean
+//     the nudge silently never opened.
 const NUDGE_KEY = 'janyaa-setup-nudge'
+const LOOKUP_TIMEOUT_MS = 5000
 
 function SetupNudge() {
   const navigate = useNavigate()
-  const { user, loading, mustSetPassword } = useAuth()
+  const { user, loading } = useAuth()
   const [open, setOpen] = useState(false)
+  const uid = user?.id
+  const key = uid ? `${NUDGE_KEY}:${uid}` : null
 
   useEffect(() => {
-    if (loading || !user) return
+    if (loading || !uid) return
     let cancelled = false
     try {
-      if (sessionStorage.getItem(NUDGE_KEY) === 'dismissed') return
+      if (sessionStorage.getItem(key) === 'dismissed') return
     } catch {
-      /* storage blocked — fall through and just show it */
+      /* storage blocked — fall through and just decide */
     }
-    getRecoveryEmail(user.id).then((recovery) => {
-      if (!cancelled && (mustSetPassword || !recovery)) setOpen(true)
+
+    // Never let one slow answer decide for both. Whichever the lookups produce,
+    // the fallbacks stand in so the effect always reaches a decision.
+    const withTimeout = (promise, fallback) =>
+      Promise.race([
+        promise.catch(() => fallback),
+        new Promise((resolve) => setTimeout(() => resolve(fallback), LOOKUP_TIMEOUT_MS)),
+      ])
+
+    Promise.all([
+      withTimeout(getRecoveryEmail(uid), null),
+      withTimeout(
+        supabase.auth.getUser().then(({ data }) => data?.user?.user_metadata ?? null),
+        null,
+      ),
+    ]).then(([recovery, meta]) => {
+      if (cancelled) return
+      // null = we never found out; don't nag on a guess.
+      const needsRecovery = recovery === '' 
+      const adminSet = Boolean(meta?.must_set_password)
+      if (needsRecovery || adminSet) setOpen(true)
     })
+
     return () => {
       cancelled = true
     }
-  }, [user, loading, mustSetPassword])
+    // Depend on the id, not the user object: a sign-in fires several auth events
+    // in a row, each handing us a new object identity, and each re-run used to
+    // cancel the lookup the previous one had in flight.
+  }, [uid, loading, key])
 
   function close() {
     setOpen(false)
     try {
-      sessionStorage.setItem(NUDGE_KEY, 'dismissed')
+      sessionStorage.setItem(key, 'dismissed')
     } catch {
       /* best effort */
     }
@@ -91,7 +129,7 @@ function SetupNudge() {
   if (!open) return null
 
   return (
-    <Modal open onClose={close} title="Finish setting up your account">
+    <Modal open onClose={close} closeOnVeil={false} title="Finish setting up your account">
       <p className="text-sm text-ink-700">
         Two things worth doing once: pick a password only you know, and add a recovery email so you
         can get back in if you ever forget it.
@@ -104,7 +142,7 @@ function SetupNudge() {
           type="button"
           onClick={() => {
             close()
-            navigate(`/members/${user.id}`)
+            navigate(`/members/${uid}`)
           }}
         >
           Take me there

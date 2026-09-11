@@ -87,9 +87,21 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   leaves it stuck at whatever the member last set — a failure with no symptom, which cost four rounds
   of debugging that each looked like a frontend bug. `Layout`'s `SetupNudge` therefore fires on
   **`mustSetPassword` OR no saved recovery email** (`getRecoveryEmail`, which the app can read for
-  itself): same population, no deploy to get wrong. It's a dismissible modal once per sign-in (Not now
-  / Take me there → their own profile, which carries both the Password and Recovery Email cards),
-  keyed off `sessionStorage('janyaa-setup-nudge')`. **A recommendation, never a gate** — the admin who
+  itself): same population, no deploy to get wrong. Dismissible modal, Not now / Take me there → their
+  own profile (which carries both the Password and Recovery Email cards). **Four rules in it are scar
+  tissue — don't undo them:** the dismissal key is `sessionStorage('janyaa-setup-nudge:<uid>')`,
+  **per member**, because sessionStorage is scoped to the tab and a shared key let an admin's dismissal
+  silence the member who signed in next in that same tab; the metadata is read with
+  `supabase.auth.getUser()` (the server), **never** the persisted session, because setting a member's
+  password does not revoke their sessions and an already-signed-in phone holds the metadata snapshot
+  from whenever its token was issued; the modal passes **`closeOnVeil={false}`** (a `Modal` prop added
+  for it) because it is the app's only unprompted popup and iOS's trailing synthesized click lands on
+  a veil that wasn't there when the finger went down; and both lookups race a 5 s timeout, because iOS
+  suspends in-flight requests when the member backgrounds the app to copy the password out of Messages,
+  and an unsettled promise used to mean the nudge silently never opened. **`/whoami`** (unlisted,
+  `WhoAmI.jsx`) prints what the app sees for your own account — build SHA (`__BUILD_SHA__`, injected
+  from `VERCEL_GIT_COMMIT_SHA` in `vite.config.js`), recovery email, the flag as held by the browser
+  **and** as read from the server, and whether the nudge would fire. Reach for it before theorising. **A recommendation, never a gate** — the admin who
   set that password may have meant it to stand, and nothing in the app is withheld. Invite links still
   exist as the second tab.
 - **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose

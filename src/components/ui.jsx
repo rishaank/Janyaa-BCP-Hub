@@ -352,12 +352,19 @@ export function timeAgo(iso) {
 // modals 200. Modals sit on top of everything, so nothing outside one may
 // exceed z-30 — the event/meeting full-screen headers were at z-[500] and
 // painted straight through this veil.
-export function Modal({ open, onClose, title, children }) {
+// closeOnVeil={false} for a popup the member didn't ask for: one that appears on
+// its own, mid-interaction, can be dismissed by a tap that was meant for the
+// page underneath — and on iOS that tap arrives on its own, as the synthesized
+// click that trails a touch. Such a popup closes by its own buttons only.
+export function Modal({ open, onClose, title, children, closeOnVeil = true }) {
   useScrollLock(open)
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-      <div className="ja-veil-in absolute inset-0 bg-ink-950/50 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="ja-veil-in absolute inset-0 bg-ink-950/50 backdrop-blur-sm"
+        onClick={closeOnVeil ? onClose : undefined}
+      />
       <div className="ja-pop relative z-10 w-full max-w-md rounded-2xl bg-surface shadow-xl">
         <div className="flex items-center justify-between border-b border-ink-200 px-5 py-4">
           <h2 className="font-display text-h4 font-semibold text-ink-900">{title}</h2>
