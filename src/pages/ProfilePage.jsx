@@ -306,19 +306,6 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
 }
 
 
-// The password landed; only the nudge is missing. An admin who isn't told this
-// just sees a member who is never asked to change it, and there is nothing on
-// screen connecting that to a Supabase deploy.
-function StaleFunctionNote({ name }) {
-  return (
-    <p className="rounded-lg border border-gold-200 bg-gold-50 px-3 py-2 text-xs text-gold-700">
-      Password set. But the deployed <code>admin-users</code> function is older than this app, so{' '}
-      {name || 'they'} won&rsquo;t be prompted to choose their own — redeploy{' '}
-      <code>supabase/functions/admin-users</code>.
-    </p>
-  )
-}
-
 // Change your own password, in place. A signed-in member has already proved who
 // they are, so mailing them a link would just be a slower way to reach the same
 // updateUser call. The current password is still asked for: it's what stops
@@ -1399,7 +1386,6 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [stale, setStale] = useState(false)
   const open = mode === 'set' || mode === 'generate'
 
   useEffect(() => {
@@ -1409,7 +1395,6 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
     setApplied('')
     setCopied(false)
     setError('')
-    setStale(false)
     setBusy(false)
   }, [open, mode])
 
@@ -1422,11 +1407,8 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
     if (!res.ok) return setError(res.error || 'Could not set the password.')
     // The password is set either way; only the nudge is missing. Say so rather
     // than leaving an admin to wonder why the member was never prompted.
-    const isStale = !isSelf && res.data?.flagged !== true
-    setStale(isStale)
     setApplied(value)
-    // Closing on success would take the warning with it.
-    if (mode === 'set' && !isStale) onClose()
+    if (mode === 'set') onClose()
   }
 
   async function copy() {
@@ -1462,7 +1444,6 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
             />
           </FormField>
           <p className="text-xs text-ink-500">{note}</p>
-          {stale && <StaleFunctionNote name={member.name} />}
           {error && <p className="text-sm text-coral-700">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="soft" type="button" onClick={onClose}>
@@ -1483,7 +1464,6 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
               ? 'This password is live — send it over with the login email.'
               : 'Nothing changes until you set it. Then send it over with their login email.'}
           </p>
-          {stale && <StaleFunctionNote name={member.name} />}
           {error && <p className="text-sm text-coral-700">{error}</p>}
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             {!applied && (

@@ -82,16 +82,16 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   the modal shows it with a Copy button afterwards. `admin-users` stamps
   **`user_metadata.must_set_password`** on any password an admin sets for *someone else* (create + the
   profile's Admin Controls field, which has the same generator); `AuthContext` exposes it as
-  `mustSetPassword`, and `SetPassword` / `ChangePasswordCard` clear the flag in the same `updateUser`
-  call. **Only the Edge Function writes `true`; only the app writes `false`** — so a deploy of
-  `admin-users` older than this feature leaves the flag stuck at whatever the member last set, and the
-  nudge silently never fires. That is invisible from the UI, so `setPassword`/`create` return
-  `flagged: true` and the Password-controls modal shows a **redeploy `admin-users`** warning when it
-  comes back missing. **It is a
-  recommendation, never a gate** — the admin who set that password may have meant it to stand, so
-  `Layout` shows a dismissible `PasswordNudge` modal once per sign-in (Not now / Change password →
-  `/members/<uid>?password=1`), keyed off `sessionStorage('janyaa-password-nudge')`. Nothing in the app is
-  withheld. Invite links still exist as the second tab.
+  `mustSetPassword`. **Don't make that flag the only signal for anything.** Only the Edge Function
+  writes `true` and only the app writes `false`, so any `admin-users` deploy older than the feature
+  leaves it stuck at whatever the member last set — a failure with no symptom, which cost four rounds
+  of debugging that each looked like a frontend bug. `Layout`'s `SetupNudge` therefore fires on
+  **`mustSetPassword` OR no saved recovery email** (`getRecoveryEmail`, which the app can read for
+  itself): same population, no deploy to get wrong. It's a dismissible modal once per sign-in (Not now
+  / Take me there → their own profile, which carries both the Password and Recovery Email cards),
+  keyed off `sessionStorage('janyaa-setup-nudge')`. **A recommendation, never a gate** — the admin who
+  set that password may have meant it to stand, and nothing in the app is withheld. Invite links still
+  exist as the second tab.
 - **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose
   tenant quarantines/badly delays our mail — so reset links do **not** go there by default. Each member
   can save a personal **recovery email** (`member_recovery`, migration 0033; own-row + admin RLS, its own
