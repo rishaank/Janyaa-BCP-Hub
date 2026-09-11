@@ -130,11 +130,7 @@ function SetupNudge() {
 
   return (
     <Modal open onClose={close} closeOnVeil={false} title="Finish setting up your account">
-      <p className="text-sm text-ink-700">
-        Two things worth doing once: pick a password only you know, and add a recovery email so you
-        can get back in if you ever forget it.
-      </p>
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button variant="soft" type="button" onClick={close}>
           Not now
         </Button>
