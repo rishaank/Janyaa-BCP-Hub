@@ -62,6 +62,7 @@ const NUDGE_KEY = 'janyaa-password-nudge'
 
 function PasswordNudge() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [open, setOpen] = useState(() => {
     try {
       return sessionStorage.getItem(NUDGE_KEY) !== 'dismissed'
@@ -83,7 +84,7 @@ function PasswordNudge() {
     <Modal open={open} onClose={close} title="Make this account yours">
       <p className="text-sm text-ink-700">
         You're signed in with a password an admin set for you. Choose your own so nobody else knows
-        it, and add a recovery email on your profile so you can reset it yourself later.
+        it, and add a recovery email on your profile so you can get back in if you forget it.
       </p>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <Button variant="soft" type="button" onClick={close}>
@@ -93,7 +94,8 @@ function PasswordNudge() {
           type="button"
           onClick={() => {
             close()
-            navigate('/set-password')
+            // Straight to the profile's password form, not the link-landing page.
+            navigate(user?.id ? `/members/${user.id}?password=1` : '/set-password')
           }}
         >
           Change password

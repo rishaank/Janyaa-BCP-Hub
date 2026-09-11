@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Camera, Loader2, Shield, Crown, Plus, Pencil, Trash2, AlertTriangle, Download, Check,
   Sparkles, ArrowUpRight, ChevronDown, ChevronUp, KeyRound, CopyPlus, Search,
@@ -23,6 +23,7 @@ import {
 } from '../components/ui'
 import { toneMeta } from '../components/InsightCard'
 import { generateTempPassword } from '../lib/tempPassword'
+import { supabase } from '../lib/supabase'
 import {
   getProfileDetails,
   adminUpdateProfile,
@@ -32,7 +33,6 @@ import {
   adminSetEmail,
   adminSendReset,
   getRecoveryEmail,
-  requestPasswordReset,
   setRecoveryEmail,
   adminDeleteUser,
   deleteOwnAccount,
@@ -210,6 +210,11 @@ export default function ProfilePage() {
         />
       )}
 
+      {/* You're already signed in, so changing your own password needs no email
+          round trip — that's what the recovery address below is for, and only
+          when you can't get in at all. */}
+      {isOwn && <ChangePasswordCard />}
+
       {/* Admins edit their recovery email inside Admin Controls instead. */}
       {isOwn && !isAdmin && <RecoveryEmailCard memberId={p.id} />}
 
@@ -300,6 +305,124 @@ function MemberInsightCard({ profile: p, canRefresh, onChanged }) {
   )
 }
 
+
+// Change your own password, in place. A signed-in member has already proved who
+// they are, so mailing them a link would just be a slower way to reach the same
+// updateUser call. The current password is still asked for: it's what stops
+// someone who walks up to an unlocked laptop from taking the account over.
+function ChangePasswordCard() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  // The Layout nudge links here with ?password=1 so "Change password" lands on
+  // the open form, not on the page with the form somewhere down it.
+  const [open, setOpen] = useState(searchParams.get('password') === '1')
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [done, setDone] = useState(false)
+  const { user } = useAuth()
+
+  function close() {
+    setOpen(false)
+    setCurrent('')
+    setNext('')
+    setConfirm('')
+    setErr('')
+    if (searchParams.get('password')) {
+      searchParams.delete('password')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }
+
+  async function submit(e) {
+    e.preventDefault()
+    setErr('')
+    if (next.length < 8) return setErr('Use at least 8 characters.')
+    if (next !== confirm) return setErr('The new passwords don’t match.')
+    setBusy(true)
+    // Re-authenticate first. Same user, so this only refreshes the session.
+    const { error: authErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: current,
+    })
+    if (authErr) {
+      setBusy(false)
+      return setErr('That current password isn’t right.')
+    }
+    const { error } = await supabase.auth.updateUser({
+      password: next,
+      data: { must_set_password: false },
+    })
+    setBusy(false)
+    if (error) return setErr(error.message)
+    setDone(true)
+    setTimeout(() => setDone(false), 4000)
+    close()
+  }
+
+  return (
+    <Card className="mt-6 p-5">
+      <div className="mb-2 flex items-center gap-2">
+        <KeyRound size={16} className="text-blue-600" />
+        <h3 className="font-display text-h4 font-semibold text-ink-900">Password</h3>
+      </div>
+      <p className="text-sm text-ink-600">
+        Change the password you sign in with. No email needed — you're already signed in.
+      </p>
+      <div className="mt-3 flex items-center gap-3">
+        <Button variant="soft" type="button" onClick={() => setOpen(true)}>
+          Change password
+        </Button>
+        {done && <span className="text-sm font-medium text-green-700">Password updated</span>}
+      </div>
+
+      <Modal open={open} onClose={close} title="Change your password">
+        <form onSubmit={submit} className="space-y-3">
+          <FormField label="Current password">
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              className={inputClass}
+              autoFocus
+            />
+          </FormField>
+          <FormField label="New password">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              placeholder="At least 8 characters"
+              className={inputClass}
+            />
+          </FormField>
+          <FormField label="Confirm new password">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className={inputClass}
+            />
+          </FormField>
+          {err && <p className="text-sm text-coral-700">{err}</p>}
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="soft" type="button" onClick={close}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Saving…' : 'Change password'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
+  )
+}
+
 // Self-service account + data deletion, shown on your own profile (SB 568 eraser).
 // A personal address to receive password-reset links at. School Microsoft
 // mailboxes quarantine or badly delay our mail, so members set a second inbox
@@ -308,7 +431,6 @@ function RecoveryEmailCard({ memberId }) {
   const [email, setEmail] = useState('')
   const [saved, setSaved] = useState('')
   const [busy, setBusy] = useState(false)
-  const [sending, setSending] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
 
@@ -333,16 +455,6 @@ function RecoveryEmailCard({ memberId }) {
     setMsg(next ? 'Recovery email saved.' : 'Recovery email removed.')
   }
 
-  async function sendReset() {
-    setErr('')
-    setMsg('')
-    setSending(true)
-    const res = await requestPasswordReset(saved)
-    setSending(false)
-    if (!res.ok) return setErr(res.error || 'Could not send the reset link.')
-    setMsg(`Reset link sent to ${res.data?.sentTo || saved}. It works once and lasts an hour.`)
-  }
-
   return (
     <Card className="mt-6 p-5">
       <div className="mb-2 flex items-center gap-2">
@@ -350,8 +462,9 @@ function RecoveryEmailCard({ memberId }) {
         <h3 className="font-display text-h4 font-semibold text-ink-900">Recovery Email</h3>
       </div>
       <p className="text-sm text-ink-600">
-        Password reset links are only sent to a recovery email — never to your school email. Add one
-        so you can reset your own password. Your school email is still used when logging in.
+        For the day you're locked out. <b>Forgot password?</b> on the sign-in screen mails a reset
+        link here — never to your school email, which quarantines our mail. You still sign in with
+        the school address, and while you're signed in you change your password above, not by email.
       </p>
       <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
@@ -365,23 +478,11 @@ function RecoveryEmailCard({ memberId }) {
           {busy ? 'Saving…' : saved && !email.trim() ? 'Remove' : 'Save'}
         </Button>
       </div>
-      {/* The only way a member changes their own password without asking an
-          admin. Off until an address is SAVED — mail goes to the stored one,
-          not whatever is typed in the box above. */}
-      <Button
-        variant="soft"
-        type="button"
-        onClick={sendReset}
-        disabled={!saved || busy || sending}
-        className="mt-2"
-      >
-        {sending ? 'Sending…' : 'Email me a password reset link'}
-      </Button>
       {msg && <p className="mt-2 text-xs font-medium text-green-700">{msg}</p>}
       {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
       {!saved && !msg && (
         <p className="mt-2 text-xs text-gold-700">
-          No recovery email set — you can&rsquo;t reset your own password yet.
+          No recovery email set — if you forget your password, nobody can mail you a reset link.
         </p>
       )}
     </Card>

@@ -85,7 +85,7 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   `mustSetPassword`, and `SetPassword` clears the flag in the same `updateUser` call. **It is a
   recommendation, never a gate** — the admin who set that password may have meant it to stand, so
   `Layout` shows a dismissible `PasswordNudge` modal once per sign-in (Not now / Change password →
-  `/set-password`), keyed off `sessionStorage('janyaa-password-nudge')`. Nothing in the app is
+  `/members/<uid>?password=1`), keyed off `sessionStorage('janyaa-password-nudge')`. Nothing in the app is
   withheld. Invite links still exist as the second tab.
 - **Password recovery (recovery emails).** Members sign in with their **school Microsoft email**, whose
   tenant quarantines/badly delays our mail — so reset links do **not** go there by default. Each member
@@ -94,9 +94,12 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   only ever sent to a recovery address — there is deliberately no fallback to the school login address**,
   since a link sent there usually never arrives and the member is left assuming the reset itself failed.
   A member with no recovery address on file therefore can't receive a reset email at all: an admin sets
-  them a password instead. Once an address **is saved**, the member's own Recovery Email card has an
-  **Email me a password reset link** button (`requestPasswordReset`, disabled until then) — the only
-  way a member changes their own password without asking an admin. The Dashboard shows a gold **"Set a recovery email"** chip (desktop stat-pill
+  them a password instead. **The recovery address is only for the locked-out case.** A signed-in member
+  changes their password in place on their own profile (`ChangePasswordCard` → `supabase.auth.updateUser`,
+  deep-linked as `/members/:id?password=1`): they have already proved who they are, so mailing them a
+  link would be a slower route to the same call. That form does ask for the **current** password
+  (verified with `signInWithPassword` on the same user, which only refreshes the session) — that is
+  what stops someone at an unlocked laptop from taking the account over. The Dashboard shows a gold **"Set a recovery email"** chip (desktop stat-pill
   row + mobile chip row) linking to the member's own profile whenever they haven't set one. The Login
   screen has a **Forgot password?** modal → `requestPasswordReset()`, which accepts *either* the login or
   the recovery address to identify the member; it reports a masked destination **only** when mail actually
