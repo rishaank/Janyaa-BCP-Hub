@@ -204,6 +204,18 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     active tab for `EventsMeetings`). A falsy suffix (data still loading) leaves just the base. Keep the base
     in sync with the static `<title>` in `index.html`. New routed pages should call it too. **Note:** this only
     updates the live tab title — server-rendered link previews come from `api/og.js` (see Deployment).
+  - **Errors have one look and one voice.** `<ErrorNote>` in `ui.jsx` is the only
+    error block: coral panel, warning icon, `size="xs"` for the tight ones inside cards.
+    It renders nothing when its child is falsy, so call sites need no `&&` guard. Every
+    string it gets runs through `errorText()` (`src/lib/errors.js`), which rewrites raw
+    server text into a sentence a member can act on. That matters because the AI Edge
+    Functions pass Gemini's body straight through (`Gemini 503: {"error":{...}}`) and
+    Postgres passes RLS wording, both of which used to land on screen verbatim. The
+    original string stays in the block's `title`, so an admin reads it on hover. Hand-written
+    copy passes through byte-identical, so keep writing it plainly at the call site. New
+    failure shapes get a rule in `errors.js` and a case in `errors.check.mjs`
+    (`node src/lib/errors.check.mjs`, the repo's only runnable test). AIChat keeps its own
+    full-width bar under the composer but uses the same `errorText()`.
   - **Access indicators:** the single `AccessChip` in `ui.jsx` is the standard — `mode="edit"` (blue
     Shield, "Admin edit"/"Admin only") and `mode="view"` (gray Lock, "Read-only"). Page-level access
     goes in the `PageHeader` `badge` slot (a node, beside the title); section-level sits inline after

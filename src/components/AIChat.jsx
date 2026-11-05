@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  Sparkles, Send, Loader2, CalendarDays, User, Target, MapPin, CalendarRange, PiggyBank, ExternalLink,
+  Sparkles, Send, Loader2, CalendarDays, User, Target, MapPin, CalendarRange, PiggyBank, ExternalLink, AlertTriangle,
 } from 'lucide-react'
 import { Card } from './ui'
 import { chatWithAI } from '../lib/api'
+import { errorText } from '../lib/errors'
 
 // Starter prompts shown on the empty state.
 const SUGGESTIONS = [
@@ -195,10 +196,20 @@ export default function AIChat() {
           )}
         </div>
 
+        {/* Full-width bar rather than <ErrorNote> so it reads as part of the
+            composer. Same wording rules: errorText() keeps Gemini's raw JSON off
+            the screen, the original stays on hover. */}
         {error && (
-          <p className="border-t border-coral-100 bg-coral-50 px-4 py-2 text-xs text-coral-700">
-            {error}
-            {cooldown > 0 && ` (${cooldown}s)`}
+          <p
+            role="alert"
+            title={error}
+            className="flex items-start gap-2 border-t border-coral-100 bg-coral-50 px-4 py-2 text-xs text-coral-700"
+          >
+            <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+            <span>
+              {errorText(error)}
+              {cooldown > 0 && ` (${cooldown}s)`}
+            </span>
           </p>
         )}
 

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import {
   PageHeader, Card, Button, Badge, Avatar, Modal, FormField, inputClass,
-  formatDate, timeAgo, roleTones, EditAccessChip,
+  formatDate, timeAgo, roleTones, EditAccessChip, ErrorNote,
 } from '../components/ui'
 import { toneMeta } from '../components/InsightCard'
 import { useAuth } from '../context/AuthContext'
@@ -365,7 +365,7 @@ function TermModal({ open, term, onClose, onReopen, onSaved }) {
         <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
           Changing these dates moves “this term” hours on the dashboard and profiles.
         </p>
-        {err && <p className="text-sm text-coral-700">{err}</p>}
+        <ErrorNote>{err}</ErrorNote>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Add term'}</Button>

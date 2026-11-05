@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Loader2, CheckCircle2, KeyRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { Logo, Button, inputClass } from '../components/ui'
+import { Logo, Button, ErrorNote, inputClass } from '../components/ui'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
 
 // Landing page for invite + password-reset links.
@@ -288,9 +288,7 @@ export default function SetPassword() {
                 />
               </label>
             </div>
-            {error && (
-              <p className="rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{error}</p>
-            )}
+            <ErrorNote>{error}</ErrorNote>
             <Button type="submit" disabled={busy} className="w-full justify-center py-3">
               {busy ? 'Saving…' : 'Set password & continue'}
             </Button>

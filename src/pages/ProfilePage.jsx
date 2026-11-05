@@ -20,6 +20,7 @@ import {
   timeAgo,
   EditAccessChip,
   AccessChip,
+  ErrorNote,
 } from '../components/ui'
 import { toneMeta } from '../components/InsightCard'
 import { generateTempPassword } from '../lib/tempPassword'
@@ -408,7 +409,7 @@ function ChangePasswordCard() {
               className={inputClass}
             />
           </FormField>
-          {err && <p className="text-sm text-coral-700">{err}</p>}
+          <ErrorNote>{err}</ErrorNote>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="soft" type="button" onClick={close}>
               Cancel
@@ -478,7 +479,7 @@ function RecoveryEmailCard({ memberId }) {
         </Button>
       </div>
       {msg && <p className="mt-2 text-xs font-medium text-green-700">{msg}</p>}
-      {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
+      <ErrorNote size="xs" className="mt-2">{err}</ErrorNote>
       {!saved && !msg && (
         <p className="mt-2 text-xs text-gold-700">
           No address saved. Reset links cannot be sent.
@@ -520,7 +521,7 @@ function SelfDangerZone({ onDeleted }) {
         Permanently deletes your profile, photo, event sign-ups, and meeting attendance. This
         can&rsquo;t be undone.
       </p>
-      {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
+      <ErrorNote size="xs" className="mt-2">{err}</ErrorNote>
       <button
         type="button"
         onClick={remove}
@@ -840,7 +841,7 @@ function HoursRequestModal({ open, requesterId, targetName, onBehalf = false, on
               placeholder="What did you do? Anything that helps the review."
             />
           </FormField>
-          {err && <p className="text-sm text-coral-700">{err}</p>}
+          <ErrorNote>{err}</ErrorNote>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="soft" type="button" onClick={rescue.close}>Cancel</Button>
             <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Request'}</Button>
@@ -1030,7 +1031,7 @@ function CopyHoursModal({ entry, fromId, fromName, onClose, onCopied }) {
             </li>
           ))}
         </ul>
-        {err && <p className="text-sm text-coral-700">{err}</p>}
+        <ErrorNote>{err}</ErrorNote>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="soft" type="button" onClick={onClose}>Cancel</Button>
           <Button type="button" icon={CopyPlus} onClick={copy} disabled={busy || picked.length === 0}>
@@ -1344,7 +1345,7 @@ function AdminControls({ member, isSelf, onSaved, onDeleted }) {
               <span className="text-xs text-ink-500">Needs recovery email.</span>
             )}
           </div>
-          {acctErr && <p className="mt-2 text-xs text-coral-700">{acctErr}</p>}
+          <ErrorNote size="xs" className="mt-2">{acctErr}</ErrorNote>
           {!isSelf && (
             <button
               type="button"
@@ -1441,7 +1442,7 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
             />
           </FormField>
           <p className="text-xs text-ink-500">{note}</p>
-          {error && <p className="text-sm text-coral-700">{error}</p>}
+          <ErrorNote>{error}</ErrorNote>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="soft" type="button" onClick={onClose}>
               {applied ? 'Done' : 'Cancel'}
@@ -1461,7 +1462,7 @@ function PasswordModal({ mode, member, isSelf, onClose }) {
               ? 'This password is live. Send it with the login email.'
               : 'Nothing changes until you set it. Then send it with their login email.'}
           </p>
-          {error && <p className="text-sm text-coral-700">{error}</p>}
+          <ErrorNote>{error}</ErrorNote>
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             {!applied && (
               <Button variant="soft" type="button" onClick={() => setGenerated(generateTempPassword())}>

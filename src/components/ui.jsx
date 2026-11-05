@@ -3,8 +3,9 @@
 // palette names are remapped to the brand in src/index.css.
 import { useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Pin, Shield, Lock } from 'lucide-react'
+import { X, Pin, Shield, Lock, AlertTriangle } from 'lucide-react'
 import useScrollLock from '../lib/useScrollLock'
+import { errorText } from '../lib/errors'
 
 // The single access indicator used across the site, for consistent style + placement.
 //   mode="edit"  → blue Shield pill ("Admin edit" / "Admin only") — you can change / it's restricted.
@@ -250,6 +251,29 @@ export function Button({ children, variant = 'primary', icon: Icon, loading = fa
       {Icon && <Icon size={16} className={loading ? 'animate-spin' : undefined} />}
       {children}
     </button>
+  )
+}
+
+// The one way the app shows a failure. Every screen renders its error through
+// this, so a member sees the same coral block wherever something breaks, and
+// raw server text (Gemini's JSON body, Postgres RLS wording, "Failed to fetch")
+// gets rewritten by errorText() instead of reaching the page. The original
+// string stays in the title attribute, so an admin can still read it on hover.
+// Renders nothing when there is no error, so call sites need no && guard.
+export function ErrorNote({ children, size = 'sm', className = '' }) {
+  if (!children) return null
+  const raw = typeof children === 'string' ? children : null
+  return (
+    <p
+      role="alert"
+      title={raw && raw !== errorText(raw) ? raw : undefined}
+      className={`flex items-start gap-2 rounded-lg bg-coral-50 px-3 py-2 text-coral-700 ${
+        size === 'xs' ? 'text-xs' : 'text-sm'
+      } ${className}`}
+    >
+      <AlertTriangle size={size === 'xs' ? 13 : 15} className="mt-0.5 shrink-0" />
+      <span className="min-w-0">{raw ? errorText(raw) : children}</span>
+    </p>
   )
 }
 

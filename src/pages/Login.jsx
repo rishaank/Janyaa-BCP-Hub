@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, Link } from 'react-router-dom'
 import { Users, CalendarDays, PiggyBank, Loader2, MailCheck, AlertTriangle } from 'lucide-react'
-import { Logo, Modal, Button, inputClass } from '../components/ui'
+import { Logo, Modal, Button, ErrorNote, inputClass } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { requestPasswordReset } from '../lib/api'
 import { useDocumentTitle } from '../lib/useDocumentTitle'
@@ -88,9 +88,7 @@ export default function Login() {
               required
             />
 
-            {error && (
-              <p className="rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-600">{error}</p>
-            )}
+            <ErrorNote>{error}</ErrorNote>
 
             <div className="space-y-2 pt-1">
               <button

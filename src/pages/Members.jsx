@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users, Clock, Trophy, Shield, UserPlus, Crown, Download, Loader2 } from 'lucide-react'
-import { PageHeader, Card, StatPill, Badge, Avatar, Skeleton, Button, Modal, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
+import { PageHeader, Card, StatPill, Badge, Avatar, Skeleton, Button, Modal, ErrorNote, FormField, inputClass, roleLabels, roleTones, formatDate } from '../components/ui'
 import { getMembersWithHours, getHoursBreakdowns, adminCreateUser, adminInviteUser, adminCreateUserLink } from '../lib/api'
 import { generateTempPassword } from '../lib/tempPassword'
 import { exportAllHours } from '../lib/exportHours'
@@ -564,7 +564,7 @@ function AddMemberModal({ open, onClose, onReopen, onAdded }) {
           </p>
         )}
 
-        {error && <p className="text-sm text-coral-700">{error}</p>}
+        <ErrorNote>{error}</ErrorNote>
         {okMsg && <p className="text-sm font-medium text-green-700">{okMsg}</p>}
 
         <div className="flex flex-wrap justify-end gap-2 pt-1">

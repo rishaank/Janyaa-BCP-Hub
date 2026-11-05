@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Sparkles, Wand2, Lightbulb, MapPin, Loader2, Instagram, Check, Copy, ArrowRight, CalendarPlus, Clock, TrendingUp,
 } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, FormField, inputClass, PinButton, timeAgo } from '../components/ui'
+import { PageHeader, Card, Button, Badge, ErrorNote, FormField, inputClass, PinButton, timeAgo } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import {
   getSettings, planEvent, createEvent, addTodo,
@@ -128,7 +128,7 @@ function Planner() {
           </div>
         </form>
         {busy && <p className="mt-2 text-xs text-ink-400">Drafting your plan. About 15 seconds.</p>}
-        {error && <p className="mt-3 rounded-lg bg-coral-50 px-3 py-2 text-sm text-coral-700">{error}</p>}
+        <ErrorNote className="mt-3">{error}</ErrorNote>
 
         {plan && !created && <PlanResult plan={plan} onCreated={setCreated} onDiscard={() => setPlan(null)} />}
         {created && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, X, Clock, Lock } from 'lucide-react'
-import { PageHeader, Card, Button, Badge, Avatar, EmptyState, inputClass, roleTones } from '../components/ui'
+import { PageHeader, Card, Button, Badge, Avatar, EmptyState, ErrorNote, inputClass, roleTones } from '../components/ui'
 import { useAuth } from '../context/AuthContext'
 import { getHoursRequests, decideHoursRequest, initials } from '../lib/api'
 import { useRealtime } from '../lib/useRealtime'
@@ -166,7 +166,7 @@ function RequestCard({ req, onChange, reviewed }) {
             onChange={(e) => setReason(e.target.value)}
             placeholder="Why are you denying this? (required)"
           />
-          {err && <p className="text-xs text-coral-700">{err}</p>}
+          <ErrorNote size="xs">{err}</ErrorNote>
           <div className="flex justify-end gap-2">
             <Button
               variant="soft"
@@ -192,7 +192,7 @@ function RequestCard({ req, onChange, reviewed }) {
             </Button>
             <Button variant="danger" icon={X} onClick={() => setDenying(true)}>Deny</Button>
           </div>
-          {err && <p className="mt-2 text-xs text-coral-700">{err}</p>}
+          <ErrorNote size="xs" className="mt-2">{err}</ErrorNote>
         </div>
       )}
     </Card>
