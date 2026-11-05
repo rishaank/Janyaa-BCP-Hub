@@ -223,6 +223,11 @@ Deno.serve(async (req) => {
       const { data: existing } = await admin.auth.admin.getUserById(id)
       const { error } = await admin.auth.admin.updateUserById(id, {
         password,
+        // An account created by an invite link stays unconfirmed until someone
+        // verifies that link. Handing out a temporary password instead means
+        // nobody ever does, and the member signs in to "Email not confirmed".
+        // Setting the password IS the admin vouching for the address.
+        email_confirm: true,
         user_metadata: {
           ...(existing?.user?.user_metadata ?? {}),
           must_set_password: id !== user.id,
