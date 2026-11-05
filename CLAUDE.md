@@ -175,7 +175,7 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
   shows on the dashboard. Data model: `goals.owner_id` (the person) + `goals.period` (`'TERM'` | `'YYYY-MM'`)
   + `sort`), `AutoHours` (`/auto-hours`, sidebar label **Role Hours** — role-based automatic volunteer hours;
   admin-only, rules editable; each role has a **Grant Now** button + a granted-this-month state, plus a
-  "Next auto grant in N days" chip), `Locations` (Leaflet, dark-aware tiles; desktop = full-height map +
+  "Next auto grant in N days" chip), `Locations` (Leaflet, OSM tiles inverted in dark mode; desktop = full-height map +
   scrollable AI-suggestions/saved panes),
   `Insights` (Gemini), `AIStudio` (`/studio` — **Plan events** wizard (auto-creates an event +
   to-dos + timeline) beside **Event suggestions** (next-event + location ideas), then the **Ask the Janyaa
@@ -191,6 +191,11 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     `<LinkChip>` (`linkMeta()` recognizes common sites + uses Google's favicon service).
   - **Times are PST.** All event/meeting times are displayed labelled "PST" (the club is in
     America/Los_Angeles); meeting bucketing + hours use that timezone.
+  - **Map tiles: OpenStreetMap in both themes, no API key.** Dark mode inverts the tiles in CSS
+    (`.ja-dark-tiles` in `index.css`, passed as the `TileLayer` `className` so only the tile pane
+    is filtered, not markers or popups). Both maps (`Locations`, `EventView`) used CARTO's
+    `dark_all` basemap until its CDN started requiring a key and served "API KEY REQUIRED" tiles.
+    Don't reach for a keyed basemap without a key in hand.
   - **Browser tab titles** are per-screen via `useDocumentTitle(suffix)` (`src/lib/useDocumentTitle.js`):
     each page calls it to set `document.title` to `Janyaa BCP Hub | <screen>` (a static label for fixed
     pages, the loaded record's name for detail views like `EventView` / `MeetingView` / `ProfilePage`, the
