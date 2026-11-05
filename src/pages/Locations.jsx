@@ -169,17 +169,9 @@ export default function Locations() {
             </button>
             <MapContainer center={SAN_JOSE} zoom={10} className="h-full w-full" scrollWheelZoom>
               <TileLayer
-                key={isDark ? 'dark' : 'light'}
-                attribution={
-                  isDark
-                    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                }
-                url={
-                  isDark
-                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
-                    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
-                }
+                className={isDark ? 'ja-dark-tiles' : undefined}
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <FlyTo target={flyTo} />
               <ClickToPin onPin={dropPin} />

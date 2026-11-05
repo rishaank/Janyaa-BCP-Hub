@@ -469,8 +469,8 @@ function EventMap({ lat, lng, address, isDark }) {
   return (
     <MapContainer center={coords} zoom={15} className="h-full w-full" scrollWheelZoom={false} dragging={false} attributionControl={false}>
       <TileLayer
-        key={isDark ? 'dark' : 'light'}
-        url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+        className={isDark ? 'ja-dark-tiles' : undefined}
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Marker position={coords} icon={pin} />
     </MapContainer>
