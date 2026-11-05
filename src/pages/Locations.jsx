@@ -106,12 +106,16 @@ export default function Locations() {
     setPending((p) => (p && p.lat === lat && p.lng === lng ? { ...p, ...info } : p))
   }
 
-  function locate() {
+  // `fly` centres the map on the result. The first load leaves it off so FitBounds
+  // can frame every pin; the button passes it, or re-locating to the same spot
+  // leaves FitBounds' point list unchanged and nothing moves.
+  function locate(fly) {
     if (!navigator.geolocation) return
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setUserLoc([pos.coords.latitude, pos.coords.longitude])
+        if (fly) setFlyTo([pos.coords.latitude, pos.coords.longitude])
         setLocating(false)
       },
       () => setLocating(false),
@@ -159,7 +163,7 @@ export default function Locations() {
             {/* Locate control — floats over the map (top-right, clear of the zoom buttons). */}
             <button
               type="button"
-              onClick={locate}
+              onClick={() => locate(true)}
               disabled={locating}
               title="Use my location"
               aria-label="Use my location"

@@ -204,7 +204,9 @@ body::before {
 }
 .leaflet-bar a:hover { background: var(--color-ink-100); color: var(--color-ink-900); }
 /* Dark map: invert the OSM tiles rather than a keyed dark basemap (CARTO's CDN now needs an API key). */
-.ja-dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
+/* saturate() is the load-bearing part: inverting OSM alone turns motorways neon pink
+   and parks acid green. Knocking saturation out leaves a near-neutral gray map. */
+.ja-dark-tiles { filter: invert(1) hue-rotate(180deg) saturate(0.15) brightness(0.85) contrast(1.05); }
 
 /* Smooth, minimal entrance animations */
 @keyframes ja-fade-in {
