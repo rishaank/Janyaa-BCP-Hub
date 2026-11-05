@@ -193,7 +193,9 @@ enforced by Postgres RLS, not by hiding the key. `.env.example` documents this.
     America/Los_Angeles); meeting bucketing + hours use that timezone.
   - **Map tiles: OpenStreetMap in both themes, no API key.** Dark mode inverts the tiles in CSS
     (`.ja-dark-tiles` in `index.css`, passed as the `TileLayer` `className` so only the tile pane
-    is filtered, not markers or popups). Both maps (`Locations`, `EventView`) used CARTO's
+    is filtered, not markers or popups). The filter **desaturates as well as inverting** —
+    a plain invert turns motorways neon pink and parks acid green. Both maps
+    (`Locations`, `EventView`) used CARTO's
     `dark_all` basemap until its CDN started requiring a key and served "API KEY REQUIRED" tiles.
     Don't reach for a keyed basemap without a key in hand.
   - **Browser tab titles** are per-screen via `useDocumentTitle(suffix)` (`src/lib/useDocumentTitle.js`):
